@@ -1,0 +1,67 @@
+import { useState, useEffect, useCallback } from 'react';
+import type { PaymentMethod, ReasonCode, ReasonCodeType } from '../models/configTypes';
+import {
+  fetchPaymentMethods,
+  createPaymentMethod,
+  setPaymentMethodActive,
+  fetchReasonCodes,
+  createReasonCode,
+  setReasonCodeActive,
+} from '../models/configApi';
+
+export const useConfigViewModel = () => {
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [reasonCodes, setReasonCodes] = useState<ReasonCode[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const [payments, reasons] = await Promise.all([
+        fetchPaymentMethods(),
+        fetchReasonCodes(),
+      ]);
+      setPaymentMethods(payments);
+      setReasonCodes(reasons);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleCreatePaymentMethod = async (name: string) => {
+    await createPaymentMethod(name);
+    await load();
+  };
+
+  const handleTogglePaymentMethod = async (id: string, isActive: boolean) => {
+    await setPaymentMethodActive(id, isActive);
+    await load();
+  };
+
+  const handleCreateReasonCode = async (name: string, type: ReasonCodeType) => {
+    await createReasonCode(name, type);
+    await load();
+  };
+
+  const handleToggleReasonCode = async (id: string, isActive: boolean) => {
+    await setReasonCodeActive(id, isActive);
+    await load();
+  };
+
+  return {
+    paymentMethods,
+    reasonCodes,
+    isLoading,
+    error,
+    createPaymentMethod: handleCreatePaymentMethod,
+    togglePaymentMethod: handleTogglePaymentMethod,
+    createReasonCode: handleCreateReasonCode,
+    toggleReasonCode: handleToggleReasonCode,
+  };
+};
