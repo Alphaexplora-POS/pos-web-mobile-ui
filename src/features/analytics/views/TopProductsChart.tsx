@@ -1,4 +1,5 @@
 import type { TopProduct } from '../models/analyticsTypes';
+import { formatAmount } from '../../../shared/utils/formatCurrency';
 
 interface TopProductsChartProps {
   topProducts: TopProduct[];
@@ -13,7 +14,7 @@ const TopProductsChart: React.FC<TopProductsChartProps> = ({ topProducts }) => {
         <div key={p.productName}>
           <div className="flex justify-between text-sm text-gray-600 mb-1">
             <span>{p.productName}</span>
-            <span>${p.sales}</span>
+            <span>${formatAmount(p.sales)}</span>
           </div>
           <div className="h-4 bg-gray-100 rounded overflow-hidden">
             <div

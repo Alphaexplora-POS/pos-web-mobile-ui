@@ -15,6 +15,15 @@ const Analytics: React.FC = () => {
 
   return (
     <PageLayout title={isOwner ? 'Centralized Analytics' : 'Branch Analytics'}>
+      {!isOwner && (
+        <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
+          <span className="text-sm text-gray-600">Your Branch:</span>
+          <span className="text-sm font-semibold text-gray-900">
+            {data.branchName ?? 'Makati Flagship'}
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-sm text-gray-500">Sales Today</h3>

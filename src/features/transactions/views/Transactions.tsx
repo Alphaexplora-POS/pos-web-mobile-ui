@@ -4,6 +4,7 @@ import TransactionDetail from './TransactionDetail';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
+import { formatAmount } from '../../../shared/utils/formatCurrency';
 
 const Transactions: React.FC = () => {
   const vm = useTransactionsViewModel();
@@ -74,7 +75,7 @@ const Transactions: React.FC = () => {
               >
                 <div className="flex justify-between">
                   <span className="font-medium text-gray-800">{t.branchName}</span>
-                  <span className="text-sm font-semibold text-gray-900">${t.total}</span>
+                  <span className="text-sm font-semibold text-gray-900">${formatAmount(t.total)}</span>
                 </div>
                 <p className="text-xs text-gray-500">
                   {new Date(t.timestamp).toLocaleString()} · {t.paymentMethod}
@@ -110,7 +111,7 @@ const Transactions: React.FC = () => {
                 <tr key={r.id} className="border-b">
                   <td className="py-2">{r.id}</td>
                   <td>{r.transactionId}</td>
-                  <td>${r.amount}</td>
+                  <td>${formatAmount(r.amount)}</td>
                   <td>{r.reasonCode}</td>
                   <td>{new Date(r.refundedAt).toLocaleString()}</td>
                 </tr>

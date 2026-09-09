@@ -80,7 +80,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       {role === 'branch_manager' && (
         <>
           <div>
-            <label className="block text-sm text-gray-600">Email Invite</label>
+            <label className="block text-sm text-gray-600">Email</label>
+            <p className="text-xs text-gray-400 mb-1">Account is active immediately — no invite email is sent.</p>
             <input
               type="email"
               value={email}

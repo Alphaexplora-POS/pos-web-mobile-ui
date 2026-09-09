@@ -3,9 +3,11 @@ import type { PaymentMethod, ReasonCode, ReasonCodeType } from '../models/config
 import {
   fetchPaymentMethods,
   createPaymentMethod,
+  updatePaymentMethod,
   setPaymentMethodActive,
   fetchReasonCodes,
   createReasonCode,
+  updateReasonCode,
   setReasonCodeActive,
 } from '../models/configApi';
 
@@ -44,6 +46,11 @@ export const useConfigViewModel = () => {
     await load();
   };
 
+  const handleUpdatePaymentMethod = async (id: string, name: string) => {
+    await updatePaymentMethod(id, name);
+    await load();
+  };
+
   const handleCreateReasonCode = async (name: string, type: ReasonCodeType) => {
     await createReasonCode(name, type);
     await load();
@@ -54,6 +61,11 @@ export const useConfigViewModel = () => {
     await load();
   };
 
+  const handleUpdateReasonCode = async (id: string, name: string, type: ReasonCodeType) => {
+    await updateReasonCode(id, name, type);
+    await load();
+  };
+
   return {
     paymentMethods,
     reasonCodes,
@@ -61,7 +73,9 @@ export const useConfigViewModel = () => {
     error,
     createPaymentMethod: handleCreatePaymentMethod,
     togglePaymentMethod: handleTogglePaymentMethod,
+    updatePaymentMethod: handleUpdatePaymentMethod,
     createReasonCode: handleCreateReasonCode,
     toggleReasonCode: handleToggleReasonCode,
+    updateReasonCode: handleUpdateReasonCode,
   };
 };

@@ -21,4 +21,5 @@ export interface AnalyticsData {
   metrics: SalesMetrics;
   topProducts: TopProduct[];
   branchComparison?: BranchComparison[];
+  branchName?: string;
 }

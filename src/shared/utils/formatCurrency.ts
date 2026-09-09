@@ -4,3 +4,5 @@ export const formatCurrency = (amount: number): string => {
     currency: 'USD',
   }).format(amount);
 };
+
+export const formatAmount = (amount: number): string => amount.toFixed(2);

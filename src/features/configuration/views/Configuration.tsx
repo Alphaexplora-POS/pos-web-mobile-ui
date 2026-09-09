@@ -9,6 +9,11 @@ const Configuration: React.FC = () => {
   const [payName, setPayName] = useState('');
   const [reasonName, setReasonName] = useState('');
   const [reasonType, setReasonType] = useState<'refund' | 'inventory'>('refund');
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [editPayName, setEditPayName] = useState('');
+  const [editingReasonId, setEditingReasonId] = useState<string | null>(null);
+  const [editReasonName, setEditReasonName] = useState('');
+  const [editReasonType, setEditReasonType] = useState<'refund' | 'inventory'>('refund');
 
   if (vm.isLoading) return <LoadingState />;
   if (vm.error) return <ErrorState message={vm.error} />;
@@ -40,13 +45,54 @@ const Configuration: React.FC = () => {
           <div className="space-y-2">
             {vm.paymentMethods.map((m) => (
               <div key={m.id} className="flex items-center justify-between border rounded p-3">
-                <span className="text-gray-800 font-medium">{m.name}</span>
-                <button
-                  className={`text-sm px-3 py-1 rounded ${m.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
-                  onClick={() => vm.togglePaymentMethod(m.id, !m.isActive)}
-                >
-                  {m.isActive ? 'Deactivate' : 'Reactivate'}
-                </button>
+                {editingPaymentId === m.id ? (
+                  <form
+                    className="flex items-center gap-2 flex-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      vm.updatePaymentMethod(m.id, editPayName);
+                      setEditingPaymentId(null);
+                    }}
+                  >
+                    <input
+                      value={editPayName}
+                      onChange={(e) => setEditPayName(e.target.value)}
+                      required
+                      className="flex-1 rounded border border-gray-300 px-3 py-2"
+                    />
+                    <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600"
+                      onClick={() => setEditingPaymentId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-800 font-medium">{m.name}</span>
+                      <button
+                        className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        onClick={() => {
+                          setEditingPaymentId(m.id);
+                          setEditPayName(m.name);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <button
+                      className={`text-sm px-3 py-1 rounded ${m.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                      onClick={() => vm.togglePaymentMethod(m.id, !m.isActive)}
+                    >
+                      {m.isActive ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -84,18 +130,66 @@ const Configuration: React.FC = () => {
           <div className="space-y-2">
             {vm.reasonCodes.map((r) => (
               <div key={r.id} className="flex items-center justify-between border rounded p-3">
-                <div>
-                  <span className="text-gray-800 font-medium">{r.name}</span>
-                  <span className="ml-2 text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">
-                    {r.type}
-                  </span>
-                </div>
-                <button
-                  className={`text-sm px-3 py-1 rounded ${r.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
-                  onClick={() => vm.toggleReasonCode(r.id, !r.isActive)}
-                >
-                  {r.isActive ? 'Deactivate' : 'Reactivate'}
-                </button>
+                {editingReasonId === r.id ? (
+                  <form
+                    className="flex items-center gap-2 flex-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      vm.updateReasonCode(r.id, editReasonName, editReasonType);
+                      setEditingReasonId(null);
+                    }}
+                  >
+                    <input
+                      value={editReasonName}
+                      onChange={(e) => setEditReasonName(e.target.value)}
+                      required
+                      className="flex-1 rounded border border-gray-300 px-3 py-2"
+                    />
+                    <select
+                      value={editReasonType}
+                      onChange={(e) => setEditReasonType(e.target.value as 'refund' | 'inventory')}
+                      className="rounded border border-gray-300 px-3 py-2"
+                    >
+                      <option value="refund">Refund</option>
+                      <option value="inventory">Inventory</option>
+                    </select>
+                    <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600"
+                      onClick={() => setEditingReasonId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-800 font-medium">{r.name}</span>
+                      <span className="ml-2 text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">
+                        {r.type}
+                      </span>
+                      <button
+                        className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        onClick={() => {
+                          setEditingReasonId(r.id);
+                          setEditReasonName(r.name);
+                          setEditReasonType(r.type);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    <button
+                      className={`text-sm px-3 py-1 rounded ${r.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                      onClick={() => vm.toggleReasonCode(r.id, !r.isActive)}
+                    >
+                      {r.isActive ? 'Deactivate' : 'Reactivate'}
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>

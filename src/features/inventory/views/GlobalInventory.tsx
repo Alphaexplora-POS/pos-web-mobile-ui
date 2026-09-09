@@ -18,7 +18,7 @@ const GlobalInventory: React.FC = () => {
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (
-    <PageLayout title="Global Inventory">
+    <PageLayout title={isOwner ? 'Global Inventory' : 'Branch Inventory'}>
       <div className="space-y-6">
         {isOwner && (
           <div className="bg-white rounded-lg shadow p-4">

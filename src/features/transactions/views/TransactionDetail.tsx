@@ -1,4 +1,5 @@
 import type { Transaction } from '../models/transactionTypes';
+import { formatAmount } from '../../../shared/utils/formatCurrency';
 
 interface TransactionDetailProps {
   transaction: Transaction;
@@ -30,17 +31,17 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
               <td className="py-2">{item.productName}</td>
               <td>{item.variantSku}</td>
               <td>{item.quantity}</td>
-              <td>${item.unitPrice}</td>
-              <td>${item.discount}</td>
+              <td>${formatAmount(item.unitPrice)}</td>
+              <td>${formatAmount(item.discount)}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="space-y-1 text-sm text-gray-600">
-        <p>Subtotal: ${transaction.subtotal}</p>
-        <p>Discounts: -${transaction.discountTotal}</p>
+        <p>Subtotal: ${formatAmount(transaction.subtotal)}</p>
+        <p>Discounts: -${formatAmount(transaction.discountTotal)}</p>
         <p>Payment: {transaction.paymentMethod}</p>
-        <p className="font-semibold text-gray-900">Total: ${transaction.total}</p>
+        <p className="font-semibold text-gray-900">Total: ${formatAmount(transaction.total)}</p>
       </div>
     </div>
   );

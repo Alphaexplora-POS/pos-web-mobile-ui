@@ -33,8 +33,8 @@ export const useInventoryViewModel = (isOwner: boolean) => {
             ? await fetchBranchInventory(branchId)
             : await fetchCombinedInventory();
           setItems(data);
-        } else {
-          const data = await fetchBranchInventory(branchId ?? '');
+        } else if (branchId) {
+          const data = await fetchBranchInventory(branchId);
           setItems(data);
         }
       } catch (err) {
@@ -60,12 +60,23 @@ export const useInventoryViewModel = (isOwner: boolean) => {
   }, [load, selectedBranchId]);
 
   useEffect(() => {
-    loadAudit();
-  }, [loadAudit]);
+    if (isOwner) {
+      loadAudit();
+    } else if (selectedBranchId) {
+      loadAudit({ branchId: selectedBranchId });
+    }
+  }, [loadAudit, isOwner, selectedBranchId]);
 
   useEffect(() => {
     loadBranches();
   }, [loadBranches]);
+
+  useEffect(() => {
+    if (!isOwner && selectedBranchId === null && branches.length > 0) {
+      const first = branches.find((b) => b.isActive) ?? branches[0];
+      if (first) setSelectedBranchId(first.id);
+    }
+  }, [isOwner, selectedBranchId, branches]);
 
   return {
     items,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useBranchesViewModel } from '../viewModels/useBranchesViewModel';
 import BranchForm from './BranchForm';
 import EmployeeForm from './EmployeeForm';
-import type { EmployeeRole } from '../models/branchTypes';
+import type { EmployeeRole, Branch } from '../models/branchTypes';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
@@ -14,9 +14,15 @@ const Branches: React.FC = () => {
   const { isOwner } = useRole();
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
+  const branchManagerBranch: Branch | null = !isOwner
+    ? vm.branches.find((b) => b.isActive) ?? vm.branches[0] ?? null
+    : null;
+
   const visibleBranches = isOwner
     ? vm.branches
-    : vm.branches.filter((b) => b.id === selectedBranchId);
+    : branchManagerBranch
+    ? [branchManagerBranch]
+    : [];
 
   if (vm.isLoading) return <LoadingState />;
   if (vm.error) return <ErrorState message={vm.error} />;
@@ -26,6 +32,14 @@ const Branches: React.FC = () => {
       title="Branch and Employees"
       actions={!isOwner ? <OwnerOnlyBadge label="Branch Manager view" /> : undefined}
     >
+      {!isOwner && (
+        <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
+          <span className="text-sm text-gray-600">Your Branch:</span>
+          <span className="text-sm font-semibold text-gray-900">
+            {branchManagerBranch?.name ?? '—'}
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg shadow p-6">
@@ -96,7 +110,7 @@ const Branches: React.FC = () => {
               </thead>
               <tbody>
                 {vm.employees
-                  .filter((e) => (isOwner ? true : e.branchId === selectedBranchId))
+                  .filter((e) => (isOwner ? true : e.branchId === branchManagerBranch?.id))
                   .map((e) => {
                     const roleLabel: Record<EmployeeRole, string> = {
                       branch_manager: 'Branch Manager',

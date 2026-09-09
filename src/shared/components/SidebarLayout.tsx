@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ICONS } from './icons';
 import type { IconType } from './icons';
 import { useRole } from '../hooks/useRole';
+import { USE_MOCK } from '../../mock/config';
 
 interface SidebarItem {
   to: string;
@@ -32,6 +33,10 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         <nav className="flex-1 py-4 overflow-y-auto">
           {ITEMS.map((item) => {
             const isActive = pathname === item.to;
+            const label =
+              item.to === '/inventory' && role !== 'owner'
+                ? 'Branch Inventory'
+                : item.label;
             return (
               <Link
                 key={item.to}
@@ -43,7 +48,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                 }`}
               >
                 {ICONS[item.icon]}
-                <span>{item.label}</span>
+                <span>{label}</span>
               </Link>
             );
           })}
@@ -64,6 +69,11 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
               Branch Manager
             </button>
           </div>
+          {USE_MOCK && (
+            <p className="mt-3 text-[10px] uppercase tracking-wide text-green-600 bg-green-50 rounded px-2 py-1 text-center">
+              Demo mode · mock data
+            </p>
+          )}
         </div>
       </aside>
       <main className="flex-1 overflow-x-auto">{children}</main>
