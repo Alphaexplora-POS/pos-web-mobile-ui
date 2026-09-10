@@ -1,21 +1,21 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
 import type { ReactNode } from 'react';
-
-type Role = 'owner' | 'branch_manager';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import type { Role } from '../models/userTypes';
 
 interface RoleContextValue {
   role: Role;
   isOwner: boolean;
-  setRole: (role: Role) => void;
 }
 
 const RoleContext = createContext<RoleContextValue | null>(null);
 
 export const RoleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<Role>('owner');
+  const { session } = useAuth();
+  const role: Role = session ? session.role : 'owner';
 
   return (
-    <RoleContext.Provider value={{ role, isOwner: role === 'owner', setRole }}>
+    <RoleContext.Provider value={{ role, isOwner: role === 'owner' }}>
       {children}
     </RoleContext.Provider>
   );
