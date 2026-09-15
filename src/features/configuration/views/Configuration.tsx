@@ -3,14 +3,17 @@ import { useConfigViewModel } from '../viewModels/useConfigViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
+import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
 
 const Configuration: React.FC = () => {
   const vm = useConfigViewModel();
   const [payName, setPayName] = useState('');
+  const [payType, setPayType] = useState<PaymentMethodType>('Other');
   const [reasonName, setReasonName] = useState('');
   const [reasonType, setReasonType] = useState<'refund' | 'inventory'>('refund');
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [editPayName, setEditPayName] = useState('');
+  const [editPayType, setEditPayType] = useState<PaymentMethodType>('Other');
   const [editingReasonId, setEditingReasonId] = useState<string | null>(null);
   const [editReasonName, setEditReasonName] = useState('');
   const [editReasonType, setEditReasonType] = useState<'refund' | 'inventory'>('refund');
@@ -27,7 +30,7 @@ const Configuration: React.FC = () => {
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
               e.preventDefault();
-              vm.createPaymentMethod(payName);
+              vm.createPaymentMethod(payName, payType);
               setPayName('');
             }}
           >
@@ -38,6 +41,17 @@ const Configuration: React.FC = () => {
               required
               className="flex-1 rounded border border-gray-300 px-3 py-2"
             />
+            <select
+              value={payType}
+              onChange={(e) => setPayType(e.target.value as PaymentMethodType)}
+              className="rounded border border-gray-300 px-3 py-2"
+            >
+              {PAYMENT_METHOD_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               Add
             </button>
@@ -50,7 +64,7 @@ const Configuration: React.FC = () => {
                     className="flex items-center gap-2 flex-1"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      vm.updatePaymentMethod(m.id, editPayName);
+                      vm.updatePaymentMethod(m.id, editPayName, editPayType);
                       setEditingPaymentId(null);
                     }}
                   >
@@ -60,6 +74,17 @@ const Configuration: React.FC = () => {
                       required
                       className="flex-1 rounded border border-gray-300 px-3 py-2"
                     />
+                    <select
+                      value={editPayType}
+                      onChange={(e) => setEditPayType(e.target.value as PaymentMethodType)}
+                      className="rounded border border-gray-300 px-3 py-2"
+                    >
+                      {PAYMENT_METHOD_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
                     <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
                       Save
                     </button>
@@ -75,11 +100,15 @@ const Configuration: React.FC = () => {
                   <>
                     <div className="flex items-center gap-2">
                       <span className="text-gray-800 font-medium">{m.name}</span>
+                      <span className="ml-2 text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">
+                        {m.type}
+                      </span>
                       <button
                         className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
                         onClick={() => {
                           setEditingPaymentId(m.id);
                           setEditPayName(m.name);
+                          setEditPayType(m.type as PaymentMethodType);
                         }}
                       >
                         Edit

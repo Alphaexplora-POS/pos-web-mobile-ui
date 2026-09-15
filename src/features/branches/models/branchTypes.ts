@@ -1,6 +1,6 @@
 export type { Branch } from '../../../shared/models/branchTypes';
 
-export type EmployeeRole = 'branch_manager' | 'cashier' | 'staff';
+export type EmployeeRole = 'branch_manager' | 'supervisor' | 'cashier' | 'staff';
 
 export interface Employee {
   id: string;

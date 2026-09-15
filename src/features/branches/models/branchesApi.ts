@@ -1,60 +1,87 @@
 export { fetchBranches } from '../../../shared/models/branchesApi';
 
-import type { CreateBranchInput, CreateEmployeeInput, Employee } from './branchTypes';
+import type { CreateBranchInput, CreateEmployeeInput, Employee, EmployeeRole } from './branchTypes';
 import type { Branch } from '../../../shared/models/branchTypes';
+import { toBranch, type RawBranch } from '../../../shared/models/branchesApi';
 import { USE_MOCK } from '../../../mock/config';
 import * as mock from '../../../mock/mockApi';
+import { apiRequest } from '../../../shared/models/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+interface RawEmployee {
+  id: string;
+  branchId: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  pin: string;
+  isActive: boolean;
+}
+
+const toBackendRole = (role: EmployeeRole): string => (role === 'branch_manager' ? 'manager' : role);
+
+const toRole = (role: string): EmployeeRole => (role === 'manager' ? 'branch_manager' : (role as EmployeeRole));
+
+const toEmployee = (raw: RawEmployee): Employee => ({
+  id: raw.id,
+  name: `${raw.firstName} ${raw.lastName}`.trim(),
+  email: '',
+  role: toRole(raw.role),
+  branchId: raw.branchId,
+  pin: raw.pin,
+  isActive: raw.isActive,
+});
+
+const splitName = (name: string): { firstName: string; lastName: string } => {
+  const parts = name.trim().split(/\s+/);
+  return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') || parts[0] || '' };
+};
 
 export const createBranch = async (input: CreateBranchInput): Promise<Branch> => {
   if (USE_MOCK) return mock.createBranch(input);
-  const res = await fetch(`${API_BASE}/branches`, {
+  const data = await apiRequest<RawBranch>('/identity/branches', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
   });
-  if (!res.ok) throw new Error('Failed to create branch');
-  return res.json();
+  return toBranch(data);
 };
 
 export const updateBranch = async (id: string, input: Partial<CreateBranchInput>): Promise<Branch> => {
   if (USE_MOCK) return mock.updateBranch(id, input);
-  const res = await fetch(`${API_BASE}/branches/${id}`, {
+  const data = await apiRequest<RawBranch>(`/identity/branches/${id}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
   });
-  if (!res.ok) throw new Error('Failed to update branch');
-  return res.json();
+  return toBranch(data);
 };
 
 export const deactivateBranch = async (id: string): Promise<void> => {
   if (USE_MOCK) return mock.deactivateBranch(id);
-  const res = await fetch(`${API_BASE}/branches/${id}/deactivate`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to deactivate branch');
+  await apiRequest<unknown>(`/identity/branches/${id}/deactivate`, { method: 'POST' });
 };
 
 export const fetchEmployees = async (): Promise<Employee[]> => {
   if (USE_MOCK) return mock.fetchEmployees();
-  const res = await fetch(`${API_BASE}/employees`);
-  if (!res.ok) throw new Error('Failed to fetch employees');
-  return res.json();
+  const data = await apiRequest<{ employees: RawEmployee[] }>('/identity/employees');
+  return (data.employees ?? []).map(toEmployee);
 };
 
 export const createEmployee = async (input: CreateEmployeeInput): Promise<Employee> => {
   if (USE_MOCK) return mock.createEmployee(input);
-  const res = await fetch(`${API_BASE}/employees`, {
+  const { firstName, lastName } = splitName(input.name);
+  const data = await apiRequest<RawEmployee>('/identity/employees', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      branchId: input.branchId,
+      firstName,
+      lastName,
+      role: toBackendRole(input.role),
+      pin: input.pin,
+    }),
   });
-  if (!res.ok) throw new Error('Failed to create employee');
-  return res.json();
+  return toEmployee(data);
 };
 
 export const deactivateEmployee = async (id: string): Promise<void> => {
   if (USE_MOCK) return mock.deactivateEmployee(id);
-  const res = await fetch(`${API_BASE}/employees/${id}/deactivate`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to deactivate employee');
+  await apiRequest<unknown>(`/identity/employees/${id}/deactivate`, { method: 'POST' });
 };

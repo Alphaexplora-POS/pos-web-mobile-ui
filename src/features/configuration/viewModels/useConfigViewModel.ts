@@ -36,8 +36,8 @@ export const useConfigViewModel = () => {
     load();
   }, [load]);
 
-  const handleCreatePaymentMethod = async (name: string) => {
-    await createPaymentMethod(name);
+  const handleCreatePaymentMethod = async (name: string, type: string) => {
+    await createPaymentMethod(name, type);
     await load();
   };
 
@@ -46,8 +46,8 @@ export const useConfigViewModel = () => {
     await load();
   };
 
-  const handleUpdatePaymentMethod = async (id: string, name: string) => {
-    await updatePaymentMethod(id, name);
+  const handleUpdatePaymentMethod = async (id: string, name: string, type: string) => {
+    await updatePaymentMethod(id, name, type);
     await load();
   };
 
