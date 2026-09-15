@@ -272,11 +272,11 @@ const seedRefunds: Refund[] = [
 ];
 
 const seedPaymentMethods: PaymentMethod[] = [
-  { id: 'pm-1', name: 'Cash', isActive: true },
-  { id: 'pm-2', name: 'Card', isActive: true },
-  { id: 'pm-3', name: 'GCash', isActive: true },
-  { id: 'pm-4', name: 'Maya', isActive: true },
-  { id: 'pm-5', name: 'Bank Transfer', isActive: true },
+  { id: 'pm-1', name: 'Cash', type: 'Cash', isActive: true },
+  { id: 'pm-2', name: 'Card', type: 'Card', isActive: true },
+  { id: 'pm-3', name: 'GCash', type: 'E-wallet', isActive: true },
+  { id: 'pm-4', name: 'Maya', type: 'E-wallet', isActive: true },
+  { id: 'pm-5', name: 'Bank Transfer', type: 'Bank transfer', isActive: true },
 ];
 
 const seedReasonCodes: ReasonCode[] = [
@@ -522,7 +522,7 @@ export const getRefunds = (startDate?: string, endDate?: string) =>
 
 export const getPaymentMethods = () => getDb().paymentMethods.map((m) => ({ ...m }));
 export const addPaymentMethod = (name: string): PaymentMethod => {
-  const method: PaymentMethod = { id: uid('pm'), name, isActive: true };
+  const method: PaymentMethod = { id: uid('pm'), name, type: 'Other', isActive: true };
   getDb().paymentMethods.push(method);
   return method;
 };

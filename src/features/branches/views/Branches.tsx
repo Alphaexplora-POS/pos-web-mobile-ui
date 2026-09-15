@@ -114,6 +114,7 @@ const Branches: React.FC = () => {
                   .map((e) => {
                     const roleLabel: Record<EmployeeRole, string> = {
                       branch_manager: 'Branch Manager',
+                      supervisor: 'Supervisor',
                       cashier: 'Cashier',
                       staff: 'Staff',
                     };
