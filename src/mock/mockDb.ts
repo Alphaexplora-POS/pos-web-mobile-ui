@@ -8,7 +8,7 @@ import type {
   Promotion,
 } from '../features/products/models/productTypes';
 import type { InventoryAuditLog, InventoryItem } from '../features/inventory/models/inventoryTypes';
-import type { Refund, Transaction, TransactionFilters } from '../features/transactions/models/transactionTypes';
+import type { Refund, Transaction, TransactionFilters, PosSession } from '../features/transactions/models/transactionTypes';
 import type { PaymentMethod, ReasonCode } from '../features/configuration/models/configTypes';
 
 let uidCounter = 1000;
@@ -103,26 +103,26 @@ const seedVariants: ProductVariant[] = [
 ];
 
 const seedAttributes: ProductAttribute[] = [
-  { id: 'a1', productId: 'p1', name: 'Material', value: '100% Cotton' },
-  { id: 'a2', productId: 'p1', name: 'Fit', value: 'Regular' },
-  { id: 'a3', productId: 'p3', name: 'Material', value: '98% Cotton / 2% Elastane' },
-  { id: 'a4', productId: 'p3', name: 'Fit', value: 'Slim' },
-  { id: 'a5', productId: 'p3', name: 'Wash', value: 'Dark Blue' },
-  { id: 'a6', productId: 'p5', name: 'Material', value: 'Knit Mesh Upper' },
-  { id: 'a7', productId: 'p8', name: 'Material', value: 'Full-Grain Leather' },
-  { id: 'a8', productId: 'p8', name: 'Capacity', value: '20L' },
-  { id: 'a9', productId: 'p8', name: 'Laptop Size', value: '15-inch' },
+  { id: 'a1', productId: 'p1', attributeKey: 'Material', attributeValue: '100% Cotton' },
+  { id: 'a2', productId: 'p1', attributeKey: 'Fit', attributeValue: 'Regular' },
+  { id: 'a3', productId: 'p3', attributeKey: 'Material', attributeValue: '98% Cotton / 2% Elastane' },
+  { id: 'a4', productId: 'p3', attributeKey: 'Fit', attributeValue: 'Slim' },
+  { id: 'a5', productId: 'p3', attributeKey: 'Wash', attributeValue: 'Dark Blue' },
+  { id: 'a6', productId: 'p5', attributeKey: 'Material', attributeValue: 'Knit Mesh Upper' },
+  { id: 'a7', productId: 'p8', attributeKey: 'Material', attributeValue: 'Full-Grain Leather' },
+  { id: 'a8', productId: 'p8', attributeKey: 'Capacity', attributeValue: '20L' },
+  { id: 'a9', productId: 'p8', attributeKey: 'Laptop Size', attributeValue: '15-inch' },
 ];
 
 const seedPromotions: Promotion[] = [
-  { id: 'pr1', name: 'Weekend Tee Blowout', type: 'percentage', productIds: ['p1', 'p2'], categoryIds: [], percentOff: 20, combinable: true, status: 'active' },
-  { id: 'pr2', name: 'Sneaker Friday', type: 'fixed', productIds: ['p5', 'p6'], categoryIds: [], fixedAmountOff: 10, combinable: false, status: 'active' },
-  { id: 'pr3', name: 'Jeans Bundle Deal', type: 'bundle', productIds: [], categoryIds: ['c3'], bundleRule: 'Buy 2 for $70', combinable: false, status: 'scheduled', startDate: daysAgo(-5).slice(0, 10), endDate: daysAgo(-45).slice(0, 10) },
-  { id: 'pr4', name: 'Back to School Offer', type: 'percentage', productIds: [], categoryIds: ['c7'], percentOff: 10, combinable: false, status: 'inactive' },
-  { id: 'pr5', name: 'Member Appreciation', type: 'fixed', productIds: ['p7', 'p8'], categoryIds: [], fixedAmountOff: 5, combinable: true, status: 'active' },
+  { id: 'pr1', name: 'Weekend Tee Blowout', promoType: 'percentage', config: { percentOff: 20 }, isStackable: true, isActive: true, applicableItems: [ { id: 'pai-1', scope: 'product', productId: 'p1' }, { id: 'pai-2', scope: 'product', productId: 'p2' } ] },
+  { id: 'pr2', name: 'Sneaker Friday', promoType: 'fixed', config: { fixedAmountOff: 10 }, isStackable: false, isActive: true, applicableItems: [ { id: 'pai-3', scope: 'product', productId: 'p5' }, { id: 'pai-4', scope: 'product', productId: 'p6' } ] },
+  { id: 'pr3', name: 'Jeans Bundle Deal', promoType: 'bundle', config: { bundleRule: 'Buy 2 for $70' }, isStackable: false, isActive: false, startDate: daysAgo(-5).slice(0, 10), endDate: daysAgo(-45).slice(0, 10), applicableItems: [ { id: 'pai-5', scope: 'category', categoryId: 'c3' } ] },
+  { id: 'pr4', name: 'Back to School Offer', promoType: 'percentage', config: { percentOff: 10 }, isStackable: false, isActive: false, applicableItems: [ { id: 'pai-6', scope: 'category', categoryId: 'c7' } ] },
+  { id: 'pr5', name: 'Member Appreciation', promoType: 'fixed', config: { fixedAmountOff: 5 }, isStackable: true, isActive: true, applicableItems: [ { id: 'pai-7', scope: 'product', productId: 'p7' }, { id: 'pai-8', scope: 'product', productId: 'p8' } ] },
 ];
 
-const seedInventory: InventoryItem[] = [
+const seedInventoryRaw: Omit<InventoryItem, 'productVariantId'>[] = [
   { id: 'i1', productId: 'p1', productName: 'Classic Crew Tee', variantSku: 'TEE-P1-WHT-S', branchId: 'b1', branchName: 'Makati Flagship', quantity: 24, origin: 'manual' },
   { id: 'i2', productId: 'p1', productName: 'Classic Crew Tee', variantSku: 'TEE-P1-WHT-S', branchId: 'b2', branchName: 'BGC Mall Branch', quantity: 0, origin: 'automatic' },
   { id: 'i3', productId: 'p1', productName: 'Classic Crew Tee', variantSku: 'TEE-P1-WHT-S', branchId: 'b3', branchName: 'Quezon City Branch', quantity: 12, origin: 'manual' },
@@ -157,6 +157,13 @@ const seedInventory: InventoryItem[] = [
   { id: 'i32', productId: 'p8', productName: 'Leather Backpack', variantSku: 'BAG-P8-OS-BLK', branchId: 'b3', branchName: 'Quezon City Branch', quantity: 1, origin: 'manual' },
   { id: 'i33', productId: 'p9', productName: 'Denim Jacket', variantSku: 'JTK-P9-M-DNM', branchId: 'b1', branchName: 'Makati Flagship', quantity: 9, origin: 'manual' },
 ];
+
+const skuToVariantId: Record<string, string> = Object.fromEntries(seedVariants.map((v) => [v.sku, v.id]));
+
+const seedInventory: InventoryItem[] = seedInventoryRaw.map((i) => ({
+  ...i,
+  productVariantId: skuToVariantId[i.variantSku] ?? '',
+}));
 
 const seedAuditLogs: InventoryAuditLog[] = [
   { id: 'al1', productName: 'Classic Crew Tee', variantSku: 'TEE-P1-WHT-S', branchName: 'Makati Flagship', action: 'Stock In', quantityDelta: +20, timestamp: hoursAgo(26) },
@@ -264,11 +271,11 @@ const buildTransactions = (): Transaction[] =>
   });
 
 const seedRefunds: Refund[] = [
-  { id: 'rf-1', transactionId: 'tx-3', amount: 24.99, reasonCode: 'Damaged Item', refundedAt: hoursAgo(5) },
-  { id: 'rf-2', transactionId: 'tx-7', amount: 10, reasonCode: 'Change of Mind', refundedAt: hoursAgo(70) },
-  { id: 'rf-3', transactionId: 'tx-9', amount: 8, reasonCode: 'Service Issue', refundedAt: hoursAgo(118) },
-  { id: 'rf-4', transactionId: 'tx-15', amount: 39.99, reasonCode: 'Wrong Item', refundedAt: hoursAgo(360) },
-  { id: 'rf-5', transactionId: 'tx-12', amount: 15.99, reasonCode: 'Damaged Item', refundedAt: hoursAgo(192) },
+  { id: 'rf-1', transactionId: 'tx-3', amount: 24.99, reasonCode: 'Damaged Item', refundedAt: hoursAgo(5), status: 'completed' },
+  { id: 'rf-2', transactionId: 'tx-7', amount: 10, reasonCode: 'Change of Mind', refundedAt: hoursAgo(70), status: 'approved' },
+  { id: 'rf-3', transactionId: 'tx-9', amount: 8, reasonCode: 'Service Issue', refundedAt: hoursAgo(118), status: 'completed' },
+  { id: 'rf-4', transactionId: 'tx-15', amount: 39.99, reasonCode: 'Wrong Item', refundedAt: hoursAgo(360), status: 'denied' },
+  { id: 'rf-5', transactionId: 'tx-12', amount: 15.99, reasonCode: 'Damaged Item', refundedAt: hoursAgo(192), status: 'pending_approval' },
 ];
 
 const seedPaymentMethods: PaymentMethod[] = [
@@ -306,6 +313,7 @@ let db: {
   refunds: Refund[];
   paymentMethods: PaymentMethod[];
   reasonCodes: ReasonCode[];
+  sessions: PosSession[];
 } | null = null;
 
 const getDb = () => {
@@ -317,13 +325,14 @@ const getDb = () => {
       products: seedProducts.map((p) => ({ ...p })),
       variants: seedVariants.map((v) => ({ ...v })),
       attributes: seedAttributes.map((a) => ({ ...a })),
-      promotions: seedPromotions.map((p) => ({ ...p })),
+      promotions: seedPromotions.map((p) => ({ ...p, config: { ...p.config }, applicableItems: p.applicableItems.map((ai) => ({ ...ai })) })),
       inventory: seedInventory.map((i) => ({ ...i })),
       auditLogs: seedAuditLogs.map((a) => ({ ...a })),
       transactions: buildTransactions(),
       refunds: seedRefunds.map((r) => ({ ...r })),
       paymentMethods: seedPaymentMethods.map((m) => ({ ...m })),
       reasonCodes: seedReasonCodes.map((r) => ({ ...r })),
+      sessions: [],
     };
   }
   return db;
@@ -419,6 +428,7 @@ export const toggleProductActive = (id: string, isActive: boolean): void => {
 
 export const getVariants = (productId: string) => getDb().variants.filter((v) => v.productId === productId).map((v) => ({ ...v }));
 export const addVariant = (productId: string, data: {
+  branchId?: string;
   size?: string;
   color?: string;
   sku: string;
@@ -436,18 +446,31 @@ export const addVariant = (productId: string, data: {
     isActive: true,
   };
   getDb().variants.push(variant);
-  const activeBranch = getDb().branches.find((b) => b.isActive) ?? getDb().branches[0];
+  const branch = getDb().branches.find((b) => b.id === data.branchId && b.isActive) ?? getDb().branches.find((b) => b.isActive) ?? getDb().branches[0];
   const product = getDb().products.find((p) => p.id === productId);
   getDb().inventory.push({
     id: uid('i'),
     productId,
+    productVariantId: variant.id,
     productName: product?.name ?? 'Unknown Product',
     variantSku: data.sku,
-    branchId: activeBranch.id,
-    branchName: activeBranch.name,
+    branchId: branch.id,
+    branchName: branch.name,
     quantity: 0,
     origin: 'automatic',
   });
+  return variant;
+};
+export const updateVariant = (variantId: string, data: {
+  size?: string;
+  color?: string;
+  sku?: string;
+  costPrice?: number;
+  priceOverride?: number;
+}): ProductVariant => {
+  const variant = getDb().variants.find((v) => v.id === variantId);
+  if (!variant) throw new Error('Variant not found');
+  Object.assign(variant, data);
   return variant;
 };
 export const toggleVariantActive = (variantId: string, isActive: boolean): void => {
@@ -457,17 +480,35 @@ export const toggleVariantActive = (variantId: string, isActive: boolean): void 
 };
 
 export const getAttributes = (productId: string) => getDb().attributes.filter((a) => a.productId === productId).map((a) => ({ ...a }));
-export const addAttribute = (productId: string, name: string, value: string): ProductAttribute => {
-  const attribute: ProductAttribute = { id: uid('a'), productId, name, value };
+export const addAttribute = (productId: string, attributeKey: string, attributeValue: string): ProductAttribute => {
+  const attribute: ProductAttribute = { id: uid('a'), productId, attributeKey, attributeValue };
   getDb().attributes.push(attribute);
   return attribute;
 };
+export const updateAttribute = (id: string, attributeKey: string, attributeValue: string): ProductAttribute => {
+  const attribute = getDb().attributes.find((a) => a.id === id);
+  if (!attribute) throw new Error('Attribute not found');
+  attribute.attributeKey = attributeKey;
+  attribute.attributeValue = attributeValue;
+  return attribute;
+};
 
-export const getPromotions = () => getDb().promotions.map((p) => ({ ...p }));
-export const addPromotion = (data: Omit<Promotion, 'id'>): Promotion => {
-  const promotion: Promotion = { id: uid('pr'), ...data };
+export const getPromotions = () => getDb().promotions.map((p) => ({ ...p, config: { ...p.config }, applicableItems: p.applicableItems.map((ai) => ({ ...ai })) }));
+export const addPromotion = (data: Omit<Promotion, 'id' | 'applicableItems'> & { applicableItems: { scope: 'product' | 'category'; productId?: string; categoryId?: string }[] }): Promotion => {
+  const promotion: Promotion = {
+    id: uid('pr'),
+    ...data,
+    config: { ...data.config },
+    applicableItems: data.applicableItems.map((ai) => ({ id: uid('pai'), ...ai })),
+  };
   getDb().promotions.push(promotion);
   return promotion;
+};
+export const togglePromotionActive = (id: string, isActive: boolean): void => {
+  const promotion = getDb().promotions.find((p) => p.id === id);
+  if (!promotion) throw new Error('Promotion not found');
+  promotion.isActive = isActive;
+  if (isActive && !promotion.startDate) promotion.startDate = new Date().toISOString().slice(0, 10);
 };
 
 export const getInventory = () => getDb().inventory.map((i) => ({ ...i }));
@@ -519,6 +560,173 @@ export const getRefunds = (startDate?: string, endDate?: string) =>
       return true;
     })
     .map((r) => ({ ...r }));
+
+export const createRefund = (data: { transactionId: string; amount: number; reasonId: string }): Refund => {
+  const reason = getDb().reasonCodes.find((r) => r.id === data.reasonId);
+  const refund: Refund = {
+    id: uid('rf'),
+    transactionId: data.transactionId,
+    amount: round2(data.amount),
+    reasonCode: reason?.name ?? 'Other',
+    refundedAt: new Date().toISOString(),
+    status: 'pending_approval',
+  };
+  getDb().refunds.push(refund);
+  return { ...refund };
+};
+
+export const setRefundStatus = (id: string, status: Refund['status']): Refund => {
+  const refund = getDb().refunds.find((r) => r.id === id);
+  if (!refund) throw new Error('Refund not found');
+  if (refund.status !== 'pending_approval' && status !== 'completed') {
+    throw new Error('Refund is already resolved');
+  }
+  refund.status = status;
+  return { ...refund };
+};
+
+export const adjustInventory = (data: {
+  branchId: string;
+  productVariantId: string;
+  action: 'stock_in' | 'stock_out' | 'adjustment';
+  quantity: number;
+  unitCost?: number;
+  reasonId: string;
+  notes?: string;
+  performedBy: string;
+}): InventoryItem => {
+  if (!data.quantity || data.quantity <= 0) throw new Error('Quantity must be a positive number');
+  const item = getDb().inventory.find(
+    (i) => i.productVariantId === data.productVariantId && i.branchId === data.branchId,
+  );
+  if (!item) throw new Error('Inventory item not found');
+  const change = data.action === 'stock_out' ? -data.quantity : data.quantity;
+  if (item.quantity + change < 0) throw new Error('Insufficient stock');
+  item.quantity += change;
+
+  if (data.action === 'stock_in' && data.unitCost != null) {
+    const variant = getDb().variants.find((v) => v.sku === item.variantSku);
+    if (variant) {
+      const before = item.quantity - change;
+      const current = variant.costPrice ?? 0;
+      const next = before + data.quantity;
+      variant.costPrice = next === 0 ? current : Math.round(((before * current) + (data.quantity * data.unitCost)) / next * 100) / 100;
+    }
+  }
+
+  const actionLabel = data.action === 'stock_in' ? 'Stock In' : data.action === 'stock_out' ? 'Stock Out' : 'Stock Adjustment';
+  getDb().auditLogs.push({
+    id: uid('al'),
+    productName: item.productName,
+    variantSku: item.variantSku,
+    branchName: item.branchName,
+    action: actionLabel,
+    quantityDelta: change,
+    timestamp: new Date().toISOString(),
+  });
+  return { ...item };
+};
+
+export const getSessions = () => getDb().sessions.map((s) => ({ ...s }));
+export const getOpenSessionByEmployee = (branchId: string, employeeId: string): PosSession | undefined =>
+  getDb().sessions.find((s) => s.status === 'open' && s.branchId === branchId && s.employeeId === employeeId);
+export const openSession = (branchId: string, employeeId: string): PosSession => {
+  const existing = getDb().sessions.find((s) => s.status === 'open' && s.branchId === branchId && s.employeeId === employeeId);
+  if (existing) return { ...existing };
+  const branch = getDb().branches.find((b) => b.id === branchId);
+  const employee = getDb().employees.find((e) => e.id === employeeId);
+  if (!branch || !employee) throw new Error('Branch or employee not found');
+  if (!branch.isActive || !employee.isActive) throw new Error('Branch or employee is inactive');
+  const session: PosSession = {
+    id: uid('s'),
+    branchId,
+    branchName: branch.name,
+    employeeId,
+    employeeName: employee.name,
+    openedAt: new Date().toISOString(),
+    status: 'open',
+  };
+  getDb().sessions.push(session);
+  return { ...session };
+};
+export const closeSession = (id: string): PosSession => {
+  const session = getDb().sessions.find((s) => s.id === id);
+  if (!session) throw new Error('Session not found');
+  if (session.status !== 'open') throw new Error('Session is already closed');
+  session.status = 'closed';
+  session.closedAt = new Date().toISOString();
+  return { ...session };
+};
+export const getSessionSummary = (id: string) => {
+  const session = getDb().sessions.find((s) => s.id === id);
+  const branchTx = session ? getDb().transactions.filter((t) => t.branchId === session.branchId) : [];
+  const tx = session ? branchTx.filter((t) => new Date(t.timestamp).getTime() >= new Date(session.openedAt).getTime()) : [];
+  return {
+    transactionCount: tx.length,
+    grossSales: Math.round(tx.reduce((sum, t) => sum + t.total, 0) * 100) / 100,
+  };
+};
+
+export const createSale = (data: {
+  branchId: string;
+  sessionId: string | null;
+  employeeId: string;
+  employeeName: string;
+  customerName?: string;
+  items: { productId: string; productName: string; variantId: string; variantSku: string; variantLabel: string; unitPrice: number; quantity: number }[];
+  paymentMethodId: string;
+  paymentMethodName: string;
+  totalDiscount: number;
+}): Transaction => {
+  const branch = getDb().branches.find((b) => b.id === data.branchId);
+  if (!branch) throw new Error('Branch not found');
+  const resolved = data.sessionId
+    ? getDb().sessions.find((s) => s.id === data.sessionId) ?? openSession(data.branchId, data.employeeId)
+    : openSession(data.branchId, data.employeeId);
+  void resolved;
+
+  const items = data.items.map((line): Transaction['items'][number] => ({
+    productId: line.productId,
+    productName: line.productName,
+    variantSku: line.variantSku,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    discount: 0,
+  }));
+  const subtotal = Math.round(data.items.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0) * 100) / 100;
+  const total = Math.round((subtotal - data.totalDiscount) * 100) / 100;
+  const transaction: Transaction = {
+    id: uid('tx'),
+    branchId: branch.id,
+    branchName: branch.name,
+    items,
+    subtotal,
+    discountTotal: data.totalDiscount,
+    paymentMethod: data.paymentMethodName,
+    total,
+    timestamp: new Date().toISOString(),
+  };
+  getDb().transactions.push(transaction);
+
+  for (const line of data.items) {
+    const inv = getDb().inventory.find((i) => i.branchId === branch.id && i.variantSku === line.variantSku);
+    if (!inv) continue;
+    const qty = Math.min(line.quantity, inv.quantity);
+    if (qty <= 0) continue;
+    inv.quantity -= qty;
+    getDb().auditLogs.push({
+      id: uid('al'),
+      productName: line.productName,
+      variantSku: line.variantSku,
+      branchName: branch.name,
+      action: 'Stock Out',
+      quantityDelta: -qty,
+      timestamp: transaction.timestamp,
+    });
+  }
+
+  return { ...transaction, items: items.map((item) => ({ ...item })) };
+};
 
 export const getPaymentMethods = () => getDb().paymentMethods.map((m) => ({ ...m }));
 export const addPaymentMethod = (name: string): PaymentMethod => {

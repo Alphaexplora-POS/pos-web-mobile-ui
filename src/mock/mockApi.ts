@@ -3,8 +3,8 @@ import * as db from './mockDb';
 import type { Branch } from '../shared/models/branchTypes';
 import type { Employee } from '../features/branches/models/branchTypes';
 import type { Category, CreateProductInput, CreatePromoInput, CreateVariantInput, Product, ProductAttribute, ProductVariant, Promotion } from '../features/products/models/productTypes';
-import type { InventoryAuditLog, InventoryFilters, InventoryItem } from '../features/inventory/models/inventoryTypes';
-import type { Refund, Transaction, TransactionFilters } from '../features/transactions/models/transactionTypes';
+import type { InventoryAuditLog, InventoryAdjustInput, InventoryFilters, InventoryItem } from '../features/inventory/models/inventoryTypes';
+import type { Refund, Transaction, TransactionFilters, CreateRefundInput, CreateSaleInput, PosSession, SessionSummary } from '../features/transactions/models/transactionTypes';
 import type { PaymentMethod, ReasonCode, ReasonCodeType } from '../features/configuration/models/configTypes';
 
 export const fetchBranches = async (): Promise<Branch[]> => {
@@ -89,6 +89,11 @@ export const createVariant = async (productId: string, input: CreateVariantInput
   return db.addVariant(productId, input);
 };
 
+export const updateVariant = async (variantId: string, input: Partial<CreateVariantInput>): Promise<ProductVariant> => {
+  await mockDelay();
+  return db.updateVariant(variantId, input);
+};
+
 export const setVariantActive = async (variantId: string, isActive: boolean): Promise<void> => {
   await mockDelay();
   db.toggleVariantActive(variantId, isActive);
@@ -99,9 +104,14 @@ export const fetchAttributes = async (productId: string): Promise<ProductAttribu
   return db.getAttributes(productId);
 };
 
-export const createAttribute = async (productId: string, name: string, value: string): Promise<ProductAttribute> => {
+export const createAttribute = async (productId: string, attributeKey: string, attributeValue: string): Promise<ProductAttribute> => {
   await mockDelay();
-  return db.addAttribute(productId, name, value);
+  return db.addAttribute(productId, attributeKey, attributeValue);
+};
+
+export const updateAttribute = async (id: string, attributeKey: string, attributeValue: string): Promise<ProductAttribute> => {
+  await mockDelay();
+  return db.updateAttribute(id, attributeKey, attributeValue);
 };
 
 export const fetchPromotions = async (): Promise<Promotion[]> => {
@@ -112,6 +122,11 @@ export const fetchPromotions = async (): Promise<Promotion[]> => {
 export const createPromotion = async (input: CreatePromoInput): Promise<Promotion> => {
   await mockDelay();
   return db.addPromotion(input);
+};
+
+export const setPromotionActive = async (id: string, isActive: boolean): Promise<void> => {
+  await mockDelay();
+  db.togglePromotionActive(id, isActive);
 };
 
 export const fetchCombinedInventory = async (): Promise<InventoryItem[]> => {
@@ -194,4 +209,54 @@ export const updateReasonCode = async (id: string, name: string, type: ReasonCod
 export const setReasonCodeActive = async (id: string, isActive: boolean): Promise<void> => {
   await mockDelay();
   db.toggleReasonCode(id, isActive);
+};
+
+export const adjustInventory = async (input: InventoryAdjustInput): Promise<InventoryItem> => {
+  await mockDelay();
+  return db.adjustInventory(input);
+};
+
+export const createRefund = async (input: CreateRefundInput): Promise<Refund> => {
+  await mockDelay();
+  return db.createRefund(input);
+};
+
+export const approveRefund = async (id: string): Promise<Refund> => {
+  await mockDelay();
+  return db.setRefundStatus(id, 'approved');
+};
+
+export const denyRefund = async (id: string): Promise<Refund> => {
+  await mockDelay();
+  return db.setRefundStatus(id, 'denied');
+};
+
+export const completeRefund = async (id: string): Promise<Refund> => {
+  await mockDelay();
+  return db.setRefundStatus(id, 'completed');
+};
+
+export const createSale = async (input: CreateSaleInput): Promise<Transaction> => {
+  await mockDelay();
+  return db.createSale(input);
+};
+
+export const openSession = async (branchId: string, employeeId: string): Promise<PosSession> => {
+  await mockDelay();
+  return db.openSession(branchId, employeeId);
+};
+
+export const closeSession = async (id: string): Promise<PosSession> => {
+  await mockDelay();
+  return db.closeSession(id);
+};
+
+export const fetchSessions = async (): Promise<PosSession[]> => {
+  await mockDelay();
+  return db.getSessions();
+};
+
+export const fetchSessionSummary = async (id: string): Promise<SessionSummary> => {
+  await mockDelay();
+  return db.getSessionSummary(id);
 };

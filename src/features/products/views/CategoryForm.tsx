@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Select from '../../../shared/components/Select';
 import type { Category } from '../models/productTypes';
 
 interface CategoryFormProps {
@@ -54,17 +55,13 @@ const CategoryForm: React.FC<CategoryFormProps> = ({ categories, onSubmit }) => 
       {categoryType === 'child' && (
         <div>
           <label className="block text-sm text-gray-600">Parent Category</label>
-          <select
+          <Select
             value={parentId}
-            onChange={(e) => setParentId(e.target.value)}
-            required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-          >
-            <option value="" disabled>Select parent</option>
-            {categories.filter((c) => c.parentId === null).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={(v) => setParentId(v)}
+            options={categories.filter((c) => c.parentId === null).map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Select parent"
+            className="mt-1 w-full"
+          />
         </div>
       )}
       <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">

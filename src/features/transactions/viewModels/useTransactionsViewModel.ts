@@ -1,13 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Refund, Transaction, TransactionDateRange, TransactionFilters } from '../models/transactionTypes';
-import { fetchTransactions, fetchRefunds } from '../models/transactionsApi';
+import {
+  fetchTransactions,
+  fetchRefunds,
+  createRefund,
+  approveRefund,
+  denyRefund,
+  completeRefund,
+} from '../models/transactionsApi';
+import type { ReasonCode, PaymentMethod } from '../../configuration/models/configTypes';
+import { fetchReasonCodes, fetchPaymentMethods } from '../../configuration/models/configApi';
+import { fetchBranches } from '../../../shared/models/branchesApi';
+import { useAuth } from '../../auth/hooks/useAuth';
 
 export const useTransactionsViewModel = () => {
+  const { session } = useAuth();
   const [range, setRange] = useState<TransactionDateRange>('today');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
+  const [reasonCodes, setReasonCodes] = useState<ReasonCode[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,9 +29,13 @@ export const useTransactionsViewModel = () => {
 
   const load = useCallback(async () => {
     try {
-      const data = await fetchTransactions(filters);
-      setTransactions(data);
-      const refundData = await fetchRefunds(startDate, endDate);
+      const [txData, branchData, refundData] = await Promise.all([
+        fetchTransactions(filters),
+        fetchBranches(),
+        fetchRefunds(startDate, endDate),
+      ]);
+      const branchMap = new Map(branchData.map((b) => [b.id, b.name]));
+      setTransactions(txData.map((t) => ({ ...t, branchName: t.branchName || branchMap.get(t.branchId) || '' })));
       setRefunds(refundData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -30,6 +48,62 @@ export const useTransactionsViewModel = () => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
+    fetchPaymentMethods().then(setPaymentMethods).catch(() => setPaymentMethods([]));
+  }, []);
+
+  const run = async (action: () => Promise<unknown>) => {
+    try {
+      setError(null);
+      await action();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      throw err;
+    }
+  };
+
+  const submitRefund = (input: { transactionId: string; amount: number; reasonId: string }) =>
+    run(() => {
+      const tx = transactions.find((t) => t.id === input.transactionId);
+      if (!tx) throw new Error('Transaction not found');
+      const reason = reasonCodes.find((r) => r.id === input.reasonId);
+      return createRefund({
+        ...input,
+        originalClientId: tx.clientId ?? tx.id,
+        branchId: tx.branchId,
+        sessionId: tx.sessionId ?? '',
+        employeeId: tx.employeeId ?? '',
+        employeeName: tx.employeeName ?? '',
+        initiatedBy: session?.userId ?? '',
+        initiatedByName: session ? `${session.firstName} ${session.lastName}`.trim() : '',
+        subtotal: tx.subtotal,
+        discountTotal: tx.discountTotal,
+        reasonLabel: reason?.name,
+        refundType: 'full',
+        refundItems: tx.items.map((item) => ({
+          transactionItemId: item.id ?? '',
+          productVariantId: item.productVariantId ?? item.productId ?? '',
+          productName: item.productName,
+          variantLabel: item.variantSku,
+          unitPrice: item.unitPrice,
+          quantityReturned: item.quantity,
+          refundAmount: Math.round(item.unitPrice * item.quantity * 100) / 100,
+          restock: true,
+        })),
+      });
+    });
+
+  const handleApproveRefund = (id: string, approvedByName: string) =>
+    run(() => approveRefund(id, session?.userId ?? '', approvedByName));
+
+  const handleDenyRefund = (id: string, approvedByName: string) =>
+    run(() => denyRefund(id, session?.userId ?? '', approvedByName));
+
+  const handleCompleteRefund = (id: string, paymentMethodId: string, paymentMethodName: string, amount: number) =>
+    run(() => completeRefund(id, paymentMethodId, paymentMethodName, amount));
+
   return {
     range,
     setRange,
@@ -39,8 +113,14 @@ export const useTransactionsViewModel = () => {
     setEndDate,
     transactions,
     refunds,
+    reasonCodes,
+    paymentMethods,
     isLoading,
     error,
     refresh: load,
+    createRefund: submitRefund,
+    approveRefund: handleApproveRefund,
+    denyRefund: handleDenyRefund,
+    completeRefund: handleCompleteRefund,
   };
 };

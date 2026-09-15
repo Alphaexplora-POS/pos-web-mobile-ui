@@ -1,46 +1,72 @@
-import { useState } from 'react';
-import type { Category } from '../models/productTypes';
+import { useState, useEffect } from 'react';
+import Select from '../../../shared/components/Select';
+import type { Category, CreateProductInput, Product } from '../models/productTypes';
 
 interface ProductFormProps {
   categories: Category[];
-  onSubmit: (data: {
-    name: string;
-    description: string;
-    basePrice: number;
-    imageUrl?: string;
-    categoryId: string;
-  }) => void;
+  onSubmit: (data: CreateProductInput) => void | Promise<void>;
+  onUpdate?: (id: string, data: CreateProductInput) => void | Promise<void>;
+  editingProduct?: Product | null;
+  onCancelEdit?: () => void;
   isOwner: boolean;
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, isOwner }) => {
+const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdate, editingProduct, onCancelEdit, isOwner }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [basePrice, setBasePrice] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [categoryId, setCategoryId] = useState('');
 
+  useEffect(() => {
+    if (editingProduct) {
+      setName(editingProduct.name);
+      setDescription(editingProduct.description);
+      setBasePrice(String(editingProduct.basePrice));
+      setImageUrl(editingProduct.imageUrl ?? '');
+      setCategoryId(editingProduct.categoryId);
+    } else {
+      setName('');
+      setDescription('');
+      setBasePrice('');
+      setImageUrl('');
+      setCategoryId('');
+    }
+  }, [editingProduct]);
+
   if (!isOwner) return null;
+
+  const submitting = async () => {
+    const data: CreateProductInput = {
+      name,
+      description,
+      basePrice: Number(basePrice),
+      imageUrl: imageUrl || undefined,
+      categoryId,
+    };
+    if (editingProduct && onUpdate) {
+      await onUpdate(editingProduct.id, data);
+    } else {
+      await onSubmit(data);
+    }
+  };
 
   return (
     <form
       className="bg-white rounded-lg shadow p-6 space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({
-          name,
-          description,
-          basePrice: Number(basePrice),
-          imageUrl: imageUrl || undefined,
-          categoryId,
-        });
-        setName('');
-        setDescription('');
-        setBasePrice('');
-        setImageUrl('');
+        submitting();
       }}
     >
-      <h3 className="text-lg font-semibold text-gray-900">Add Product</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">{editingProduct ? 'Edit Product' : 'Add Product'}</h3>
+        {editingProduct && (
+          <button type="button" onClick={onCancelEdit} className="text-xs text-gray-500 underline">
+            Cancel
+          </button>
+        )}
+      </div>
       <div>
         <label className="block text-sm text-gray-600">Name</label>
         <input
@@ -81,20 +107,16 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, isOwner
       </div>
       <div>
         <label className="block text-sm text-gray-600">Category</label>
-        <select
+        <Select
           value={categoryId}
-          onChange={(e) => setCategoryId(e.target.value)}
-          required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-        >
-          <option value="" disabled>Select category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setCategoryId(v)}
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Select category"
+          className="mt-1 w-full"
+        />
       </div>
       <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-        Create Product
+        {editingProduct ? 'Save Changes' : 'Create Product'}
       </button>
     </form>
   );

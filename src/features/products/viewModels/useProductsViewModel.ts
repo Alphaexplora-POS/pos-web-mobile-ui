@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { Branch } from '../../../shared/models/branchTypes';
+import { fetchBranches } from '../../../shared/models/branchesApi';
 import type {
   Category,
   CreateProductInput,
@@ -18,11 +20,14 @@ import {
   setProductActive,
   fetchVariants,
   createVariant,
+  updateVariant,
   setVariantActive,
   fetchAttributes,
   createAttribute,
+  updateAttribute,
   fetchPromotions,
   createPromotion,
+  setPromotionActive,
 } from '../models/productsApi';
 
 export const useProductsViewModel = () => {
@@ -31,6 +36,7 @@ export const useProductsViewModel = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [variants, setVariants] = useState<Record<string, ProductVariant[]>>({});
   const [attributes, setAttributes] = useState<Record<string, ProductAttribute[]>>({});
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +60,19 @@ export const useProductsViewModel = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadBranches = useCallback(async () => {
+    try {
+      const data = await fetchBranches();
+      setBranches(data);
+    } catch {
+      setBranches([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
 
   const loadProductDetails = useCallback(async (productId: string) => {
     const [v, a] = await Promise.all([
@@ -90,18 +109,33 @@ export const useProductsViewModel = () => {
     await loadProductDetails(productId);
   };
 
-  const handleSetVariantActive = async (variantId: string, isActive: boolean) => {
-    await setVariantActive(variantId, isActive);
-    await load();
+  const handleUpdateVariant = async (productId: string, variantId: string, input: Partial<CreateVariantInput>) => {
+    await updateVariant(productId, variantId, input);
+    await loadProductDetails(productId);
   };
 
-  const handleCreateAttribute = async (productId: string, name: string, value: string) => {
-    await createAttribute(productId, name, value);
+  const handleSetVariantActive = async (productId: string, variantId: string, isActive: boolean) => {
+    await setVariantActive(productId, variantId, isActive);
+    await loadProductDetails(productId);
+  };
+
+  const handleCreateAttribute = async (productId: string, attributeKey: string, attributeValue: string) => {
+    await createAttribute(productId, attributeKey, attributeValue);
+    await loadProductDetails(productId);
+  };
+
+  const handleUpdateAttribute = async (productId: string, id: string, attributeKey: string, attributeValue: string) => {
+    await updateAttribute(productId, id, attributeKey, attributeValue);
     await loadProductDetails(productId);
   };
 
   const handleCreatePromotion = async (input: CreatePromoInput) => {
     await createPromotion(input);
+    await load();
+  };
+
+  const handleSetPromotionActive = async (id: string, isActive: boolean) => {
+    await setPromotionActive(id, isActive);
     await load();
   };
 
@@ -111,6 +145,7 @@ export const useProductsViewModel = () => {
     promotions,
     variants,
     attributes,
+    branches,
     isLoading,
     error,
     loadProductDetails,
@@ -119,8 +154,11 @@ export const useProductsViewModel = () => {
     updateProduct: handleUpdateProduct,
     setProductActive: handleSetProductActive,
     createVariant: handleCreateVariant,
+    updateVariant: handleUpdateVariant,
     setVariantActive: handleSetVariantActive,
     createAttribute: handleCreateAttribute,
+    updateAttribute: handleUpdateAttribute,
     createPromotion: handleCreatePromotion,
+    setPromotionActive: handleSetPromotionActive,
   };
 };

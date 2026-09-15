@@ -1,6 +1,4 @@
 import type { Branch } from './branchTypes';
-import { USE_MOCK_IDENTITY } from '../../mock/config';
-import * as mock from '../../mock/mockApi';
 import { apiRequest } from './apiClient';
 
 export interface RawBranch {
@@ -20,7 +18,6 @@ export const toBranch = (raw: RawBranch): Branch => ({
 });
 
 export const fetchBranches = async (): Promise<Branch[]> => {
-  if (USE_MOCK_IDENTITY) return mock.fetchBranches();
   const data = await apiRequest<{ branches: RawBranch[] }>('/identity/branches');
   return (data.branches ?? []).map(toBranch);
 };

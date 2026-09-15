@@ -88,7 +88,7 @@ const App: React.FC = () => {
             <Route
               path="/configuration"
               element={
-                <ProtectedLayout roles={['owner']}>
+                <ProtectedLayout roles={ALL_ROLES}>
                   <Configuration />
                 </ProtectedLayout>
               }
@@ -96,7 +96,7 @@ const App: React.FC = () => {
             <Route
               path="/shift"
               element={
-                <ProtectedLayout roles={['branch_manager']}>
+                <ProtectedLayout roles={ALL_ROLES}>
                   <Shift />
                 </ProtectedLayout>
               }

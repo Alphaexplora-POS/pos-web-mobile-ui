@@ -7,6 +7,7 @@ import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
 import OwnerOnlyBadge from '../../../shared/components/OwnerOnlyBadge';
+import Select from '../../../shared/components/Select';
 import { useRole } from '../../../shared/hooks/useRole';
 
 const Branches: React.FC = () => {
@@ -48,16 +49,15 @@ const Branches: React.FC = () => {
               {isOwner && (
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-600">Branch</label>
-                  <select
+                  <Select
                     value={selectedBranchId ?? ''}
-                    onChange={(e) => setSelectedBranchId(e.target.value || null)}
-                    className="rounded border border-gray-300 px-3 py-1 text-sm"
-                  >
-                    <option value="">All branches</option>
-                    {vm.branches.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
-                    ))}
-                  </select>
+                    onChange={(v) => setSelectedBranchId(v || null)}
+                    options={[
+                      { value: '', label: 'All branches' },
+                      ...vm.branches.map((b) => ({ value: b.id, label: b.name })),
+                    ]}
+                    className="w-40 shrink-0"
+                  />
                 </div>
               )}
             </div>

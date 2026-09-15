@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Select from '../../../shared/components/Select';
 import type { Branch, EmployeeRole } from '../models/branchTypes';
 
 interface EmployeeFormProps {
@@ -21,27 +22,55 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOwner) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError('Enter the employee name');
+      return;
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      setError('PIN must be exactly 4 digits');
+      return;
+    }
+    if (role === 'branch_manager' && (!email.trim() || !password)) {
+      setError('Email and password are required for a Branch Manager');
+      return;
+    }
+    if (!branchId) {
+      setError('Create a branch first');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        name,
+        role,
+        branchId,
+        email: role === 'branch_manager' ? email : undefined,
+        password: role === 'branch_manager' ? password : undefined,
+        pin,
+      });
+      setName('');
+      setEmail('');
+      setPassword('');
+      setPin('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add employee');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <form
       className="bg-white rounded-lg shadow p-6 space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit({
-          name,
-          role,
-          branchId,
-          email: role === 'branch_manager' ? email : undefined,
-          password: role === 'branch_manager' ? password : undefined,
-          pin,
-        });
-        setName('');
-        setEmail('');
-        setPassword('');
-        setPin('');
-      }}
+      onSubmit={submit}
     >
       <h3 className="text-lg font-semibold text-gray-900">Add Employee</h3>
       <div className="flex gap-4">
@@ -67,15 +96,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       </div>
       <div>
         <label className="block text-sm text-gray-600">Assign Branch</label>
-        <select
+        <Select
           value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setBranchId(v)}
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+          placeholder={branches.length === 0 ? 'No branches' : 'Select branch'}
+          className="mt-1 w-full"
+        />
       </div>
       {role === 'branch_manager' && (
         <>
@@ -107,15 +134,20 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value)}
+          maxLength={4}
+          inputMode="numeric"
           required
           className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
         />
+        <p className="text-xs text-gray-400 mt-1">Exactly 4 digits, unique per branch.</p>
       </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        disabled={submitting}
+        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
       >
-        Add Employee
+        {submitting ? 'Adding…' : 'Add Employee'}
       </button>
     </form>
   );

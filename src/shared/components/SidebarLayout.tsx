@@ -15,12 +15,13 @@ interface SidebarItem {
 }
 
 const ITEMS: SidebarItem[] = [
-  { to: '/analytics', label: 'Centralized Analytics', icon: 'analytics', roles: ['owner', 'branch_manager'] },
-  { to: '/branches', label: 'Branch and Employees', icon: 'branches', roles: ['owner', 'branch_manager'] },
+  { to: '/analytics', label: 'Analytics', icon: 'analytics', roles: ['owner', 'branch_manager'] },
+  { to: '/branches', label: 'Employees', icon: 'branches', roles: ['owner', 'branch_manager'] },
   { to: '/products', label: 'Product Management', icon: 'products', roles: ['owner', 'branch_manager'] },
   { to: '/inventory', label: 'Global Inventory', icon: 'inventory', roles: ['owner', 'branch_manager'] },
   { to: '/transactions', label: 'Transaction History', icon: 'transactions', roles: ['owner', 'branch_manager'] },
-  { to: '/configuration', label: 'Configuration', icon: 'config', roles: ['owner'] },
+  { to: '/shift', label: 'Shift', icon: 'shift', roles: ['owner', 'branch_manager'] },
+  { to: '/configuration', label: 'Settings', icon: 'config', roles: ['owner', 'branch_manager'] },
 ];
 
 const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -39,10 +40,6 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         <nav className="flex-1 py-4 overflow-y-auto">
           {visibleItems.map((item) => {
             const isActive = pathname === item.to;
-            const label =
-              item.to === '/inventory' && role !== 'owner'
-                ? 'Branch Inventory'
-                : item.label;
             return (
               <Link
                 key={item.to}
@@ -54,7 +51,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                 }`}
               >
                 {ICONS[item.icon]}
-                <span>{label}</span>
+                <span>{item.label}</span>
               </Link>
             );
           })}

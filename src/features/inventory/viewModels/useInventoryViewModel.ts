@@ -1,18 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { InventoryAuditLog, InventoryFilters, InventoryItem } from '../models/inventoryTypes';
+import type { InventoryAdjustInput, InventoryAuditLog, InventoryFilters, InventoryItem } from '../models/inventoryTypes';
 import {
   fetchCombinedInventory,
   fetchBranchInventory,
   fetchInventoryAuditLogs,
+  adjustInventory,
 } from '../models/inventoryApi';
 import { fetchBranches } from '../../../shared/models/branchesApi';
 import type { Branch } from '../../../shared/models/branchTypes';
+import type { ReasonCode } from '../../configuration/models/configTypes';
+import { fetchReasonCodes } from '../../configuration/models/configApi';
+import type { Employee } from '../../branches/models/branchTypes';
+import { fetchEmployees } from '../../branches/models/branchesApi';
 
 export const useInventoryViewModel = (isOwner: boolean) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<InventoryAuditLog[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [reasonCodes, setReasonCodes] = useState<ReasonCode[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +30,11 @@ export const useInventoryViewModel = (isOwner: boolean) => {
     } catch {
       setBranches([]);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
+    fetchEmployees().then(setEmployees).catch(() => setEmployees([]));
   }, []);
 
   const load = useCallback(
@@ -55,6 +67,12 @@ export const useInventoryViewModel = (isOwner: boolean) => {
     }
   }, []);
 
+  const adjustStock = useCallback(async (input: InventoryAdjustInput) => {
+    await adjustInventory(input);
+    await load(selectedBranchId ?? undefined);
+    await loadAudit(selectedBranchId ? { branchId: selectedBranchId } : undefined);
+  }, [load, loadAudit, selectedBranchId]);
+
   useEffect(() => {
     load(selectedBranchId ?? undefined);
   }, [load, selectedBranchId]);
@@ -84,9 +102,12 @@ export const useInventoryViewModel = (isOwner: boolean) => {
     branches,
     selectedBranchId,
     setSelectedBranchId,
+    reasonCodes,
+    employees,
     isLoading,
     error,
     refresh: () => load(selectedBranchId ?? undefined),
     refreshAudit: loadAudit,
+    adjustStock,
   };
 };

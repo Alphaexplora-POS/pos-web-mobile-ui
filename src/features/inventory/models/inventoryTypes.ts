@@ -3,6 +3,7 @@ export type StockOrigin = 'automatic' | 'manual';
 export interface InventoryItem {
   id: string;
   productId: string;
+  productVariantId: string;
   productName: string;
   variantSku: string;
   branchId: string;
@@ -19,6 +20,19 @@ export interface InventoryAuditLog {
   action: string;
   quantityDelta: number;
   timestamp: string;
+}
+
+export type InventoryAdjustAction = 'stock_in' | 'stock_out' | 'adjustment';
+
+export interface InventoryAdjustInput {
+  branchId: string;
+  productVariantId: string;
+  action: InventoryAdjustAction;
+  quantity: number;
+  unitCost?: number;
+  reasonId: string;
+  notes?: string;
+  performedBy: string;
 }
 
 export interface InventoryFilters {

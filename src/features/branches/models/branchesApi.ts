@@ -3,8 +3,6 @@ export { fetchBranches } from '../../../shared/models/branchesApi';
 import type { CreateBranchInput, CreateEmployeeInput, Employee, EmployeeRole } from './branchTypes';
 import type { Branch } from '../../../shared/models/branchTypes';
 import { toBranch, type RawBranch } from '../../../shared/models/branchesApi';
-import { USE_MOCK_IDENTITY } from '../../../mock/config';
-import * as mock from '../../../mock/mockApi';
 import { apiRequest } from '../../../shared/models/apiClient';
 
 interface RawEmployee {
@@ -37,7 +35,6 @@ const splitName = (name: string): { firstName: string; lastName: string } => {
 };
 
 export const createBranch = async (input: CreateBranchInput): Promise<Branch> => {
-  if (USE_MOCK_IDENTITY) return mock.createBranch(input);
   const data = await apiRequest<RawBranch>('/identity/branches', {
     method: 'POST',
     body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
@@ -46,7 +43,6 @@ export const createBranch = async (input: CreateBranchInput): Promise<Branch> =>
 };
 
 export const updateBranch = async (id: string, input: Partial<CreateBranchInput>): Promise<Branch> => {
-  if (USE_MOCK_IDENTITY) return mock.updateBranch(id, input);
   const data = await apiRequest<RawBranch>(`/identity/branches/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
@@ -55,18 +51,15 @@ export const updateBranch = async (id: string, input: Partial<CreateBranchInput>
 };
 
 export const deactivateBranch = async (id: string): Promise<void> => {
-  if (USE_MOCK_IDENTITY) return mock.deactivateBranch(id);
   await apiRequest<unknown>(`/identity/branches/${id}/deactivate`, { method: 'POST' });
 };
 
 export const fetchEmployees = async (): Promise<Employee[]> => {
-  if (USE_MOCK_IDENTITY) return mock.fetchEmployees();
   const data = await apiRequest<{ employees: RawEmployee[] }>('/identity/employees');
   return (data.employees ?? []).map(toEmployee);
 };
 
 export const createEmployee = async (input: CreateEmployeeInput): Promise<Employee> => {
-  if (USE_MOCK_IDENTITY) return mock.createEmployee(input);
   const { firstName, lastName } = splitName(input.name);
   const data = await apiRequest<RawEmployee>('/identity/employees', {
     method: 'POST',
@@ -82,6 +75,5 @@ export const createEmployee = async (input: CreateEmployeeInput): Promise<Employ
 };
 
 export const deactivateEmployee = async (id: string): Promise<void> => {
-  if (USE_MOCK_IDENTITY) return mock.deactivateEmployee(id);
   await apiRequest<unknown>(`/identity/employees/${id}/deactivate`, { method: 'POST' });
 };

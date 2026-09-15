@@ -3,6 +3,7 @@ import { useConfigViewModel } from '../viewModels/useConfigViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
+import Select from '../../../shared/components/Select';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
 
 const Configuration: React.FC = () => {
@@ -41,17 +42,12 @@ const Configuration: React.FC = () => {
               required
               className="flex-1 rounded border border-gray-300 px-3 py-2"
             />
-            <select
+            <Select
               value={payType}
-              onChange={(e) => setPayType(e.target.value as PaymentMethodType)}
-              className="rounded border border-gray-300 px-3 py-2"
-            >
-              {PAYMENT_METHOD_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setPayType(v)}
+              options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
+              className="w-36 shrink-0"
+            />
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               Add
             </button>
@@ -74,17 +70,12 @@ const Configuration: React.FC = () => {
                       required
                       className="flex-1 rounded border border-gray-300 px-3 py-2"
                     />
-                    <select
+                    <Select
                       value={editPayType}
-                      onChange={(e) => setEditPayType(e.target.value as PaymentMethodType)}
-                      className="rounded border border-gray-300 px-3 py-2"
-                    >
-                      {PAYMENT_METHOD_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setEditPayType(v)}
+                      options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
+                      className="w-36 shrink-0"
+                    />
                     <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
                       Save
                     </button>
@@ -144,14 +135,15 @@ const Configuration: React.FC = () => {
               required
               className="flex-1 rounded border border-gray-300 px-3 py-2"
             />
-            <select
+            <Select
               value={reasonType}
-              onChange={(e) => setReasonType(e.target.value as 'refund' | 'inventory')}
-              className="rounded border border-gray-300 px-3 py-2"
-            >
-              <option value="refund">Refund</option>
-              <option value="inventory">Inventory</option>
-            </select>
+              onChange={(v) => setReasonType(v)}
+              options={[
+                { value: 'refund' as const, label: 'Refund' },
+                { value: 'inventory' as const, label: 'Inventory' },
+              ]}
+              className="w-32 shrink-0"
+            />
             <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
               Add
             </button>
@@ -174,14 +166,15 @@ const Configuration: React.FC = () => {
                       required
                       className="flex-1 rounded border border-gray-300 px-3 py-2"
                     />
-                    <select
+                    <Select
                       value={editReasonType}
-                      onChange={(e) => setEditReasonType(e.target.value as 'refund' | 'inventory')}
-                      className="rounded border border-gray-300 px-3 py-2"
-                    >
-                      <option value="refund">Refund</option>
-                      <option value="inventory">Inventory</option>
-                    </select>
+                      onChange={(v) => setEditReasonType(v)}
+                      options={[
+                        { value: 'refund' as const, label: 'Refund' },
+                        { value: 'inventory' as const, label: 'Inventory' },
+                      ]}
+                      className="w-32 shrink-0"
+                    />
                     <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
                       Save
                     </button>

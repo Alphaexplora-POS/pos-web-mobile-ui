@@ -28,26 +28,29 @@ export interface ProductVariant {
 export interface ProductAttribute {
   id: string;
   productId: string;
-  name: string;
-  value: string;
+  attributeKey: string;
+  attributeValue: string;
 }
 
 export type PromoType = 'percentage' | 'fixed' | 'bundle';
-export type PromoStatus = 'active' | 'scheduled' | 'inactive';
+
+export interface PromotionApplicableItem {
+  id: string;
+  scope: 'product' | 'category';
+  productId?: string;
+  categoryId?: string;
+}
 
 export interface Promotion {
   id: string;
   name: string;
-  type: PromoType;
-  productIds: string[];
-  categoryIds: string[];
-  percentOff?: number;
-  fixedAmountOff?: number;
-  bundleRule?: string;
-  combinable: boolean;
-  status: PromoStatus;
+  promoType: PromoType;
+  config: Record<string, string | number | boolean>;
+  isStackable: boolean;
+  isActive: boolean;
   startDate?: string;
   endDate?: string;
+  applicableItems: PromotionApplicableItem[];
 }
 
 export interface CreateProductInput {
@@ -59,6 +62,7 @@ export interface CreateProductInput {
 }
 
 export interface CreateVariantInput {
+  branchId?: string;
   size?: string;
   color?: string;
   sku: string;
@@ -68,14 +72,11 @@ export interface CreateVariantInput {
 
 export interface CreatePromoInput {
   name: string;
-  type: PromoType;
-  productIds: string[];
-  categoryIds: string[];
-  percentOff?: number;
-  fixedAmountOff?: number;
-  bundleRule?: string;
-  combinable: boolean;
-  status: PromoStatus;
+  promoType: PromoType;
+  config: Record<string, string | number | boolean>;
+  isStackable: boolean;
+  isActive: boolean;
   startDate?: string;
   endDate?: string;
+  applicableItems: { scope: 'product' | 'category'; productId?: string; categoryId?: string }[];
 }

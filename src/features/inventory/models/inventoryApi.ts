@@ -1,30 +1,102 @@
-import type { InventoryAuditLog, InventoryFilters, InventoryItem } from './inventoryTypes';
-import { USE_MOCK_INVENTORY } from '../../../mock/config';
-import * as mock from '../../../mock/mockApi';
+import type { InventoryAdjustInput, InventoryAuditLog, InventoryFilters, InventoryItem } from './inventoryTypes';
+import { apiRequest } from '../../../shared/models/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+interface RawStockRow {
+  id: string;
+  branch_id: string;
+  product_variant_id: string;
+  product_sku: string;
+  quantity: number;
+  reorder_point: number | null;
+  updated_at: string;
+  branch_name?: string | null;
+  size?: string | null;
+  color?: string | null;
+}
+
+const toInventoryItem = (raw: RawStockRow): InventoryItem => ({
+  id: raw.id,
+  productId: '',
+  productVariantId: raw.product_variant_id,
+  productName: raw.product_sku,
+  variantSku: raw.product_sku,
+  branchId: raw.branch_id,
+  branchName: raw.branch_name ?? '',
+  quantity: raw.quantity,
+  origin: 'manual',
+});
+
+interface RawAuditLog {
+  id: string;
+  branch_id: string;
+  product_variant_id: string;
+  product_sku: string;
+  action: 'stock_in' | 'stock_out' | 'adjustment';
+  quantity_change: number;
+  quantity_before: number;
+  quantity_after: number;
+  reason_label: string;
+  notes: string | null;
+  performed_by: string;
+  performed_by_name: string;
+  created_at: string;
+}
+
+const toAuditLog = (raw: RawAuditLog): InventoryAuditLog => ({
+  id: raw.id,
+  productName: raw.product_sku,
+  variantSku: raw.product_sku,
+  branchName: '',
+  action: raw.action === 'stock_in' ? 'Stock In' : raw.action === 'stock_out' ? 'Stock Out' : 'Stock Adjustment',
+  quantityDelta: raw.quantity_change,
+  timestamp: raw.created_at,
+});
+
+export const adjustInventory = async (input: InventoryAdjustInput): Promise<InventoryItem> => {
+  const data = await apiRequest<{ productVariantId: string; quantity: number; auditLogId: string }>(
+    '/inventory/adjust',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        branchId: input.branchId,
+        productVariantId: input.productVariantId,
+        action: input.action,
+        quantity: input.quantity,
+        unitCost: input.unitCost,
+        reasonId: input.reasonId,
+        notes: input.notes,
+        performedBy: input.performedBy,
+      }),
+    },
+  );
+  return {
+    id: data.auditLogId,
+    productId: '',
+    productVariantId: data.productVariantId,
+    productName: '',
+    variantSku: '',
+    branchId: input.branchId,
+    branchName: '',
+    quantity: data.quantity,
+    origin: 'manual',
+  };
+};
 
 export const fetchCombinedInventory = async (): Promise<InventoryItem[]> => {
-  if (USE_MOCK_INVENTORY) return mock.fetchCombinedInventory();
-  const res = await fetch(`${API_BASE}/inventory/combined`);
-  if (!res.ok) throw new Error('Failed to fetch combined inventory');
-  return res.json();
+  const data = await apiRequest<{ inventory: RawStockRow[] }>('/inventory/?scope=global');
+  return (data.inventory ?? []).map(toInventoryItem);
 };
 
 export const fetchBranchInventory = async (branchId: string): Promise<InventoryItem[]> => {
-  if (USE_MOCK_INVENTORY) return mock.fetchBranchInventory(branchId);
-  const res = await fetch(`${API_BASE}/inventory/branch/${branchId}`);
-  if (!res.ok) throw new Error('Failed to fetch branch inventory');
-  return res.json();
+  const data = await apiRequest<{ inventory: RawStockRow[] }>(`/inventory/?branchId=${encodeURIComponent(branchId)}`);
+  return (data.inventory ?? []).map(toInventoryItem);
 };
 
 export const fetchInventoryAuditLogs = async (filters?: InventoryFilters): Promise<InventoryAuditLog[]> => {
-  if (USE_MOCK_INVENTORY) return mock.fetchInventoryAuditLogs(filters);
   const params = new URLSearchParams();
   if (filters?.branchId) params.set('branchId', filters.branchId);
-  if (filters?.productId) params.set('productId', filters.productId);
+  if (filters?.productId) params.set('productVariantId', filters.productId);
   const qs = params.toString();
-  const res = await fetch(`${API_BASE}/inventory/audit${qs ? `?${qs}` : ''}`);
-  if (!res.ok) throw new Error('Failed to fetch audit logs');
-  return res.json();
+  const data = await apiRequest<{ auditLogs: RawAuditLog[] }>(`/inventory/audit-logs${qs ? `?${qs}` : ''}`);
+  return (data.auditLogs ?? []).map(toAuditLog);
 };
