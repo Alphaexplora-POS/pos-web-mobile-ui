@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import type { Branch, EmployeeRole } from '../models/branchTypes';
+import { employeeSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface EmployeeFormProps {
   branches: Branch[];
@@ -29,20 +31,18 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('Enter the employee name');
-      return;
-    }
-    if (!/^\d{4}$/.test(pin)) {
-      setError('PIN must be exactly 4 digits');
-      return;
-    }
-    if (role === 'branch_manager' && (!email.trim() || !password)) {
-      setError('Email and password are required for a Branch Manager');
-      return;
-    }
-    if (!branchId) {
-      setError('Create a branch first');
+    const check = employeeSchema.safeParse({
+      name,
+      role,
+      branchId,
+      pin,
+      email: role === 'branch_manager' ? email : undefined,
+      password: role === 'branch_manager' ? password : undefined,
+    });
+    if (!check.success) {
+      const message = firstZodMessage(check.error);
+      setError(message);
+      toast.error(message);
       return;
     }
     setError(null);

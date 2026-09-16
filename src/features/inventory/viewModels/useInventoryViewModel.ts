@@ -12,6 +12,7 @@ import type { ReasonCode } from '../../configuration/models/configTypes';
 import { fetchReasonCodes } from '../../configuration/models/configApi';
 import type { Employee } from '../../branches/models/branchTypes';
 import { fetchEmployees } from '../../branches/models/branchesApi';
+import { notifySuccess } from '../../../shared/utils/notify';
 
 export const useInventoryViewModel = (isOwner: boolean) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -69,6 +70,7 @@ export const useInventoryViewModel = (isOwner: boolean) => {
 
   const adjustStock = useCallback(async (input: InventoryAdjustInput) => {
     await adjustInventory(input);
+    notifySuccess('Stock adjusted');
     await load(selectedBranchId ?? undefined);
     await loadAudit(selectedBranchId ? { branchId: selectedBranchId } : undefined);
   }, [load, loadAudit, selectedBranchId]);

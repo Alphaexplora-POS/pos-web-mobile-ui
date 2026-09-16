@@ -17,6 +17,8 @@ import {
   fetchSessions,
   fetchSessionSummary,
 } from '../models/transactionsApi';
+import { useAuth } from '../../auth/hooks/useAuth';
+import { notifySuccess, notifyError } from '../../../shared/utils/notify';
 
 export interface PosCartLine {
   key: string;
@@ -38,6 +40,7 @@ export interface PosCatalogVariant extends ProductVariant {
 }
 
 export const usePosViewModel = () => {
+  const { session } = useAuth();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -57,13 +60,16 @@ export const usePosViewModel = () => {
 
   const load = useCallback(async () => {
     try {
-      const [b, e, p, prods, inv] = await Promise.all([
+      const [allBranches, e, p, prods, inv] = await Promise.all([
         fetchBranches(),
         fetchEmployees(),
         fetchPaymentMethods(),
         fetchProducts(),
         fetchCombinedInventory(),
       ]);
+      const b = session?.tenantId
+        ? allBranches.filter((x) => !x.tenantId || x.tenantId === session.tenantId)
+        : allBranches;
       setBranches(b);
       setEmployees(e);
       setPaymentMethods(p);
@@ -87,7 +93,7 @@ export const usePosViewModel = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session?.tenantId]);
 
   useEffect(() => {
     load();
@@ -154,9 +160,21 @@ export const usePosViewModel = () => {
   const total = Math.round((subtotal - totalDiscount) * 100) / 100;
 
   const checkout = async () => {
-    if (cart.length === 0) throw new Error('Add at least one item to the sale');
-    if (!selectedEmployeeId) throw new Error('Select who is completing the sale');
-    if (!selectedPaymentMethodId) throw new Error('Select a payment method');
+    if (cart.length === 0) {
+      const error = new Error('Add at least one item to the sale');
+      notifyError(error);
+      throw error;
+    }
+    if (!selectedEmployeeId) {
+      const error = new Error('Select who is completing the sale');
+      notifyError(error);
+      throw error;
+    }
+    if (!selectedPaymentMethodId) {
+      const error = new Error('Select a payment method');
+      notifyError(error);
+      throw error;
+    }
     const employee = employees.find((e) => e.id === selectedEmployeeId);
     const method = paymentMethods.find((m) => m.id === selectedPaymentMethodId);
     const sale = await createSale({
@@ -180,6 +198,7 @@ export const usePosViewModel = () => {
     setLastSaleId(sale.id);
     setCart([]);
     setTotalDiscount(0);
+    notifySuccess('Sale recorded');
     const s = await fetchSessions().catch(() => []);
     const mine = s.find((sess) => sess.status === 'open' && sess.employeeId === selectedEmployeeId) ?? openSession;
     if (mine) {
@@ -195,17 +214,23 @@ export const usePosViewModel = () => {
   });
 
   const openShift = async () => {
-    if (!selectedBranchId || !selectedEmployeeId) throw new Error('Select branch and employee first');
+    if (!selectedBranchId || !selectedEmployeeId) {
+      const error = new Error('Select branch and employee first');
+      notifyError(error);
+      throw error;
+    }
     const s = await apiOpenSession(selectedBranchId, selectedEmployeeId);
     const named = withNames(s);
     setOpenSession(named);
     setSummary(await fetchSessionSummary(named.id));
+    notifySuccess('Shift opened');
   };
 
   const closeShift = async (id: string) => {
     await apiCloseSession(id);
     setOpenSession(null);
     setSummary(null);
+    notifySuccess('Shift closed');
   };
 
   return {

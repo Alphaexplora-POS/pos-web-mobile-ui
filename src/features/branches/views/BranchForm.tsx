@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { Branch } from '../models/branchTypes';
+import { branchSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface BranchFormProps {
   onSubmit: (data: { name: string; address: string; contact: string }) => void;
@@ -19,6 +21,11 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
       className="bg-white rounded-lg shadow p-6 space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        const check = branchSchema.safeParse({ name, address, contactNumber: contact });
+        if (!check.success) {
+          toast.error(firstZodMessage(check.error));
+          return;
+        }
         onSubmit({ name, address, contact });
         if (!initial) {
           setName('');

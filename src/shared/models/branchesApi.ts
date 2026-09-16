@@ -3,6 +3,7 @@ import { apiRequest } from './apiClient';
 
 export interface RawBranch {
   id: string;
+  tenantId?: string;
   name: string;
   address: string | null;
   contactNumber: string | null;
@@ -11,6 +12,7 @@ export interface RawBranch {
 
 export const toBranch = (raw: RawBranch): Branch => ({
   id: raw.id,
+  tenantId: raw.tenantId,
   name: raw.name,
   address: raw.address ?? '',
   contact: raw.contactNumber ?? '',

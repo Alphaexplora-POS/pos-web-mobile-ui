@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { InventoryAdjustAction, InventoryAdjustInput, InventoryItem } from '../models/inventoryTypes';
 import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
@@ -31,28 +32,33 @@ const AdjustStockForm: React.FC<{
 
   const selectedItem = items.find((i) => i.id === itemId);
 
+  const fail = (msg: string) => {
+    setError(msg);
+    toast.error(msg);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) {
-      setError('Select an item');
+      fail('Select an item');
       return;
     }
     if (!reasonId) {
-      setError('Select a reason');
+      fail('Select a reason');
       return;
     }
     if (!performedBy) {
-      setError('Select who performed the adjustment');
+      fail('Select who performed the adjustment');
       return;
     }
     if (action === 'stock_in' || action === 'stock_out') {
       const qty = Number(quantity);
       if (!qty || qty <= 0) {
-        setError('Quantity must be positive');
+        fail('Quantity must be positive');
         return;
       }
       if (action === 'stock_out' && qty > selectedItem.quantity) {
-        setError(`Only ${selectedItem.quantity} in stock`);
+        fail(`Only ${selectedItem.quantity} in stock`);
         return;
       }
     }

@@ -29,6 +29,7 @@ import {
   createPromotion,
   setPromotionActive,
 } from '../models/productsApi';
+import { notifySuccess } from '../../../shared/utils/notify';
 
 export const useProductsViewModel = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -85,57 +86,68 @@ export const useProductsViewModel = () => {
 
   const handleCreateCategory = async (name: string, parentId: string | null) => {
     await createCategory(name, parentId);
+    notifySuccess('Category created');
     await load();
   };
 
   const handleCreateProduct = async (input: CreateProductInput) => {
     const product = await createProduct(input);
+    notifySuccess('Product created');
     await load();
     return product;
   };
 
   const handleUpdateProduct = async (id: string, input: Partial<CreateProductInput>) => {
     await updateProduct(id, input);
+    notifySuccess('Product updated');
     await load();
   };
 
   const handleSetProductActive = async (id: string, isActive: boolean) => {
     await setProductActive(id, isActive);
+    notifySuccess(isActive ? 'Product activated' : 'Product deactivated');
     await load();
   };
 
   const handleCreateVariant = async (productId: string, input: CreateVariantInput) => {
     await createVariant(productId, input);
+    notifySuccess('Variant added');
     await loadProductDetails(productId);
   };
 
   const handleUpdateVariant = async (productId: string, variantId: string, input: Partial<CreateVariantInput>) => {
     await updateVariant(productId, variantId, input);
+    notifySuccess('Variant updated');
     await loadProductDetails(productId);
   };
 
   const handleSetVariantActive = async (productId: string, variantId: string, isActive: boolean) => {
     await setVariantActive(productId, variantId, isActive);
+    notifySuccess(isActive ? 'Variant activated' : 'Variant deactivated');
     await loadProductDetails(productId);
   };
 
   const handleCreateAttribute = async (productId: string, attributeKey: string, attributeValue: string) => {
     await createAttribute(productId, attributeKey, attributeValue);
+    notifySuccess('Attribute added');
     await loadProductDetails(productId);
   };
 
   const handleUpdateAttribute = async (productId: string, id: string, attributeKey: string, attributeValue: string) => {
     await updateAttribute(productId, id, attributeKey, attributeValue);
+    notifySuccess('Attribute updated');
     await loadProductDetails(productId);
   };
 
   const handleCreatePromotion = async (input: CreatePromoInput) => {
     await createPromotion(input);
+    notifySuccess('Promotion created');
     await load();
   };
 
   const handleSetPromotionActive = async (id: string, isActive: boolean) => {
     await setPromotionActive(id, isActive);
+    notifySuccess(isActive ? 'Promotion activated' : 'Promotion deactivated');
     await load();
   };
 

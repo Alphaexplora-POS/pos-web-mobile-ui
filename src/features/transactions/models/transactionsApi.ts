@@ -101,22 +101,31 @@ const toSession = (raw: RawSession): PosSession => ({
   status: raw.status === 'closed' ? 'closed' : 'open',
 });
 
-const isoDay = (d: Date): string => d.toISOString().split('T')[0];
+const localDayStart = (d: Date): string => {
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return start.toISOString();
+};
+
+const localDayEnd = (d: Date): string => {
+  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+  return end.toISOString();
+};
 
 const buildDateRange = (filters: TransactionFilters): { dateFrom?: string; dateTo?: string } => {
   const now = new Date();
-  const today = isoDay(now);
-  if (filters.range === 'today') return { dateFrom: today, dateTo: today };
+  if (filters.range === 'today') return { dateFrom: localDayStart(now), dateTo: localDayEnd(now) };
   if (filters.range === 'week') {
     const from = new Date(now);
     from.setDate(now.getDate() - 6);
-    return { dateFrom: isoDay(from), dateTo: today };
+    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
   }
   if (filters.range === 'month') {
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return { dateFrom: `${now.getFullYear()}-${month}-01`, dateTo: today };
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
   }
-  return { dateFrom: filters.startDate || undefined, dateTo: filters.endDate || undefined };
+  const from = filters.startDate ? localDayStart(new Date(`${filters.startDate}T00:00:00`)) : undefined;
+  const to = filters.endDate ? localDayEnd(new Date(`${filters.endDate}T00:00:00`)) : undefined;
+  return { dateFrom: from, dateTo: to };
 };
 
 export const fetchTransactions = async (filters: TransactionFilters): Promise<Transaction[]> => {
@@ -134,10 +143,11 @@ export const fetchTransactionById = async (id: string): Promise<Transaction> => 
   return toTransaction(data);
 };
 
-export const fetchRefunds = async (startDate?: string, endDate?: string): Promise<Refund[]> => {
+export const fetchRefunds = async (filters: TransactionFilters): Promise<Refund[]> => {
+  const { dateFrom, dateTo } = buildDateRange(filters);
   const params = new URLSearchParams();
-  if (startDate) params.set('date_from', startDate);
-  if (endDate) params.set('date_to', endDate);
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
   params.set('limit', '200');
   const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
   return (data.refunds ?? []).map(toRefund);

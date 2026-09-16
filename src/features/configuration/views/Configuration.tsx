@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useConfigViewModel } from '../viewModels/useConfigViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
 import Select from '../../../shared/components/Select';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
+import { paymentMethodSchema, reasonCodeSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 const Configuration: React.FC = () => {
   const vm = useConfigViewModel();
@@ -31,6 +33,11 @@ const Configuration: React.FC = () => {
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
               e.preventDefault();
+              const check = paymentMethodSchema.safeParse({ name: payName, type: payType });
+              if (!check.success) {
+                toast.error(firstZodMessage(check.error));
+                return;
+              }
               vm.createPaymentMethod(payName, payType);
               setPayName('');
             }}
@@ -60,6 +67,11 @@ const Configuration: React.FC = () => {
                     className="flex items-center gap-2 flex-1"
                     onSubmit={(e) => {
                       e.preventDefault();
+                      const check = paymentMethodSchema.safeParse({ name: editPayName, type: editPayType });
+                      if (!check.success) {
+                        toast.error(firstZodMessage(check.error));
+                        return;
+                      }
                       vm.updatePaymentMethod(m.id, editPayName, editPayType);
                       setEditingPaymentId(null);
                     }}
@@ -124,6 +136,11 @@ const Configuration: React.FC = () => {
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
               e.preventDefault();
+              const check = reasonCodeSchema.safeParse({ label: reasonName, type: reasonType });
+              if (!check.success) {
+                toast.error(firstZodMessage(check.error));
+                return;
+              }
               vm.createReasonCode(reasonName, reasonType);
               setReasonName('');
             }}
@@ -156,6 +173,11 @@ const Configuration: React.FC = () => {
                     className="flex items-center gap-2 flex-1"
                     onSubmit={(e) => {
                       e.preventDefault();
+                      const check = reasonCodeSchema.safeParse({ label: editReasonName, type: editReasonType });
+                      if (!check.success) {
+                        toast.error(firstZodMessage(check.error));
+                        return;
+                      }
                       vm.updateReasonCode(r.id, editReasonName, editReasonType);
                       setEditingReasonId(null);
                     }}

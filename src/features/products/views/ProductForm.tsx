@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import type { Category, CreateProductInput, Product } from '../models/productTypes';
+import { productSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface ProductFormProps {
   categories: Category[];
@@ -37,6 +39,17 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
   if (!isOwner) return null;
 
   const submitting = async () => {
+    const check = productSchema.safeParse({
+      categoryId,
+      name,
+      description: description || undefined,
+      basePrice: Number(basePrice),
+      imageUrl: imageUrl || undefined,
+    });
+    if (!check.success) {
+      toast.error(firstZodMessage(check.error));
+      return false;
+    }
     const data: CreateProductInput = {
       name,
       description,
@@ -49,6 +62,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
     } else {
       await onSubmit(data);
     }
+    return true;
   };
 
   return (

@@ -12,6 +12,7 @@ import type { ReasonCode, PaymentMethod } from '../../configuration/models/confi
 import { fetchReasonCodes, fetchPaymentMethods } from '../../configuration/models/configApi';
 import { fetchBranches } from '../../../shared/models/branchesApi';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { notifySuccess, notifyError } from '../../../shared/utils/notify';
 
 export const useTransactionsViewModel = () => {
   const { session } = useAuth();
@@ -32,7 +33,7 @@ export const useTransactionsViewModel = () => {
       const [txData, branchData, refundData] = await Promise.all([
         fetchTransactions(filters),
         fetchBranches(),
-        fetchRefunds(startDate, endDate),
+        fetchRefunds(filters),
       ]);
       const branchMap = new Map(branchData.map((b) => [b.id, b.name]));
       setTransactions(txData.map((t) => ({ ...t, branchName: t.branchName || branchMap.get(t.branchId) || '' })));
@@ -53,10 +54,11 @@ export const useTransactionsViewModel = () => {
     fetchPaymentMethods().then(setPaymentMethods).catch(() => setPaymentMethods([]));
   }, []);
 
-  const run = async (action: () => Promise<unknown>) => {
+  const run = async (action: () => Promise<unknown>, successMessage: string) => {
     try {
       setError(null);
       await action();
+      notifySuccess(successMessage);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -64,45 +66,52 @@ export const useTransactionsViewModel = () => {
     }
   };
 
-  const submitRefund = (input: { transactionId: string; amount: number; reasonId: string }) =>
-    run(() => {
-      const tx = transactions.find((t) => t.id === input.transactionId);
-      if (!tx) throw new Error('Transaction not found');
-      const reason = reasonCodes.find((r) => r.id === input.reasonId);
-      return createRefund({
-        ...input,
-        originalClientId: tx.clientId ?? tx.id,
-        branchId: tx.branchId,
-        sessionId: tx.sessionId ?? '',
-        employeeId: tx.employeeId ?? '',
-        employeeName: tx.employeeName ?? '',
-        initiatedBy: session?.userId ?? '',
-        initiatedByName: session ? `${session.firstName} ${session.lastName}`.trim() : '',
-        subtotal: tx.subtotal,
-        discountTotal: tx.discountTotal,
-        reasonLabel: reason?.name,
-        refundType: 'full',
-        refundItems: tx.items.map((item) => ({
-          transactionItemId: item.id ?? '',
-          productVariantId: item.productVariantId ?? item.productId ?? '',
-          productName: item.productName,
-          variantLabel: item.variantSku,
-          unitPrice: item.unitPrice,
-          quantityReturned: item.quantity,
-          refundAmount: Math.round(item.unitPrice * item.quantity * 100) / 100,
-          restock: true,
-        })),
-      });
-    });
+  const submitRefund = (input: { transactionId: string; amount: number; reasonId: string }) => {
+    const tx = transactions.find((t) => t.id === input.transactionId);
+    if (!tx) {
+      const error = new Error('Transaction not found');
+      notifyError(error);
+      throw error;
+    }
+    const reason = reasonCodes.find((r) => r.id === input.reasonId);
+    return run(
+      () =>
+        createRefund({
+          ...input,
+          originalClientId: tx.clientId ?? tx.id,
+          branchId: tx.branchId,
+          sessionId: tx.sessionId ?? '',
+          employeeId: tx.employeeId ?? '',
+          employeeName: tx.employeeName ?? '',
+          initiatedBy: session?.userId ?? '',
+          initiatedByName: session ? `${session.firstName} ${session.lastName}`.trim() : '',
+          subtotal: tx.subtotal,
+          discountTotal: tx.discountTotal,
+          reasonLabel: reason?.name,
+          refundType: 'full',
+          refundItems: tx.items.map((item) => ({
+            transactionItemId: item.id ?? '',
+            productVariantId: item.productVariantId ?? item.productId ?? '',
+            productName: item.productName,
+            variantLabel: item.variantSku,
+            unitPrice: item.unitPrice,
+            quantityReturned: item.quantity,
+            refundAmount: Math.round(item.unitPrice * item.quantity * 100) / 100,
+            restock: true,
+          })),
+        }),
+      'Refund submitted for approval'
+    );
+  };
 
   const handleApproveRefund = (id: string, approvedByName: string) =>
-    run(() => approveRefund(id, session?.userId ?? '', approvedByName));
+    run(() => approveRefund(id, session?.userId ?? '', approvedByName), 'Refund approved');
 
   const handleDenyRefund = (id: string, approvedByName: string) =>
-    run(() => denyRefund(id, session?.userId ?? '', approvedByName));
+    run(() => denyRefund(id, session?.userId ?? '', approvedByName), 'Refund denied');
 
   const handleCompleteRefund = (id: string, paymentMethodId: string, paymentMethodName: string, amount: number) =>
-    run(() => completeRefund(id, paymentMethodId, paymentMethodName, amount));
+    run(() => completeRefund(id, paymentMethodId, paymentMethodName, amount), 'Refund completed');
 
   return {
     range,

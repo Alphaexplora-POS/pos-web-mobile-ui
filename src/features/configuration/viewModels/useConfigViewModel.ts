@@ -10,6 +10,7 @@ import {
   updateReasonCode,
   setReasonCodeActive,
 } from '../models/configApi';
+import { notifySuccess } from '../../../shared/utils/notify';
 
 export const useConfigViewModel = () => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -38,31 +39,37 @@ export const useConfigViewModel = () => {
 
   const handleCreatePaymentMethod = async (name: string, type: string) => {
     await createPaymentMethod(name, type);
+    notifySuccess('Payment method added');
     await load();
   };
 
   const handleTogglePaymentMethod = async (id: string, isActive: boolean) => {
     await setPaymentMethodActive(id, isActive);
+    notifySuccess(isActive ? 'Payment method activated' : 'Payment method deactivated');
     await load();
   };
 
   const handleUpdatePaymentMethod = async (id: string, name: string, type: string) => {
     await updatePaymentMethod(id, name, type);
+    notifySuccess('Payment method updated');
     await load();
   };
 
   const handleCreateReasonCode = async (name: string, type: ReasonCodeType) => {
     await createReasonCode(name, type);
+    notifySuccess('Reason code added');
     await load();
   };
 
   const handleToggleReasonCode = async (id: string, isActive: boolean) => {
     await setReasonCodeActive(id, isActive);
+    notifySuccess(isActive ? 'Reason code activated' : 'Reason code deactivated');
     await load();
   };
 
   const handleUpdateReasonCode = async (id: string, name: string, type: ReasonCodeType) => {
     await updateReasonCode(id, name, type);
+    notifySuccess('Reason code updated');
     await load();
   };
 

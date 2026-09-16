@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { Branch } from '../../../shared/models/branchTypes';
 import type { CreateVariantInput, Product, ProductAttribute, ProductVariant } from '../models/productTypes';
 import Select from '../../../shared/components/Select';
 import { useRole } from '../../../shared/hooks/useRole';
+import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface ProductDetailProps {
   product: Product;
@@ -81,14 +83,27 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           className="flex flex-wrap gap-2 mb-3"
           onSubmit={(e) => {
             e.preventDefault();
-            onAddVariant({
+            const data: CreateVariantInput = {
               size,
               color,
               sku,
               branchId: branchId || undefined,
               costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+            };
+            const check = variantSchema.safeParse({
+              branchId: branchId || undefined,
+              sku,
+              size: size || null,
+              color: color || null,
+              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
             });
+            if (!check.success) {
+              toast.error(firstZodMessage(check.error));
+              return;
+            }
+            onAddVariant(data);
             resetVariantForm();
           }}
         >
@@ -293,16 +308,29 @@ const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, branches, isOw
       <div className="flex items-center gap-2">
         <button
           className="text-xs bg-blue-600 text-white px-2 py-1 rounded"
-          onClick={() =>
-            onSave({
+          onClick={() => {
+            const input = {
+              sku,
               size: size || undefined,
               color: color || undefined,
-              sku,
               branchId: branchId || undefined,
               costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
-            })
-          }
+            };
+            const check = variantSchema.safeParse({
+              sku,
+              size: size || null,
+              color: color || null,
+              branchId: branchId || undefined,
+              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
+              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+            });
+            if (!check.success) {
+              toast.error(firstZodMessage(check.error));
+              return;
+            }
+            onSave(input);
+          }}
         >
           Save
         </button>

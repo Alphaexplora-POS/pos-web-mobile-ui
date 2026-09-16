@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import SidebarLayout from './shared/components/SidebarLayout';
 import { RoleProvider } from './shared/hooks/useRole';
 import { AuthProvider } from './features/auth/hooks/useAuth';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <RoleProvider>
+        <Toaster position="top-right" richColors closeButton />
         <Suspense
           fallback={
             <div className="flex items-center justify-center h-screen">Loading...</div>

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import type { Category } from '../models/productTypes';
+import { categorySchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface CategoryFormProps {
   categories: Category[];
@@ -17,6 +19,11 @@ const CategoryForm: React.FC<CategoryFormProps> = ({ categories, onSubmit }) => 
       className="bg-white rounded-lg shadow p-6 space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        const check = categorySchema.safeParse({ name });
+        if (!check.success) {
+          toast.error(firstZodMessage(check.error));
+          return;
+        }
         onSubmit(name, categoryType === 'parent' ? null : parentId);
         setName('');
       }}

@@ -9,18 +9,24 @@ import ErrorState from '../../../shared/components/ErrorState';
 import OwnerOnlyBadge from '../../../shared/components/OwnerOnlyBadge';
 import Select from '../../../shared/components/Select';
 import { useRole } from '../../../shared/hooks/useRole';
+import { useAuth } from '../../auth/hooks/useAuth';
 
 const Branches: React.FC = () => {
   const vm = useBranchesViewModel();
   const { isOwner } = useRole();
+  const { session } = useAuth();
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
+  const tenantBranches = session?.tenantId
+    ? vm.branches.filter((b) => !b.tenantId || b.tenantId === session.tenantId)
+    : vm.branches;
+
   const branchManagerBranch: Branch | null = !isOwner
-    ? vm.branches.find((b) => b.isActive) ?? vm.branches[0] ?? null
+    ? tenantBranches.find((b) => b.isActive) ?? tenantBranches[0] ?? null
     : null;
 
   const visibleBranches = isOwner
-    ? vm.branches
+    ? tenantBranches
     : branchManagerBranch
     ? [branchManagerBranch]
     : [];
@@ -33,6 +39,15 @@ const Branches: React.FC = () => {
       title="Branch and Employees"
       actions={!isOwner ? <OwnerOnlyBadge label="Branch Manager view" /> : undefined}
     >
+      {session && (
+        <div className="mb-6 bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-sm text-gray-600">Workspace:</span>
+          <span className="text-sm font-semibold text-gray-900">{session.tenantName || '—'}</span>
+          <span className="text-xs text-gray-400">
+            (employees are only shown for this workspace — id …{session.tenantId.slice(-6)})
+          </span>
+        </div>
+      )}
       {!isOwner && (
         <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
           <span className="text-sm text-gray-600">Your Branch:</span>
@@ -54,7 +69,7 @@ const Branches: React.FC = () => {
                     onChange={(v) => setSelectedBranchId(v || null)}
                     options={[
                       { value: '', label: 'All branches' },
-                      ...vm.branches.map((b) => ({ value: b.id, label: b.name })),
+                      ...tenantBranches.map((b) => ({ value: b.id, label: b.name })),
                     ]}
                     className="w-40 shrink-0"
                   />
@@ -97,7 +112,15 @@ const Branches: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Employees</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Employees</h2>
+              <span className="text-xs text-gray-400">{vm.employees.length} in this workspace</span>
+            </div>
+            {vm.employees.length === 0 && (
+              <p className="text-sm text-amber-600 mb-3">
+                No employees in this workspace yet. Add one below using a branch from this workspace.
+              </p>
+            )}
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
@@ -122,7 +145,7 @@ const Branches: React.FC = () => {
                       <tr key={e.id} className="border-b">
                         <td className="py-2">{e.name}</td>
                         <td>{roleLabel[e.role]}</td>
-                        <td>{vm.branches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
+                        <td>{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
                         <td>
                           <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                             {e.isActive ? 'Active' : 'Inactive'}
@@ -149,7 +172,7 @@ const Branches: React.FC = () => {
         <div className="space-y-6">
           <BranchForm
             isOwner={isOwner}
-            initial={vm.branches.find((b) => b.id === selectedBranchId)}
+            initial={tenantBranches.find((b) => b.id === selectedBranchId)}
             onSubmit={(data) => {
               if (selectedBranchId) {
                 vm.updateBranch(selectedBranchId, data);
@@ -158,7 +181,13 @@ const Branches: React.FC = () => {
               }
             }}
           />
-          <EmployeeForm branches={vm.branches} isOwner={isOwner} onSubmit={vm.createEmployee} />
+          <EmployeeForm branches={tenantBranches} isOwner={isOwner} onSubmit={vm.createEmployee} />
+          {isOwner && vm.branches.length > tenantBranches.length && (
+            <p className="text-xs text-amber-600">
+              {vm.branches.length - tenantBranches.length} branch(es) belong to a different workspace and are hidden.
+              Sign in with the account that owns them to see their employees.
+            </p>
+          )}
         </div>
       </div>
     </PageLayout>

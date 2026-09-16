@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 interface ApiErrorResponse {
@@ -23,7 +25,12 @@ export const apiRequest = async <T>(path: string, init?: RequestInit): Promise<T
   const data = await res.json();
   if (!res.ok) {
     const payload = data as ApiErrorResponse;
-    throw new Error(payload.message ?? 'Request failed');
+    const message = payload.message ?? 'Request failed';
+    const method = init?.method ?? 'GET';
+    if (method !== 'GET') {
+      toast.error(message);
+    }
+    throw new Error(message);
   }
   return unwrapData<T>(data);
 };
