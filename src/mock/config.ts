@@ -5,8 +5,6 @@ const envBool = (key: string, fallback: boolean): boolean => {
 
 export const USE_MOCK = envBool('VITE_USE_MOCK', true);
 
-export const USE_MOCK_ANALYTICS = USE_MOCK && envBool('VITE_USE_MOCK_ANALYTICS', true);
-
 export const MOCK_DELAY_MS = Number(import.meta.env.VITE_MOCK_DELAY_MS ?? 250);
 
 export const mockDelay = (ms: number = MOCK_DELAY_MS): Promise<void> =>

@@ -144,16 +144,6 @@ export const fetchInventoryAuditLogs = async (filters?: InventoryFilters): Promi
   return db.getAuditLogs(filters);
 };
 
-export const fetchCompanyAnalytics = async () => {
-  await mockDelay();
-  return db.buildCompanyAnalytics();
-};
-
-export const fetchBranchAnalytics = async () => {
-  await mockDelay();
-  return db.buildBranchAnalytics();
-};
-
 export const fetchTransactions = async (filters: TransactionFilters): Promise<Transaction[]> => {
   await mockDelay();
   return db.getTransactions(filters);

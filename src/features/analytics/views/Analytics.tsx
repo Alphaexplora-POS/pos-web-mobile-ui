@@ -4,10 +4,12 @@ import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
 import { useRole } from '../../../shared/hooks/useRole';
+import { useAuth } from '../../auth/hooks/useAuth';
 
 const Analytics: React.FC = () => {
   const { isOwner } = useRole();
-  const { data, isLoading, error } = useAnalyticsViewModel(isOwner);
+  const { session } = useAuth();
+  const { data, isLoading, error } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
 
   if (isLoading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
@@ -19,7 +21,7 @@ const Analytics: React.FC = () => {
         <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
           <span className="text-sm text-gray-600">Your Branch:</span>
           <span className="text-sm font-semibold text-gray-900">
-            {data.branchName ?? 'Makati Flagship'}
+            {data.branchName ?? '—'}
           </span>
         </div>
       )}
