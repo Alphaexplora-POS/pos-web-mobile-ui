@@ -5,7 +5,6 @@ import type { IconType } from './icons';
 import { useRole } from '../hooks/useRole';
 import { useAuth } from '../../features/auth/hooks/useAuth';
 import type { Role } from '../models/userTypes';
-import { USE_MOCK } from '../../mock/config';
 
 interface SidebarItem {
   to: string;
@@ -71,11 +70,6 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
           >
             Sign out
           </button>
-          {USE_MOCK && (
-            <p className="mt-3 text-[10px] uppercase tracking-wide text-green-600 bg-green-50 rounded px-2 py-1 text-center">
-              Demo mode · mock data
-            </p>
-          )}
         </div>
       </aside>
       <main className="flex-1 overflow-x-auto">{children}</main>
