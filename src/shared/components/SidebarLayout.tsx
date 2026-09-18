@@ -19,7 +19,6 @@ const ITEMS: SidebarItem[] = [
   { to: '/products', label: 'Product Management', icon: 'products', roles: ['owner', 'branch_manager'] },
   { to: '/inventory', label: 'Global Inventory', icon: 'inventory', roles: ['owner', 'branch_manager'] },
   { to: '/transactions', label: 'Transaction History', icon: 'transactions', roles: ['owner', 'branch_manager'] },
-  { to: '/shift', label: 'Shift', icon: 'shift', roles: ['owner', 'branch_manager'] },
   { to: '/configuration', label: 'Settings', icon: 'config', roles: ['owner', 'branch_manager'] },
 ];
 

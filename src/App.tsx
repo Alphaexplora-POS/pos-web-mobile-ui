@@ -15,7 +15,6 @@ const GlobalInventory = lazy(() => import('./features/inventory/views/GlobalInve
 const Transactions = lazy(() => import('./features/transactions/views/Transactions'));
 const Analytics = lazy(() => import('./features/analytics/views/Analytics'));
 const Configuration = lazy(() => import('./features/configuration/views/Configuration'));
-const Shift = lazy(() => import('./features/transactions/views/Shift'));
 import NotFound from './shared/components/NotFound';
 
 const ALL_ROLES: Role[] = ['owner', 'branch_manager'];
@@ -92,14 +91,6 @@ const App: React.FC = () => {
               element={
                 <ProtectedLayout roles={ALL_ROLES}>
                   <Configuration />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/shift"
-              element={
-                <ProtectedLayout roles={ALL_ROLES}>
-                  <Shift />
                 </ProtectedLayout>
               }
             />
