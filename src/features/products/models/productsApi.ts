@@ -46,10 +46,11 @@ interface RawAttribute {
   attributeValue: string;
 }
 
-const toCategory = (raw: { id: string; name: string; parentId: string | null }): Category => ({
+const toCategory = (raw: { id: string; name: string; parentId: string | null; isActive: boolean }): Category => ({
   id: raw.id,
   name: raw.name,
   parentId: raw.parentId,
+  isActive: raw.isActive,
 });
 
 const toProduct = (raw: RawProduct): Product => ({
@@ -93,14 +94,14 @@ const toPromotion = (raw: Promotion & { applicableItems?: Promotion['applicableI
 });
 
 export const fetchCategories = async (): Promise<Category[]> => {
-  const data = await apiRequest<{ categories: { id: string; name: string; parentId: string | null }[] }>(
-    '/catalog/categories',
-  );
+  const data = await apiRequest<{
+    categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
+  }>('/catalog/categories');
   return (data.categories ?? []).map(toCategory);
 };
 
 export const createCategory = async (name: string, parentId: string | null): Promise<Category> => {
-  const data = await apiRequest<{ id: string; name: string; parentId: string | null }>(
+  const data = await apiRequest<{ id: string; name: string; parentId: string | null; isActive: boolean }>(
     '/catalog/categories',
     {
       method: 'POST',
@@ -108,6 +109,23 @@ export const createCategory = async (name: string, parentId: string | null): Pro
     },
   );
   return toCategory(data);
+};
+
+export const updateCategory = async (id: string, name: string, parentId: string | null): Promise<Category> => {
+  const data = await apiRequest<{ id: string; name: string; parentId: string | null; isActive: boolean }>(
+    `/catalog/categories/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ name, parentId }),
+    },
+  );
+  return toCategory(data);
+};
+
+export const setCategoryActive = async (id: string, isActive: boolean): Promise<void> => {
+  await apiRequest<unknown>(`/catalog/categories/${id}/${isActive ? 'activate' : 'deactivate'}`, {
+    method: 'POST',
+  });
 };
 
 export const fetchProducts = async (): Promise<Product[]> => {

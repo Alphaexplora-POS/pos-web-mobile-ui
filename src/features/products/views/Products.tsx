@@ -14,10 +14,12 @@ const Products: React.FC = () => {
   const { isOwner } = useRole();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'products' | 'promotions'>('products');
 
   const selectedProduct = vm.products.find((p) => p.id === selectedProductId);
   const editingProduct = vm.products.find((p) => p.id === editingProductId) ?? null;
+  const editingCategory = vm.categories.find((c) => c.id === editingCategoryId) ?? null;
 
   const handleSelectProduct = (id: string) => {
     setSelectedProductId(id);
@@ -82,13 +84,37 @@ const Products: React.FC = () => {
                       <div key={c.id} className="flex items-center justify-between border rounded p-3">
                         <div>
                           <p className="font-medium text-gray-800">{c.name}</p>
-                          {parent && (
+                          {parent ? (
                             <p className="text-xs text-gray-500">
                               Child of <span className="font-medium text-gray-700">{parent.name}</span>
                             </p>
+                          ) : (
+                            <p className="text-xs text-gray-500">Top-level</p>
                           )}
                         </div>
-                        {!parent && <span className="text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">Top-level</span>}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {c.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                          <button
+                            className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                            onClick={() => setEditingCategoryId(c.id)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`text-xs px-3 py-1 rounded ${
+                              c.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                            }`}
+                            onClick={() => vm.setCategoryActive(c.id, !c.isActive)}
+                          >
+                            {c.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -114,7 +140,13 @@ const Products: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            <CategoryForm categories={vm.categories} onSubmit={vm.createCategory} />
+            <CategoryForm
+              categories={vm.categories}
+              onSubmit={vm.createCategory}
+              onUpdate={vm.updateCategory}
+              editingCategory={editingCategory}
+              onCancelEdit={() => setEditingCategoryId(null)}
+            />
             <ProductForm
               categories={vm.categories}
               isOwner={isOwner}

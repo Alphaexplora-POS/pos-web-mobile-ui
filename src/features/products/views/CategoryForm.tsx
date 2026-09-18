@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import type { Category } from '../models/productTypes';
@@ -7,28 +7,69 @@ import { categorySchema, firstZodMessage } from '../../../shared/validation/sche
 interface CategoryFormProps {
   categories: Category[];
   onSubmit: (name: string, parentId: string | null) => void;
+  onUpdate: (id: string, name: string, parentId: string | null) => void;
+  editingCategory: Category | null;
+  onCancelEdit: () => void;
 }
 
-const CategoryForm: React.FC<CategoryFormProps> = ({ categories, onSubmit }) => {
+const CategoryForm: React.FC<CategoryFormProps> = ({
+  categories,
+  onSubmit,
+  onUpdate,
+  editingCategory,
+  onCancelEdit,
+}) => {
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState('');
   const [categoryType, setCategoryType] = useState<'parent' | 'child'>('parent');
 
+  useEffect(() => {
+    if (editingCategory) {
+      setName(editingCategory.name);
+      const hasParent = Boolean(editingCategory.parentId);
+      setCategoryType(hasParent ? 'child' : 'parent');
+      setParentId(editingCategory.parentId ?? '');
+    } else {
+      setName('');
+      setParentId('');
+      setCategoryType('parent');
+    }
+  }, [editingCategory]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const check = categorySchema.safeParse({ name });
+    if (!check.success) {
+      toast.error(firstZodMessage(check.error));
+      return;
+    }
+    if (categoryType === 'child' && !parentId) {
+      toast.error('Please select a parent category');
+      return;
+    }
+    const resolvedParentId = categoryType === 'parent' ? null : parentId;
+    if (editingCategory) {
+      onUpdate(editingCategory.id, name, resolvedParentId);
+    } else {
+      onSubmit(name, resolvedParentId);
+    }
+    setName('');
+    setParentId('');
+    setCategoryType('parent');
+  };
+
+  const parentOptions = categories
+    .filter((c) => c.parentId === null && c.id !== editingCategory?.id)
+    .map((c) => ({ value: c.id, label: c.name }));
+
   return (
     <form
       className="bg-white rounded-lg shadow p-6 space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const check = categorySchema.safeParse({ name });
-        if (!check.success) {
-          toast.error(firstZodMessage(check.error));
-          return;
-        }
-        onSubmit(name, categoryType === 'parent' ? null : parentId);
-        setName('');
-      }}
+      onSubmit={submit}
     >
-      <h3 className="text-lg font-semibold text-gray-900">Add Category</h3>
+      <h3 className="text-lg font-semibold text-gray-900">
+        {editingCategory ? `Edit Category — ${editingCategory.name}` : 'Add Category'}
+      </h3>
       <div>
         <label className="block text-sm text-gray-600">Category Name</label>
         <input
@@ -65,15 +106,29 @@ const CategoryForm: React.FC<CategoryFormProps> = ({ categories, onSubmit }) => 
           <Select
             value={parentId}
             onChange={(v) => setParentId(v)}
-            options={categories.filter((c) => c.parentId === null).map((c) => ({ value: c.id, label: c.name }))}
+            options={parentOptions}
             placeholder="Select parent"
             className="mt-1 w-full"
           />
         </div>
       )}
-      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-        Create Category
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          {editingCategory ? 'Save Changes' : 'Create Category'}
+        </button>
+        {editingCategory && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="px-4 py-2 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   );
 };

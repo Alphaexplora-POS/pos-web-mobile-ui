@@ -14,6 +14,8 @@ import type {
 import {
   fetchCategories,
   createCategory,
+  updateCategory,
+  setCategoryActive,
   fetchProducts,
   createProduct,
   updateProduct,
@@ -90,6 +92,18 @@ export const useProductsViewModel = () => {
     await load();
   };
 
+  const handleUpdateCategory = async (id: string, name: string, parentId: string | null) => {
+    await updateCategory(id, name, parentId);
+    notifySuccess('Category updated');
+    await load();
+  };
+
+  const handleSetCategoryActive = async (id: string, isActive: boolean) => {
+    await setCategoryActive(id, isActive);
+    notifySuccess(isActive ? 'Category activated' : 'Category deactivated');
+    await load();
+  };
+
   const handleCreateProduct = async (input: CreateProductInput) => {
     const product = await createProduct(input);
     notifySuccess('Product created');
@@ -162,6 +176,8 @@ export const useProductsViewModel = () => {
     error,
     loadProductDetails,
     createCategory: handleCreateCategory,
+    updateCategory: handleUpdateCategory,
+    setCategoryActive: handleSetCategoryActive,
     createProduct: handleCreateProduct,
     updateProduct: handleUpdateProduct,
     setProductActive: handleSetProductActive,
