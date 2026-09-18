@@ -61,14 +61,16 @@ export const fetchEmployees = async (): Promise<Employee[]> => {
 
 export const createEmployee = async (input: CreateEmployeeInput): Promise<Employee> => {
   const { firstName, lastName } = splitName(input.name);
+  const role = toBackendRole(input.role);
   const data = await apiRequest<RawEmployee>('/identity/employees', {
     method: 'POST',
     body: JSON.stringify({
       branchId: input.branchId,
       firstName,
       lastName,
-      role: toBackendRole(input.role),
+      role,
       pin: input.pin,
+      ...(role === 'manager' ? { email: input.email, password: input.password } : {}),
     }),
   });
   return toEmployee(data);
