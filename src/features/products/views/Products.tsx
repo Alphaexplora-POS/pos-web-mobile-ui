@@ -227,7 +227,6 @@ const Products: React.FC = () => {
             product={selectedProduct}
             variants={vm.variants[selectedProduct.id] ?? []}
             attributes={vm.attributes[selectedProduct.id] ?? []}
-            branches={vm.branches}
             onAddVariant={(input) => vm.createVariant(selectedProduct.id, input)}
             onUpdateVariant={(variantId, input) => vm.updateVariant(selectedProduct.id, variantId, input)}
             onAddAttribute={(key, value) => vm.createAttribute(selectedProduct.id, key, value)}

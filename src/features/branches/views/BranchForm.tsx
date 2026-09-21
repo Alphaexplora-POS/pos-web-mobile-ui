@@ -18,7 +18,7 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         const check = branchSchema.safeParse({ name, address, contactNumber: contact });
@@ -34,9 +34,6 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
         }
       }}
     >
-      <h3 className="text-lg font-semibold text-gray-900">
-        {initial ? 'Edit Branch' : 'Add Branch'}
-      </h3>
       <div>
         <label className="block text-sm text-gray-600">Name</label>
         <input

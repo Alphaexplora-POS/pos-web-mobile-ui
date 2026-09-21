@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import type { Branch } from '../../../shared/models/branchTypes';
 import type { CreateVariantInput, Product, ProductAttribute, ProductVariant } from '../models/productTypes';
-import Select from '../../../shared/components/Select';
 import { useRole } from '../../../shared/hooks/useRole';
 import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
@@ -10,7 +8,6 @@ interface ProductDetailProps {
   product: Product;
   variants: ProductVariant[];
   attributes: ProductAttribute[];
-  branches: Branch[];
   onAddVariant: (input: CreateVariantInput) => void | Promise<void>;
   onUpdateVariant: (variantId: string, input: Partial<CreateVariantInput>) => void | Promise<void>;
   onAddAttribute: (attributeKey: string, attributeValue: string) => void | Promise<void>;
@@ -24,7 +21,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   variants,
   attributes,
-  branches,
   onAddVariant,
   onUpdateVariant,
   onAddAttribute,
@@ -37,7 +33,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const [size, setSize] = useState('');
   const [color, setColor] = useState('');
   const [sku, setSku] = useState('');
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [costPrice, setCostPrice] = useState('');
   const [priceOverride, setPriceOverride] = useState('');
   const [attrKey, setAttrKey] = useState('');
@@ -54,10 +49,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-        <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <div className="flex items-center justify-end gap-2">
           {isOwner && (
             <button
               className="text-sm px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -73,7 +66,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             {product.isActive ? 'Deactivate' : 'Activate'}
           </button>
         </div>
-      </div>
       <p className="text-sm text-gray-600">{product.description}</p>
       <p className="text-sm text-gray-500">Base Price: ${product.basePrice}</p>
 
@@ -87,12 +79,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               size,
               color,
               sku,
-              branchId: branchId || undefined,
               costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
             };
             const check = variantSchema.safeParse({
-              branchId: branchId || undefined,
               sku,
               size: size || null,
               color: color || null,
@@ -125,13 +115,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             onChange={(e) => setSku(e.target.value)}
             required
             className="flex-1 min-w-24 rounded border border-gray-300 px-3 py-1"
-          />
-          <Select
-            value={branchId}
-            onChange={(v) => setBranchId(v)}
-            options={branches.map((b) => ({ value: b.id, label: b.name }))}
-            title="Assign initial stock to this branch"
-            className="flex-1 min-w-24"
           />
           {isOwner && (
             <>
@@ -188,7 +171,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               {editingVariantId === v.id && (
                 <VariantEditRow
                   variant={v}
-                  branches={branches}
                   isOwner={isOwner}
                   onSave={(input) => {
                     onUpdateVariant(v.id, input);
@@ -263,17 +245,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
 interface VariantEditRowProps {
   variant: ProductVariant;
-  branches: Branch[];
   isOwner: boolean;
   onSave: (input: Partial<CreateVariantInput>) => void;
   onCancel: () => void;
 }
 
-const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, branches, isOwner, onSave, onCancel }) => {
+const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, isOwner, onSave, onCancel }) => {
   const [size, setSize] = useState(variant.size ?? '');
   const [color, setColor] = useState(variant.color ?? '');
   const [sku, setSku] = useState(variant.sku);
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [costPrice, setCostPrice] = useState(variant.costPrice != null ? String(variant.costPrice) : '');
   const [priceOverride, setPriceOverride] = useState(variant.priceOverride != null ? String(variant.priceOverride) : '');
 
@@ -282,7 +262,6 @@ const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, branches, isOw
       <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" className="flex-1 min-w-20 rounded border border-gray-300 px-2 py-1" />
       <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" className="flex-1 min-w-20 rounded border border-gray-300 px-2 py-1" />
       <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" className="flex-1 min-w-20 rounded border border-gray-300 px-2 py-1" />
-      <Select value={branchId} onChange={(v) => setBranchId(v)} options={branches.map((b) => ({ value: b.id, label: b.name }))} title="Move stock to this branch" className="flex-1 min-w-20" />
       {isOwner && (
         <>
           <input
@@ -313,7 +292,6 @@ const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, branches, isOw
               sku,
               size: size || undefined,
               color: color || undefined,
-              branchId: branchId || undefined,
               costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
             };
@@ -321,7 +299,6 @@ const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, branches, isOw
               sku,
               size: size || null,
               color: color || null,
-              branchId: branchId || undefined,
               costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
             });

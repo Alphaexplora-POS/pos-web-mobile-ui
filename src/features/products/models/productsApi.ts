@@ -133,6 +133,11 @@ export const fetchProducts = async (): Promise<Product[]> => {
   return (data.products ?? []).map(toProduct);
 };
 
+export const fetchAllVariants = async (): Promise<ProductVariant[]> => {
+  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products?limit=100');
+  return (data.products ?? []).flatMap((p) => (p.variants ?? []).map(toVariant));
+};
+
 export const createProduct = async (input: CreateProductInput): Promise<Product> => {
   const data = await apiRequest<RawProduct>('/catalog/products', {
     method: 'POST',

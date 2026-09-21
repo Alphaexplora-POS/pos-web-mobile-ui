@@ -69,10 +69,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={submit}
     >
-      <h3 className="text-lg font-semibold text-gray-900">Add Employee</h3>
       <div className="flex gap-4">
         {(['branch_manager', 'cashier', 'staff'] as EmployeeRole[]).map((r) => (
           <label key={r} className="flex items-center gap-2 text-sm text-gray-700">

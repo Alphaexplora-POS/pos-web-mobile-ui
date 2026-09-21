@@ -29,7 +29,7 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit({
@@ -58,7 +58,6 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
         setProductIds([]);
       }}
     >
-      <h3 className="text-lg font-semibold text-gray-900">Add Promotion</h3>
       <div>
         <label className="block text-sm text-gray-600">Name</label>
         <input

@@ -64,12 +64,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={submit}
     >
-      <h3 className="text-lg font-semibold text-gray-900">
-        {editingCategory ? `Edit Category — ${editingCategory.name}` : 'Add Category'}
-      </h3>
       <div>
         <label className="block text-sm text-gray-600">Category Name</label>
         <input

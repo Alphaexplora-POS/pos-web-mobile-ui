@@ -17,22 +17,30 @@ const stockClass = (qty: number) => {
 
 const AdjustStockForm: React.FC<{
   items: InventoryItem[];
+  branches: { id: string; name: string }[];
+  variants: { id: string; label: string }[];
   reasonCodes: { id: string; name: string }[];
   employees: { id: string; name: string }[];
-  isOwner: boolean;
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
-}> = ({ items, reasonCodes, employees, isOwner, onAdjust }) => {
-  const [itemId, setItemId] = useState('');
+}> = ({ items, branches, variants, reasonCodes, employees, onAdjust }) => {
+  const [branchId, setBranchId] = useState('');
+  const [variantId, setVariantId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
   const [quantity, setQuantity] = useState('');
-  const [unitCost, setUnitCost] = useState('');
   const [reasonId, setReasonId] = useState('');
   const [notes, setNotes] = useState('');
   const [performedBy, setPerformedBy] = useState(employees[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const selectedItem = items.find((i) => i.id === itemId);
+  const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
+
+  const branchQuantity = new Map(
+    items
+      .filter((i) => i.branchId === branchId)
+      .map((i) => [i.productVariantId, i.quantity]),
+  );
+  const selectedQuantity = variantId ? (branchQuantity.get(variantId) ?? 0) : null;
 
   const fail = (msg: string) => {
     setError(msg);
@@ -41,7 +49,11 @@ const AdjustStockForm: React.FC<{
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedItem) {
+    if (!branchId) {
+      fail('Select a branch');
+      return;
+    }
+    if (!variantId) {
       fail('Select an item');
       return;
     }
@@ -59,8 +71,8 @@ const AdjustStockForm: React.FC<{
         fail('Quantity must be positive');
         return;
       }
-      if (action === 'stock_out' && qty > selectedItem.quantity) {
-        fail(`Only ${selectedItem.quantity} in stock`);
+      if (action === 'stock_out' && qty > (selectedQuantity ?? 0)) {
+        fail(`Only ${selectedQuantity ?? 0} in stock at this branch`);
         return;
       }
     }
@@ -68,18 +80,16 @@ const AdjustStockForm: React.FC<{
     setSubmitting(true);
     try {
       await onAdjust({
-        branchId: selectedItem.branchId,
-        productVariantId: selectedItem.productVariantId,
+        branchId,
+        productVariantId: variantId,
         action,
         quantity: Number(quantity),
-        unitCost: action === 'stock_in' && isOwner && unitCost !== '' ? Number(unitCost) : undefined,
         reasonId,
         notes: notes || undefined,
         performedBy,
       });
-      setItemId('');
+      setVariantId('');
       setQuantity('');
-      setUnitCost('');
       setReasonId('');
       setNotes('');
     } catch (err) {
@@ -90,19 +100,34 @@ const AdjustStockForm: React.FC<{
   };
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Adjust Stock</h2>
+    <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-600">Branch</label>
+          <Select
+            value={branchId}
+            onChange={(v) => {
+              setBranchId(v);
+              setVariantId('');
+            }}
+            options={branchOptions}
+            placeholder="Select branch"
+            className="mt-1 w-full"
+          />
+        </div>
         <div>
           <label className="block text-sm text-gray-600">Item</label>
           <Select
-            value={itemId}
-            onChange={(v) => setItemId(v)}
-            options={items.map((i) => ({
-              value: i.id,
-              label: `${i.productName} · ${i.variantSku} · (${i.branchName}: ${i.quantity})`,
-            }))}
-            placeholder="Select item"
+            value={variantId}
+            onChange={(v) => setVariantId(v)}
+            options={variants.map((v) => {
+              const qty = branchQuantity.get(v.id);
+              return {
+                value: v.id,
+                label: qty === undefined ? `${v.label} · no stock yet` : `${v.label} · (${qty})`,
+              };
+            })}
+            placeholder={branchId ? 'Select item' : 'Select branch first'}
             className="mt-1 w-full"
           />
         </div>
@@ -131,19 +156,6 @@ const AdjustStockForm: React.FC<{
             className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
           />
         </div>
-        {action === 'stock_in' && isOwner && (
-          <div>
-            <label className="block text-sm text-gray-600">Unit Cost (updates weighted average)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={unitCost}
-              onChange={(e) => setUnitCost(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-            />
-          </div>
-        )}
         <div>
           <label className="block text-sm text-gray-600">Reason</label>
           <Select
@@ -213,14 +225,12 @@ const GlobalInventory: React.FC = () => {
           </div>
         )}
 
-        {vm.items.length > 0 && (
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            onClick={() => setAdjustModalOpen(true)}
-          >
-            Adjust Stock
-          </button>
-        )}
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          onClick={() => setAdjustModalOpen(true)}
+        >
+          Adjust Stock
+        </button>
 
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
@@ -296,10 +306,13 @@ const GlobalInventory: React.FC = () => {
       {adjustModalOpen && (
         <Modal title="Adjust Stock" onClose={() => setAdjustModalOpen(false)}>
           <AdjustStockForm
-            items={vm.items}
+            items={vm.combinedItems}
+            branches={
+              isOwner ? vm.branches : vm.branches.filter((b) => b.id === vm.selectedBranchId)
+            }
+            variants={vm.variants}
             reasonCodes={inventoryReasonCodes}
             employees={employees}
-            isOwner={isOwner}
             onAdjust={vm.adjustStock}
           />
         </Modal>

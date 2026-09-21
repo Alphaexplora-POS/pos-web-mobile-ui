@@ -13,7 +13,7 @@ interface ProductFormProps {
   isOwner: boolean;
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdate, editingProduct, onCancelEdit, isOwner }) => {
+const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdate, editingProduct, isOwner }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [basePrice, setBasePrice] = useState('');
@@ -67,20 +67,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         submitting();
       }}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">{editingProduct ? 'Edit Product' : 'Add Product'}</h3>
-        {editingProduct && (
-          <button type="button" onClick={onCancelEdit} className="text-xs text-gray-500 underline">
-            Cancel
-          </button>
-        )}
-      </div>
       <div>
         <label className="block text-sm text-gray-600">Name</label>
         <input
