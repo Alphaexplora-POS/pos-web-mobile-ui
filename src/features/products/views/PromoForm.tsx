@@ -5,9 +5,10 @@ interface PromoFormProps {
   products: Product[];
   categories: Category[];
   onSubmit: (data: CreatePromoInput) => void | Promise<void>;
+  isOwner: boolean;
 }
 
-const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit }) => {
+const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, isOwner }) => {
   const [name, setName] = useState('');
   const [promoType, setPromoType] = useState<PromoType>('percentage');
   const [percentOff, setPercentOff] = useState('');
@@ -16,7 +17,7 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit })
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [productIds, setProductIds] = useState<string[]>([]);
   const [isStackable, setIsStackable] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  const [isActive, setIsActive] = useState(isOwner);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -41,11 +42,11 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit })
               ? { fixedAmountOff: Number(fixedAmountOff) }
               : { bundleRule },
           isStackable,
-          isActive,
-          startDate: isActive && startDate ? startDate : undefined,
-          endDate: isActive && endDate ? endDate : undefined,
+          isActive: isOwner ? isActive : false,
+          startDate: isOwner && isActive && startDate ? startDate : undefined,
+          endDate: isOwner && isActive && endDate ? endDate : undefined,
           applicableItems: [
-            ...categoryIds.map((id) => ({ scope: 'category' as const, categoryId: id })),
+            ...(isOwner ? categoryIds.map((id) => ({ scope: 'category' as const, categoryId: id })) : []),
             ...productIds.map((id) => ({ scope: 'product' as const, productId: id })),
           ],
         });
@@ -119,25 +120,27 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit })
         </div>
       )}
 
-      <div>
-        <label className="block text-sm text-gray-600">Applicable Categories</label>
-        <div className="flex flex-wrap gap-2 mt-1">
-          {categories.map((c) => (
-            <label
-              key={c.id}
-              className={`text-xs px-3 py-1 rounded border cursor-pointer ${categoryIds.includes(c.id) ? 'bg-blue-100 border-blue-400' : 'border-gray-300'}`}
-            >
-              <input
-                type="checkbox"
-                className="hidden"
-                checked={categoryIds.includes(c.id)}
-                onChange={() => toggleCategory(c.id)}
-              />
-              {c.name}
-            </label>
-          ))}
+      {isOwner && (
+        <div>
+          <label className="block text-sm text-gray-600">Applicable Categories</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {categories.map((c) => (
+              <label
+                key={c.id}
+                className={`text-xs px-3 py-1 rounded border cursor-pointer ${categoryIds.includes(c.id) ? 'bg-blue-100 border-blue-400' : 'border-gray-300'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="hidden"
+                  checked={categoryIds.includes(c.id)}
+                  onChange={() => toggleCategory(c.id)}
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-sm text-gray-600">Applicable Products</label>
@@ -166,19 +169,29 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit })
         </label>
       </div>
 
-      <div>
-        <label className="block text-sm text-gray-600">Status</label>
-        <div className="flex gap-4 mt-1">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={isActive} onChange={() => setIsActive(true)} />
-            Active
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={!isActive} onChange={() => setIsActive(false)} />
-            Inactive
-          </label>
+      {isOwner ? (
+        <div>
+          <label className="block text-sm text-gray-600">Status</label>
+          <div className="flex gap-4 mt-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" checked={isActive} onChange={() => setIsActive(true)} />
+              Active
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="radio" checked={!isActive} onChange={() => setIsActive(false)} />
+              Inactive
+            </label>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div>
+          <label className="block text-sm text-gray-600">Status</label>
+          <p className="text-sm font-medium text-gray-700 mt-1">Inactive</p>
+          <p className="text-xs text-amber-600 mt-1">
+            Promotions created by a Branch Manager require Owner approval before going active.
+          </p>
+        </div>
+      )}
 
       {isActive && (
         <div className="grid grid-cols-2 gap-4">

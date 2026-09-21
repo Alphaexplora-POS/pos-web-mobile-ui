@@ -5,6 +5,7 @@ import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
+import Modal from '../../../shared/components/Modal';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
 
@@ -18,8 +19,9 @@ const AdjustStockForm: React.FC<{
   items: InventoryItem[];
   reasonCodes: { id: string; name: string }[];
   employees: { id: string; name: string }[];
+  isOwner: boolean;
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
-}> = ({ items, reasonCodes, employees, onAdjust }) => {
+}> = ({ items, reasonCodes, employees, isOwner, onAdjust }) => {
   const [itemId, setItemId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
   const [quantity, setQuantity] = useState('');
@@ -70,7 +72,7 @@ const AdjustStockForm: React.FC<{
         productVariantId: selectedItem.productVariantId,
         action,
         quantity: Number(quantity),
-        unitCost: action === 'stock_in' && unitCost !== '' ? Number(unitCost) : undefined,
+        unitCost: action === 'stock_in' && isOwner && unitCost !== '' ? Number(unitCost) : undefined,
         reasonId,
         notes: notes || undefined,
         performedBy,
@@ -129,7 +131,7 @@ const AdjustStockForm: React.FC<{
             className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
           />
         </div>
-        {action === 'stock_in' && (
+        {action === 'stock_in' && isOwner && (
           <div>
             <label className="block text-sm text-gray-600">Unit Cost (updates weighted average)</label>
             <input
@@ -182,6 +184,7 @@ const AdjustStockForm: React.FC<{
 const GlobalInventory: React.FC = () => {
   const { isOwner } = useRole();
   const vm = useInventoryViewModel(isOwner);
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
 
   if (vm.isLoading) return <LoadingState />;
   if (vm.error) return <ErrorState message={vm.error} />;
@@ -211,12 +214,12 @@ const GlobalInventory: React.FC = () => {
         )}
 
         {vm.items.length > 0 && (
-          <AdjustStockForm
-            items={vm.items}
-            reasonCodes={inventoryReasonCodes}
-            employees={employees}
-            onAdjust={vm.adjustStock}
-          />
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            onClick={() => setAdjustModalOpen(true)}
+          >
+            Adjust Stock
+          </button>
         )}
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -289,6 +292,18 @@ const GlobalInventory: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {adjustModalOpen && (
+        <Modal title="Adjust Stock" onClose={() => setAdjustModalOpen(false)}>
+          <AdjustStockForm
+            items={vm.items}
+            reasonCodes={inventoryReasonCodes}
+            employees={employees}
+            isOwner={isOwner}
+            onAdjust={vm.adjustStock}
+          />
+        </Modal>
+      )}
     </PageLayout>
   );
 };

@@ -4,22 +4,27 @@ import CategoryForm from './CategoryForm';
 import ProductForm from './ProductForm';
 import ProductDetail from './ProductDetail';
 import PromoForm from './PromoForm';
+import type { Category } from '../models/productTypes';
 import PageLayout from '../../../shared/components/PageLayout';
 import LoadingState from '../../../shared/components/LoadingState';
 import ErrorState from '../../../shared/components/ErrorState';
+import Modal from '../../../shared/components/Modal';
 import { useRole } from '../../../shared/hooks/useRole';
+
+type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 
 const Products: React.FC = () => {
   const vm = useProductsViewModel();
   const { isOwner } = useRole();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [categoryModal, setCategoryModal] = useState<CategoryModalState>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [addingProduct, setAddingProduct] = useState(false);
+  const [promoModalOpen, setPromoModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'promotions'>('products');
 
   const selectedProduct = vm.products.find((p) => p.id === selectedProductId);
   const editingProduct = vm.products.find((p) => p.id === editingProductId) ?? null;
-  const editingCategory = vm.categories.find((c) => c.id === editingCategoryId) ?? null;
 
   const handleSelectProduct = (id: string) => {
     setSelectedProductId(id);
@@ -50,32 +55,63 @@ const Products: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Products</h2>
-              <div className="space-y-2">
-                {vm.products.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`p-3 rounded-lg border cursor-pointer ${selectedProductId === p.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
-                    onClick={() => handleSelectProduct(p.id)}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Products</h2>
+                {isOwner && (
+                  <button
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    onClick={() => setAddingProduct(true)}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-800">{p.name}</span>
-                      <span className={`text-xs px-2 py-1 rounded ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {p.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {vm.categories.find((c) => c.id === p.categoryId)?.name ?? '-'} · ${p.basePrice}
-                    </p>
-                  </div>
-                ))}
+                    Add Product
+                  </button>
+                )}
               </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b">
+                    <th className="py-2">Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vm.products.map((p) => (
+                    <tr
+                      key={p.id}
+                      className={`border-b cursor-pointer ${
+                        selectedProductId === p.id ? 'bg-blue-50' : ''
+                      }`}
+                      onClick={() => handleSelectProduct(p.id)}
+                    >
+                      <td className="py-2 font-medium text-gray-800">{p.name}</td>
+                      <td>{vm.categories.find((c) => c.id === p.categoryId)?.name ?? '-'}</td>
+                      <td>${p.basePrice}</td>
+                      <td>
+                        <span className={`text-xs px-2 py-1 rounded ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {p.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Categories</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Categories</h2>
+                {isOwner && (
+                  <button
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    onClick={() => setCategoryModal({ mode: 'create' })}
+                  >
+                    Add Category
+                  </button>
+                )}
+              </div>
               {vm.categories.length === 0 ? (
-                <p className="text-sm text-gray-400">No categories yet. Add one on the right.</p>
+                <p className="text-sm text-gray-400">No categories yet.</p>
               ) : (
                 <div className="space-y-2">
                   {vm.categories.map((c) => {
@@ -100,20 +136,24 @@ const Products: React.FC = () => {
                           >
                             {c.isActive ? 'Active' : 'Inactive'}
                           </span>
-                          <button
-                            className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
-                            onClick={() => setEditingCategoryId(c.id)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            className={`text-xs px-3 py-1 rounded ${
-                              c.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                            }`}
-                            onClick={() => vm.setCategoryActive(c.id, !c.isActive)}
-                          >
-                            {c.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
+                          {isOwner && (
+                            <>
+                              <button
+                                className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                onClick={() => setCategoryModal({ mode: 'edit', category: c })}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className={`text-xs px-3 py-1 rounded ${
+                                  c.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                }`}
+                                onClick={() => vm.setCategoryActive(c.id, !c.isActive)}
+                              >
+                                {c.isActive ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
@@ -121,89 +161,133 @@ const Products: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {selectedProduct && (
-              <ProductDetail
-                product={selectedProduct}
-                variants={vm.variants[selectedProduct.id] ?? []}
-                attributes={vm.attributes[selectedProduct.id] ?? []}
-                branches={vm.branches}
-                onAddVariant={(input) => vm.createVariant(selectedProduct.id, input)}
-                onUpdateVariant={(variantId, input) => vm.updateVariant(selectedProduct.id, variantId, input)}
-                onAddAttribute={(key, value) => vm.createAttribute(selectedProduct.id, key, value)}
-                onUpdateAttribute={(id, key, value) => vm.updateAttribute(selectedProduct.id, id, key, value)}
-                onToggleProduct={(isActive) => vm.setProductActive(selectedProduct.id, isActive)}
-                onToggleVariant={(variantId, isActive) => vm.setVariantActive(selectedProduct.id, variantId, isActive)}
-                onEdit={() => setEditingProductId(selectedProduct.id)}
-              />
-            )}
-          </div>
-
-          <div className="space-y-6">
-            <CategoryForm
-              categories={vm.categories}
-              onSubmit={vm.createCategory}
-              onUpdate={vm.updateCategory}
-              editingCategory={editingCategory}
-              onCancelEdit={() => setEditingCategoryId(null)}
-            />
-            <ProductForm
-              categories={vm.categories}
-              isOwner={isOwner}
-              onSubmit={async (data) => {
-                await vm.createProduct(data);
-              }}
-              editingProduct={editingProduct}
-              onUpdate={vm.updateProduct}
-              onCancelEdit={() => setEditingProductId(null)}
-            />
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-3">
-            {vm.promotions.map((promo) => (
-              <div key={promo.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{promo.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {promo.promoType === 'percentage'
-                      ? `${promo.config.percentOff}% off`
-                      : promo.promoType === 'fixed'
-                      ? `$${promo.config.fixedAmountOff} off`
-                      : promo.config.bundleRule}
-                    {promo.isStackable ? ' · Stackable' : ''}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {promo.applicableItems.length > 0
-                      ? `${promo.applicableItems.filter((i) => i.scope === 'product').length} product(s), ${promo.applicableItems.filter((i) => i.scope === 'category').length} category(s)`
-                      : 'Applies to everything'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isOwner && (
-                    <button
-                      className={`text-xs px-3 py-1 rounded ${promo.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
-                      onClick={() => vm.setPromotionActive(promo.id, !promo.isActive)}
+        <div className="grid grid-cols-1 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Promotions</h2>
+              <button
+                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                onClick={() => setPromoModalOpen(true)}
+              >
+                Add Promotion
+              </button>
+            </div>
+            <div className="space-y-3">
+              {vm.promotions.map((promo) => (
+                <div key={promo.id} className="border rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{promo.name}</h3>
+                    <p className="text-sm text-gray-500">
+                      {promo.promoType === 'percentage'
+                        ? `${promo.config.percentOff}% off`
+                        : promo.promoType === 'fixed'
+                        ? `$${promo.config.fixedAmountOff} off`
+                        : promo.config.bundleRule}
+                      {promo.isStackable ? ' · Stackable' : ''}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {promo.applicableItems.length > 0
+                        ? `${promo.applicableItems.filter((i) => i.scope === 'product').length} product(s), ${promo.applicableItems.filter((i) => i.scope === 'category').length} category(s)`
+                        : 'Applies to everything'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {isOwner && (
+                      <button
+                        className={`text-xs px-3 py-1 rounded ${promo.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                        onClick={() => vm.setPromotionActive(promo.id, !promo.isActive)}
+                      >
+                        {promo.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    )}
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        promo.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                      }`}
                     >
-                      {promo.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  )}
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      promo.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {promo.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                      {promo.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div>
-            <PromoForm products={vm.products} categories={vm.categories} onSubmit={vm.createPromotion} />
+              ))}
+            </div>
           </div>
         </div>
+      )}
+
+      {selectedProduct && (
+        <Modal
+          title={selectedProduct.name}
+          onClose={() => setSelectedProductId(null)}
+        >
+          <ProductDetail
+            product={selectedProduct}
+            variants={vm.variants[selectedProduct.id] ?? []}
+            attributes={vm.attributes[selectedProduct.id] ?? []}
+            branches={vm.branches}
+            onAddVariant={(input) => vm.createVariant(selectedProduct.id, input)}
+            onUpdateVariant={(variantId, input) => vm.updateVariant(selectedProduct.id, variantId, input)}
+            onAddAttribute={(key, value) => vm.createAttribute(selectedProduct.id, key, value)}
+            onUpdateAttribute={(id, key, value) => vm.updateAttribute(selectedProduct.id, id, key, value)}
+            onToggleProduct={(isActive) => vm.setProductActive(selectedProduct.id, isActive)}
+            onToggleVariant={(variantId, isActive) => vm.setVariantActive(selectedProduct.id, variantId, isActive)}
+            onEdit={() => {
+              setEditingProductId(selectedProduct.id);
+              setSelectedProductId(null);
+            }}
+          />
+        </Modal>
+      )}
+
+      {isOwner && categoryModal && (
+        <Modal
+          title={categoryModal.mode === 'edit' ? `Edit Category — ${categoryModal.category.name}` : 'Add Category'}
+          onClose={() => setCategoryModal(null)}
+        >
+          <CategoryForm
+            categories={vm.categories}
+            onSubmit={vm.createCategory}
+            onUpdate={vm.updateCategory}
+            editingCategory={categoryModal.mode === 'edit' ? categoryModal.category : null}
+            onCancelEdit={() => setCategoryModal(null)}
+          />
+        </Modal>
+      )}
+
+      {isOwner && (addingProduct || editingProduct) && (
+        <Modal
+          title={editingProduct ? 'Edit Product' : 'Add Product'}
+          onClose={() => {
+            setAddingProduct(false);
+            setEditingProductId(null);
+          }}
+        >
+          <ProductForm
+            categories={vm.categories}
+            isOwner={isOwner}
+            onSubmit={async (data) => {
+              await vm.createProduct(data);
+              setAddingProduct(false);
+            }}
+            editingProduct={editingProduct}
+            onUpdate={vm.updateProduct}
+            onCancelEdit={() => setEditingProductId(null)}
+          />
+        </Modal>
+      )}
+
+      {promoModalOpen && (
+        <Modal title="Add Promotion" onClose={() => setPromoModalOpen(false)}>
+          <PromoForm
+            products={vm.products}
+            categories={vm.categories}
+            isOwner={isOwner}
+            onSubmit={vm.createPromotion}
+          />
+        </Modal>
       )}
     </PageLayout>
   );
