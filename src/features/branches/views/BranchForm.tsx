@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import type { Branch } from '../models/branchTypes';
+import { branchSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface BranchFormProps {
   onSubmit: (data: { name: string; address: string; contact: string }) => void;
@@ -16,9 +18,14 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
 
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
+        const check = branchSchema.safeParse({ name, address, contactNumber: contact });
+        if (!check.success) {
+          toast.error(firstZodMessage(check.error));
+          return;
+        }
         onSubmit({ name, address, contact });
         if (!initial) {
           setName('');
@@ -27,39 +34,36 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
         }
       }}
     >
-      <h3 className="text-lg font-semibold text-gray-900">
-        {initial ? 'Edit Branch' : 'Add Branch'}
-      </h3>
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Address</label>
+        <label className="block text-sm text-ink-secondary">Address</label>
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Contact</label>
+        <label className="block text-sm text-ink-secondary">Contact</label>
         <input
           value={contact}
           onChange={(e) => setContact(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
       >
         {initial ? 'Save Branch' : 'Create Branch'}
       </button>

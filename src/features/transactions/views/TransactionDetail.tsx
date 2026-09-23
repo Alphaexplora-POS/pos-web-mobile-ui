@@ -9,15 +9,15 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Transaction Details</h3>
-        <span className="text-sm text-gray-500">
+        <h3 className="text-lg font-semibold text-ink-primary">Transaction Details</h3>
+        <span className="text-sm text-ink-muted">
           {new Date(transaction.timestamp).toLocaleString()}
         </span>
       </div>
-      <p className="text-sm text-gray-600 mb-4">Branch: {transaction.branchName}</p>
+      <p className="text-sm text-ink-secondary mb-4">Branch: {transaction.branchName}</p>
       <table className="w-full text-sm mb-4">
         <thead>
-          <tr className="text-left text-gray-500 border-b">
+          <tr className="text-left text-ink-muted border-b">
             <th className="py-2">Item</th>
             <th>SKU</th>
             <th>Qty</th>
@@ -37,11 +37,11 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
           ))}
         </tbody>
       </table>
-      <div className="space-y-1 text-sm text-gray-600">
+      <div className="space-y-1 text-sm text-ink-secondary">
         <p>Subtotal: ${formatAmount(transaction.subtotal)}</p>
         <p>Discounts: -${formatAmount(transaction.discountTotal)}</p>
         <p>Payment: {transaction.paymentMethod}</p>
-        <p className="font-semibold text-gray-900">Total: ${formatAmount(transaction.total)}</p>
+        <p className="font-semibold text-ink-primary">Total: ${formatAmount(transaction.total)}</p>
       </div>
     </div>
   );

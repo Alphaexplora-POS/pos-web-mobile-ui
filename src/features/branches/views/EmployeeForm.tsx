@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
+import Select from '../../../shared/components/Select';
 import type { Branch, EmployeeRole } from '../models/branchTypes';
+import { employeeSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface EmployeeFormProps {
   branches: Branch[];
@@ -21,32 +24,57 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOwner) return null;
 
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const check = employeeSchema.safeParse({
+      name,
+      role,
+      branchId,
+      pin,
+      email: role === 'branch_manager' ? email : undefined,
+      password: role === 'branch_manager' ? password : undefined,
+    });
+    if (!check.success) {
+      const message = firstZodMessage(check.error);
+      setError(message);
+      toast.error(message);
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        name,
+        role,
+        branchId,
+        email: role === 'branch_manager' ? email : undefined,
+        password: role === 'branch_manager' ? password : undefined,
+        pin,
+      });
+      setName('');
+      setEmail('');
+      setPassword('');
+      setPin('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add employee');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <form
-      className="bg-white rounded-lg shadow p-6 space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit({
-          name,
-          role,
-          branchId,
-          email: role === 'branch_manager' ? email : undefined,
-          password: role === 'branch_manager' ? password : undefined,
-          pin,
-        });
-        setName('');
-        setEmail('');
-        setPassword('');
-        setPin('');
-      }}
+      className="space-y-4"
+      onSubmit={submit}
     >
-      <h3 className="text-lg font-semibold text-gray-900">Add Employee</h3>
       <div className="flex gap-4">
         {(['branch_manager', 'cashier', 'staff'] as EmployeeRole[]).map((r) => (
-          <label key={r} className="flex items-center gap-2 text-sm text-gray-700">
+          <label key={r} className="flex items-center gap-2 text-sm text-ink-secondary">
             <input
               type="radio"
               checked={role === r}
@@ -57,65 +85,68 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         ))}
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Assign Branch</label>
-        <select
+        <label className="block text-sm text-ink-secondary">Assign Branch</label>
+        <Select
           value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
-        >
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
-          ))}
-        </select>
+          onChange={(v) => setBranchId(v)}
+          options={branches.map((b) => ({ value: b.id, label: b.name }))}
+          placeholder={branches.length === 0 ? 'No branches' : 'Select branch'}
+          className="mt-1 w-full"
+        />
       </div>
       {role === 'branch_manager' && (
         <>
           <div>
-            <label className="block text-sm text-gray-600">Email</label>
-            <p className="text-xs text-gray-400 mb-1">Account is active immediately — no invite email is sent.</p>
+            <label className="block text-sm text-ink-secondary">Email</label>
+            <p className="text-xs text-ink-muted mb-1">Account is active immediately — no invite email is sent.</p>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600">Password</label>
+            <label className="block text-sm text-ink-secondary">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
         </>
       )}
       <div>
-        <label className="block text-sm text-gray-600">Set PIN</label>
+        <label className="block text-sm text-ink-secondary">Set PIN</label>
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value)}
+          maxLength={4}
+          inputMode="numeric"
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
+        <p className="text-xs text-ink-muted mt-1">Exactly 4 digits, unique per branch.</p>
       </div>
+      {error && <p className="text-sm text-error">{error}</p>}
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        disabled={submitting}
+        className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
       >
-        Add Employee
+        {submitting ? 'Adding…' : 'Add Employee'}
       </button>
     </form>
   );

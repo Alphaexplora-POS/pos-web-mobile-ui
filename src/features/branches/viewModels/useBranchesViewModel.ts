@@ -9,6 +9,7 @@ import {
   createEmployee,
   deactivateEmployee,
 } from '../models/branchesApi';
+import { notifySuccess } from '../../../shared/utils/notify';
 
 export const useBranchesViewModel = () => {
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -34,26 +35,31 @@ export const useBranchesViewModel = () => {
 
   const handleCreateBranch = async (input: CreateBranchInput) => {
     await createBranch(input);
+    notifySuccess('Branch created');
     await load();
   };
 
   const handleUpdateBranch = async (id: string, input: Partial<CreateBranchInput>) => {
     await updateBranch(id, input);
+    notifySuccess('Branch updated');
     await load();
   };
 
   const handleDeactivateBranch = async (id: string) => {
     await deactivateBranch(id);
+    notifySuccess('Branch deactivated');
     await load();
   };
 
   const handleCreateEmployee = async (input: CreateEmployeeInput) => {
     await createEmployee(input);
+    notifySuccess('Employee added');
     await load();
   };
 
   const handleDeactivateEmployee = async (id: string) => {
     await deactivateEmployee(id);
+    notifySuccess('Employee deactivated');
     await load();
   };
 
