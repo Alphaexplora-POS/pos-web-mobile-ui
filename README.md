@@ -4,6 +4,50 @@ Vite + React 18 + TypeScript + TailwindCSS frontend for the POS. MVVM structure 
 
 > Login is **never mocked** — it always hits the real backend. Run the backend first (see below).
 
+## Project docs
+
+Design/flow docs are kept locally in `notes/` (not committed to git, so they stay
+internal). Each file is a pared-down overview — read them for context before changing behavior:
+
+| File | Contents |
+|---|---|
+| `notes/web.md` | Web app flow: signup → login → the 6 modules (Branches/Employees, Products, Inventory, Transactions, Analytics, Configuration), owner vs branch manager access (RLS-scoped). |
+| `notes/mobile.md` | Mobile POS flow: PIN login, POS, History, Dashboard, Inventory, Shift closure, refunds. The mobile repo is `pos-kotlin-ui` (local sibling of this repo). |
+| `notes/BACKEND_SUMMARY.md` | Backend/API summary for the modular monolith. |
+| `notes/credentials.md` | Local test accounts/credentials. |
+| `notes/rules.md` | Project conventions/rules. |
+| `notes/Frontend_UI_Changes_TL_Review.md` | UI change review notes. |
+
+## Repository layout
+
+MVVM-style structure: feature pages live under `src/features/<name>/` split into
+`models` (types + API calls), `viewModels` (hooks), and `views` (components). Shared UI lives
+in `src/shared/components` and `src/shared/hooks`.
+
+```
+src/
+├─ shared/            # shared components, hooks, models, utils
+└─ features/
+   ├─ auth/           # login / register
+   ├─ branches/       # employees + branch management
+   ├─ products/       # products, categories, promos
+   ├─ inventory/      # global inventory + audit
+   ├─ transactions/   # transaction history + refunds
+   ├─ analytics/      # dashboards + top products
+   └─ configuration/  # payment methods + reason codes
+```
+
+The mobile app's color scheme is ported here: brand teal `#01A2AD`, navy `#1B2A47`, and the
+full pill palette are defined as Tailwind tokens in `tailwind.config.js` (`brand`, `navy`,
+`canvas`, `ink`, `line`, `success`, `warning`, `error`, `info`).
+
+## Branch workflow
+
+- `develop` – main development line.
+- `merge/develop` – integration branch; feature/bug branches merge here first, then into `develop`.
+- `bug-fix-ui` / `frontend-monolith` – work-in-progress branches.
+- `uat` / `main` – release lines.
+
 ## Run the frontend
 
 ```bash
