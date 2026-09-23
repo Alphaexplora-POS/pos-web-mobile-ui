@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import type { InventoryAdjustAction, InventoryAdjustInput, InventoryItem } from '../models/inventoryTypes';
 import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { InventorySkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Modal from '../../../shared/components/Modal';
 import { useRole } from '../../../shared/hooks/useRole';
@@ -198,7 +198,8 @@ const GlobalInventory: React.FC = () => {
   const vm = useInventoryViewModel(isOwner);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
 
-  if (vm.isLoading) return <LoadingState />;
+  if (vm.isLoading)
+    return <InventorySkeleton title={isOwner ? 'Global Inventory' : 'Branch Inventory'} />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   const inventoryReasonCodes = vm.reasonCodes.filter((r) => r.type === 'inventory' && r.isActive);

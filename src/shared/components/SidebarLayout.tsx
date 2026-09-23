@@ -30,8 +30,8 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const visibleItems = ITEMS.filter((item) => item.roles.includes(role));
 
   return (
-    <div className="flex min-h-screen bg-canvas">
-      <aside className="w-64 bg-navy text-white flex flex-col shrink-0 sticky top-0 h-screen">
+    <div className="flex h-screen overflow-hidden bg-canvas">
+      <aside className="w-64 bg-navy text-white flex flex-col shrink-0 h-full">
         <div className="px-6 py-5 border-b border-white/10">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-brand inline-block shrink-0" />
@@ -89,7 +89,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
           </div>
         </div>
       </aside>
-      <main className="flex-1 overflow-x-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 };

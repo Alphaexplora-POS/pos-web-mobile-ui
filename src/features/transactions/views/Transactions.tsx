@@ -3,7 +3,7 @@ import type { RefundStatus } from '../models/transactionTypes';
 import { useTransactionsViewModel } from '../viewModels/useTransactionsViewModel';
 import TransactionDetail from './TransactionDetail';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { TransactionsSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import { formatAmount } from '../../../shared/utils/formatCurrency';
 import Select from '../../../shared/components/Select';
@@ -168,7 +168,7 @@ const Transactions: React.FC = () => {
   const selectedTx = vm.transactions.find((t) => t.id === selectedTxId);
   const approvedByName = session ? `${session.firstName} ${session.lastName}`.trim() : 'Staff';
 
-  if (vm.isLoading) return <LoadingState />;
+  if (vm.isLoading) return <TransactionsSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   const refundReasonCodes = vm.reasonCodes.filter((r) => r.type === 'refund' && r.isActive);

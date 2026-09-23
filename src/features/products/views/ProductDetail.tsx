@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import type { CreateVariantInput, Product, ProductAttribute, ProductVariant } from '../models/productTypes';
+import type { Branch } from '../../../shared/models/branchTypes';
 import { useRole } from '../../../shared/hooks/useRole';
 import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
@@ -8,6 +9,7 @@ interface ProductDetailProps {
   product: Product;
   variants: ProductVariant[];
   attributes: ProductAttribute[];
+  branches: Branch[];
   onAddVariant: (input: CreateVariantInput) => void | Promise<void>;
   onUpdateVariant: (variantId: string, input: Partial<CreateVariantInput>) => void | Promise<void>;
   onAddAttribute: (attributeKey: string, attributeValue: string) => void | Promise<void>;
@@ -21,6 +23,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   variants,
   attributes,
+  branches,
   onAddVariant,
   onUpdateVariant,
   onAddAttribute,
@@ -37,6 +40,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const [priceOverride, setPriceOverride] = useState('');
   const [attrKey, setAttrKey] = useState('');
   const [attrValue, setAttrValue] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingAttrId, setEditingAttrId] = useState<string | null>(null);
 
@@ -47,6 +51,8 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     setCostPrice('');
     setPriceOverride('');
   };
+
+  const activeBranchId = branchId || branches[0]?.id || '';
 
   return (
     <div className="space-y-6">
@@ -76,6 +82,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           onSubmit={(e) => {
             e.preventDefault();
             const data: CreateVariantInput = {
+              branchId: activeBranchId,
               size,
               color,
               sku,
@@ -83,6 +90,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
             };
             const check = variantSchema.safeParse({
+              branchId: activeBranchId,
               sku,
               size: size || null,
               color: color || null,
@@ -138,6 +146,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               />
             </>
           )}
+<select
+            value={activeBranchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="rounded border border-line px-3 py-1"
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
           <button className="bg-brand text-white px-3 py-1 rounded" type="submit">Add</button>
         </form>
         <div className="space-y-2">

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useConfigViewModel } from '../viewModels/useConfigViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { ConfigurationSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Select from '../../../shared/components/Select';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
@@ -21,7 +21,7 @@ const Configuration: React.FC = () => {
   const [editReasonName, setEditReasonName] = useState('');
   const [editReasonType, setEditReasonType] = useState<'refund' | 'inventory'>('refund');
 
-  if (vm.isLoading) return <LoadingState />;
+  if (vm.isLoading) return <ConfigurationSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (

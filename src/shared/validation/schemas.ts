@@ -1,8 +1,19 @@
 import { z } from 'zod';
 import type { ZodError } from 'zod';
 
-export const firstZodMessage = (error: ZodError): string =>
-  error.issues.find((issue) => issue.message)?.message ?? 'Invalid input';
+const RAW_TYPE_MESSAGE = /^Invalid input: expected /;
+
+export const firstZodMessage = (error: ZodError): string => {
+  const issue = error.issues[0];
+  if (!issue) return 'Invalid input';
+  if (!RAW_TYPE_MESSAGE.test(issue.message ?? '')) return issue.message ?? 'Invalid input';
+  const received = 'received' in issue ? issue.received : undefined;
+  if (received === 'undefined' || received === 'null') {
+    return 'This field is required';
+  }
+  const field = issue.path.join('.');
+  return `Please provide a valid value${field ? ` for ${field}` : ''}`;
+};
 
 export const branchSchema = z.object({
   name: z.string().min(2, 'Branch name must be at least 2 characters').max(255, 'Branch name is too long'),
@@ -14,7 +25,7 @@ export const employeeSchema = z
   .object({
     name: z.string().min(1, 'Please enter an employee name'),
     role: z.enum(['branch_manager', 'supervisor', 'cashier', 'staff']),
-    branchId: z.string().min(1, 'Please provide a valid branch'),
+branchId: z.string({ error: 'Please provide a valid branch' }).min(1, 'Please provide a valid branch'),
     pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
     email: z.string().optional(),
     password: z.string().optional(),

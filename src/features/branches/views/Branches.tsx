@@ -4,7 +4,7 @@ import BranchForm from './BranchForm';
 import EmployeeForm from './EmployeeForm';
 import type { EmployeeRole, Branch } from '../models/branchTypes';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { BranchesSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import OwnerOnlyBadge from '../../../shared/components/OwnerOnlyBadge';
 import Select from '../../../shared/components/Select';
@@ -36,7 +36,7 @@ const Branches: React.FC = () => {
     ? [branchManagerBranch]
     : [];
 
-  if (vm.isLoading) return <LoadingState />;
+  if (vm.isLoading) return <BranchesSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (

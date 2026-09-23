@@ -6,7 +6,7 @@ import ProductDetail from './ProductDetail';
 import PromoForm from './PromoForm';
 import type { Category } from '../models/productTypes';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { ProductsSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Modal from '../../../shared/components/Modal';
 import { useRole } from '../../../shared/hooks/useRole';
@@ -31,7 +31,7 @@ const Products: React.FC = () => {
     vm.loadProductDetails(id);
   };
 
-  if (vm.isLoading) return <LoadingState />;
+  if (vm.isLoading) return <ProductsSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (
@@ -227,6 +227,7 @@ const Products: React.FC = () => {
             product={selectedProduct}
             variants={vm.variants[selectedProduct.id] ?? []}
             attributes={vm.attributes[selectedProduct.id] ?? []}
+            branches={vm.branches}
             onAddVariant={(input) => vm.createVariant(selectedProduct.id, input)}
             onUpdateVariant={(variantId, input) => vm.updateVariant(selectedProduct.id, variantId, input)}
             onAddAttribute={(key, value) => vm.createAttribute(selectedProduct.id, key, value)}

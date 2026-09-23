@@ -1,7 +1,7 @@
 import { useAnalyticsViewModel } from '../viewModels/useAnalyticsViewModel';
 import TopProductsChart from './TopProductsChart';
 import PageLayout from '../../../shared/components/PageLayout';
-import LoadingState from '../../../shared/components/LoadingState';
+import { AnalyticsSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -11,7 +11,7 @@ const Analytics: React.FC = () => {
   const { session } = useAuth();
   const { data, isLoading, error } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) return <AnalyticsSkeleton title={isOwner ? 'Centralized Analytics' : 'Branch Analytics'} />;
   if (error) return <ErrorState message={error} />;
   if (!data) return null;
 
