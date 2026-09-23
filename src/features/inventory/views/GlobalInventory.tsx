@@ -10,9 +10,9 @@ import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
 
 const stockClass = (qty: number) => {
-  if (qty <= 0) return 'text-red-600 font-semibold';
-  if (qty <= 5) return 'text-amber-600 font-semibold';
-  return 'text-green-600 font-medium';
+  if (qty <= 0) return 'text-error font-semibold';
+  if (qty <= 5) return 'text-warning font-semibold';
+  return 'text-success font-medium';
 };
 
 const AdjustStockForm: React.FC<{
@@ -103,7 +103,7 @@ const AdjustStockForm: React.FC<{
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-600">Branch</label>
+          <label className="block text-sm text-ink-secondary">Branch</label>
           <Select
             value={branchId}
             onChange={(v) => {
@@ -116,7 +116,7 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Item</label>
+          <label className="block text-sm text-ink-secondary">Item</label>
           <Select
             value={variantId}
             onChange={(v) => setVariantId(v)}
@@ -132,7 +132,7 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Action</label>
+          <label className="block text-sm text-ink-secondary">Action</label>
           <Select
             value={action}
             onChange={(v) => setAction(v)}
@@ -145,7 +145,7 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Quantity</label>
+          <label className="block text-sm text-ink-secondary">Quantity</label>
           <input
             type="number"
             min="0"
@@ -153,11 +153,11 @@ const AdjustStockForm: React.FC<{
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Reason</label>
+          <label className="block text-sm text-ink-secondary">Reason</label>
           <Select
             value={reasonId}
             onChange={(v) => setReasonId(v)}
@@ -167,7 +167,7 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Performed By</label>
+          <label className="block text-sm text-ink-secondary">Performed By</label>
           <Select
             value={performedBy}
             onChange={(v) => setPerformedBy(v)}
@@ -177,16 +177,16 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-gray-600">Notes</label>
+          <label className="block text-sm text-ink-secondary">Notes</label>
           <input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
           />
         </div>
       </div>
-      {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
-      <button type="submit" disabled={submitting} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+      {error && <p className="text-sm text-error mt-3">{error}</p>}
+      <button type="submit" disabled={submitting} className="mt-4 bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50">
         {submitting ? 'Adjusting…' : 'Apply Adjustment'}
       </button>
     </form>
@@ -209,7 +209,7 @@ const GlobalInventory: React.FC = () => {
       <div className="space-y-6">
         {isOwner && (
           <div className="bg-white rounded-lg shadow p-4">
-            <label className="block text-sm text-gray-600 mb-2">View Stock</label>
+            <label className="block text-sm text-ink-secondary mb-2">View Stock</label>
             <Select
               value={vm.selectedBranchId ?? ''}
               onChange={(v) => vm.setSelectedBranchId(v || null)}
@@ -219,21 +219,21 @@ const GlobalInventory: React.FC = () => {
               ]}
               className="w-full md:w-64"
             />
-            <p className="text-xs text-gray-400 mt-2">
+            <p className="text-xs text-ink-muted mt-2">
               Combined stock across all branches with per-branch drilldown.
             </p>
           </div>
         )}
 
         <button
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
           onClick={() => setAdjustModalOpen(true)}
         >
           Adjust Stock
         </button>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">
             {vm.selectedBranchId
               ? vm.branches.find((b) => b.id === vm.selectedBranchId)?.name
               : isOwner
@@ -242,7 +242,7 @@ const GlobalInventory: React.FC = () => {
           </h2>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-ink-muted border-b">
                 <th className="py-2">Product</th>
                 <th>SKU</th>
                 {isOwner && <th>Branch</th>}
@@ -261,8 +261,8 @@ const GlobalInventory: React.FC = () => {
                     <span
                       className={`text-xs px-2 py-1 rounded ${
                         item.origin === 'automatic'
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-blue-100 text-blue-700'
+                          ? 'bg-surface-hover text-ink-secondary'
+                          : 'bg-brand-light text-brand'
                       }`}
                     >
                       {item.origin === 'automatic' ? 'Auto (Variant)' : 'Manual'}
@@ -275,10 +275,10 @@ const GlobalInventory: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Audit Log</h2>
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">Audit Log</h2>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-ink-muted border-b">
                 <th className="py-2">Product</th>
                 <th>SKU</th>
                 {isOwner && <th>Branch</th>}

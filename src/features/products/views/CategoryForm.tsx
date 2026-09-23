@@ -68,16 +68,16 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
       onSubmit={submit}
     >
       <div>
-        <label className="block text-sm text-gray-600">Category Name</label>
+        <label className="block text-sm text-ink-secondary">Category Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Category Type</label>
+        <label className="block text-sm text-ink-secondary">Category Type</label>
         <div className="flex gap-4 mt-1">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -99,7 +99,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
       </div>
       {categoryType === 'child' && (
         <div>
-          <label className="block text-sm text-gray-600">Parent Category</label>
+          <label className="block text-sm text-ink-secondary">Parent Category</label>
           <Select
             value={parentId}
             onChange={(v) => setParentId(v)}
@@ -112,7 +112,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
       <div className="flex gap-2">
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
         >
           {editingCategory ? 'Save Changes' : 'Create Category'}
         </button>
@@ -120,7 +120,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
           <button
             type="button"
             onClick={onCancelEdit}
-            className="px-4 py-2 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+            className="px-4 py-2 rounded border border-line text-ink-secondary hover:bg-canvas"
           >
             Cancel
           </button>

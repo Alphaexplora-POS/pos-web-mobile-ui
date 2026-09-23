@@ -46,17 +46,17 @@ const Branches: React.FC = () => {
     >
       {session && (
         <div className="mb-6 bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="text-sm text-gray-600">Workspace:</span>
-          <span className="text-sm font-semibold text-gray-900">{session.tenantName || '—'}</span>
-          <span className="text-xs text-gray-400">
+          <span className="text-sm text-ink-secondary">Workspace:</span>
+          <span className="text-sm font-semibold text-ink-primary">{session.tenantName || '—'}</span>
+          <span className="text-xs text-ink-muted">
             (employees are only shown for this workspace — id …{session.tenantId.slice(-6)})
           </span>
         </div>
       )}
       {!isOwner && (
         <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
-          <span className="text-sm text-gray-600">Your Branch:</span>
-          <span className="text-sm font-semibold text-gray-900">
+          <span className="text-sm text-ink-secondary">Your Branch:</span>
+          <span className="text-sm font-semibold text-ink-primary">
             {branchManagerBranch?.name ?? '—'}
           </span>
         </div>
@@ -65,18 +65,18 @@ const Branches: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Branches</h2>
+              <h2 className="text-lg font-semibold text-ink-primary">Branches</h2>
               <div className="flex items-center gap-2">
                 {isOwner && (
                   <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
                     onClick={() => setBranchModal({ mode: 'create' })}
                   >
                     Add Branch
                   </button>
                 )}
                 {isOwner && (
-                  <label className="text-sm text-gray-600">Branch</label>
+                  <label className="text-sm text-ink-secondary">Branch</label>
                 )}
                 {isOwner && (
                   <Select
@@ -97,20 +97,20 @@ const Branches: React.FC = () => {
                   key={b.id}
                   className={`p-4 rounded-lg border cursor-pointer ${
                     selectedBranchId === b.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200'
+                      ? 'border-brand bg-brand-light'
+                      : 'border-line'
                   }`}
                   onClick={() => setSelectedBranchId(b.id)}
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">{b.name}</h3>
+                    <h3 className="font-semibold text-ink-primary">{b.name}</h3>
                     <div className="flex items-center gap-3">
-                      <span className={`text-xs px-2 py-1 rounded ${b.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`text-xs px-2 py-1 rounded ${b.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
                         {b.isActive ? 'Active' : 'Inactive'}
                       </span>
                       {isOwner && (
                         <button
-                          className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                          className="text-xs px-3 py-1 rounded border border-line text-ink-secondary hover:bg-canvas"
                           onClick={(e) => {
                             e.stopPropagation();
                             setBranchModal({ mode: 'edit', branch: b });
@@ -121,11 +121,11 @@ const Branches: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{b.address}</p>
-                  <p className="text-sm text-gray-500">{b.contact}</p>
+                  <p className="text-sm text-ink-secondary mt-1">{b.address}</p>
+                  <p className="text-sm text-ink-muted">{b.contact}</p>
                   {isOwner && b.isActive && (
                     <button
-                      className="mt-3 text-sm text-red-600 hover:text-red-700"
+                      className="mt-3 text-sm text-error hover:text-error"
                       onClick={(e) => {
                         e.stopPropagation();
                         vm.deactivateBranch(b.id);
@@ -141,27 +141,27 @@ const Branches: React.FC = () => {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Employees</h2>
+              <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
               <div className="flex items-center gap-3">
                 {isOwner && (
                   <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
                     onClick={() => setEmployeeModalOpen(true)}
                   >
                     Add Employee
                   </button>
                 )}
-                <span className="text-xs text-gray-400">{vm.employees.length} in this workspace</span>
+                <span className="text-xs text-ink-muted">{vm.employees.length} in this workspace</span>
               </div>
             </div>
             {vm.employees.length === 0 && (
-              <p className="text-sm text-amber-600 mb-3">
+              <p className="text-sm text-warning mb-3">
                 No employees in this workspace yet. Use "Add Employee" to create one with a branch from this workspace.
               </p>
             )}
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-500 border-b">
+                <tr className="text-left text-ink-muted border-b">
                   <th className="py-2">Name</th>
                   <th>Role</th>
                   <th>Branch</th>
@@ -179,20 +179,30 @@ const Branches: React.FC = () => {
                       cashier: 'Cashier',
                       staff: 'Staff',
                     };
+                    const roleBadgeClass: Record<EmployeeRole, string> = {
+                      branch_manager: 'bg-brand-light text-brand',
+                      supervisor: 'bg-info/10 text-info',
+                      cashier: 'bg-warning/10 text-warning',
+                      staff: 'bg-surface-hover text-ink-secondary',
+                    };
                     return (
                       <tr key={e.id} className="border-b">
                         <td className="py-2">{e.name}</td>
-                        <td>{roleLabel[e.role]}</td>
+                        <td>
+                          <span className={`text-xs px-2 py-1 rounded ${roleBadgeClass[e.role]}`}>
+                            {roleLabel[e.role]}
+                          </span>
+                        </td>
                         <td>{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
                         <td>
-                          <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
                             {e.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td>
                           {isOwner && e.isActive && (
                             <button
-                              className="text-red-600 hover:text-red-700"
+                              className="text-error hover:text-error"
                               onClick={() => vm.deactivateEmployee(e.id)}
                             >
                               Deactivate
@@ -209,7 +219,7 @@ const Branches: React.FC = () => {
 
         <div className="space-y-6">
           {isOwner && vm.branches.length > tenantBranches.length && (
-            <p className="text-xs text-amber-600">
+            <p className="text-xs text-warning">
               {vm.branches.length - tenantBranches.length} branch(es) belong to a different workspace and are hidden.
               Sign in with the account that owns them to see their employees.
             </p>

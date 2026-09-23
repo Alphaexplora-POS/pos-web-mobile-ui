@@ -28,7 +28,7 @@ const Configuration: React.FC = () => {
     <PageLayout title="Configuration">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Methods</h2>
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">Payment Methods</h2>
           <form
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
@@ -47,7 +47,7 @@ const Configuration: React.FC = () => {
               value={payName}
               onChange={(e) => setPayName(e.target.value)}
               required
-              className="flex-1 rounded border border-gray-300 px-3 py-2"
+              className="flex-1 rounded border border-line px-3 py-2"
             />
             <Select
               value={payType}
@@ -55,7 +55,7 @@ const Configuration: React.FC = () => {
               options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
               className="w-36 shrink-0"
             />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <button type="submit" className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark">
               Add
             </button>
           </form>
@@ -80,7 +80,7 @@ const Configuration: React.FC = () => {
                       value={editPayName}
                       onChange={(e) => setEditPayName(e.target.value)}
                       required
-                      className="flex-1 rounded border border-gray-300 px-3 py-2"
+                      className="flex-1 rounded border border-line px-3 py-2"
                     />
                     <Select
                       value={editPayType}
@@ -88,12 +88,12 @@ const Configuration: React.FC = () => {
                       options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
                       className="w-36 shrink-0"
                     />
-                    <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
+                    <button type="submit" className="text-sm px-3 py-1 rounded bg-brand text-white">
                       Save
                     </button>
                     <button
                       type="button"
-                      className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600"
+                      className="text-sm px-3 py-1 rounded bg-surface-hover text-ink-secondary"
                       onClick={() => setEditingPaymentId(null)}
                     >
                       Cancel
@@ -102,12 +102,12 @@ const Configuration: React.FC = () => {
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-800 font-medium">{m.name}</span>
-                      <span className="ml-2 text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">
+                      <span className="text-ink-primary font-medium">{m.name}</span>
+                      <span className="ml-2 text-xs px-2 py-1 rounded bg-surface-hover text-ink-muted">
                         {m.type}
                       </span>
                       <button
-                        className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        className="text-sm px-3 py-1 rounded bg-surface-hover text-ink-secondary hover:bg-surface-hover"
                         onClick={() => {
                           setEditingPaymentId(m.id);
                           setEditPayName(m.name);
@@ -118,7 +118,7 @@ const Configuration: React.FC = () => {
                       </button>
                     </div>
                     <button
-                      className={`text-sm px-3 py-1 rounded ${m.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                      className={`text-sm px-3 py-1 rounded ${m.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
                       onClick={() => vm.togglePaymentMethod(m.id, !m.isActive)}
                     >
                       {m.isActive ? 'Deactivate' : 'Reactivate'}
@@ -131,7 +131,7 @@ const Configuration: React.FC = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Reason Codes</h2>
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">Reason Codes</h2>
           <form
             className="flex gap-2 mb-4"
             onSubmit={(e) => {
@@ -150,7 +150,7 @@ const Configuration: React.FC = () => {
               value={reasonName}
               onChange={(e) => setReasonName(e.target.value)}
               required
-              className="flex-1 rounded border border-gray-300 px-3 py-2"
+              className="flex-1 rounded border border-line px-3 py-2"
             />
             <Select
               value={reasonType}
@@ -161,7 +161,7 @@ const Configuration: React.FC = () => {
               ]}
               className="w-32 shrink-0"
             />
-            <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <button type="submit" className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark">
               Add
             </button>
           </form>
@@ -186,7 +186,7 @@ const Configuration: React.FC = () => {
                       value={editReasonName}
                       onChange={(e) => setEditReasonName(e.target.value)}
                       required
-                      className="flex-1 rounded border border-gray-300 px-3 py-2"
+                      className="flex-1 rounded border border-line px-3 py-2"
                     />
                     <Select
                       value={editReasonType}
@@ -197,12 +197,12 @@ const Configuration: React.FC = () => {
                       ]}
                       className="w-32 shrink-0"
                     />
-                    <button type="submit" className="text-sm px-3 py-1 rounded bg-blue-600 text-white">
+                    <button type="submit" className="text-sm px-3 py-1 rounded bg-brand text-white">
                       Save
                     </button>
                     <button
                       type="button"
-                      className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600"
+                      className="text-sm px-3 py-1 rounded bg-surface-hover text-ink-secondary"
                       onClick={() => setEditingReasonId(null)}
                     >
                       Cancel
@@ -211,12 +211,12 @@ const Configuration: React.FC = () => {
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-800 font-medium">{r.name}</span>
-                      <span className="ml-2 text-xs px-2 py-1 rounded bg-gray-100 text-gray-500">
+                      <span className="text-ink-primary font-medium">{r.name}</span>
+                      <span className="ml-2 text-xs px-2 py-1 rounded bg-surface-hover text-ink-muted">
                         {r.type}
                       </span>
                       <button
-                        className="text-sm px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        className="text-sm px-3 py-1 rounded bg-surface-hover text-ink-secondary hover:bg-surface-hover"
                         onClick={() => {
                           setEditingReasonId(r.id);
                           setEditReasonName(r.name);
@@ -227,7 +227,7 @@ const Configuration: React.FC = () => {
                       </button>
                     </div>
                     <button
-                      className={`text-sm px-3 py-1 rounded ${r.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                      className={`text-sm px-3 py-1 rounded ${r.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
                       onClick={() => vm.toggleReasonCode(r.id, !r.isActive)}
                     >
                       {r.isActive ? 'Deactivate' : 'Reactivate'}

@@ -74,7 +74,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
     >
       <div className="flex gap-4">
         {(['branch_manager', 'cashier', 'staff'] as EmployeeRole[]).map((r) => (
-          <label key={r} className="flex items-center gap-2 text-sm text-gray-700">
+          <label key={r} className="flex items-center gap-2 text-sm text-ink-secondary">
             <input
               type="radio"
               checked={role === r}
@@ -85,16 +85,16 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         ))}
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Assign Branch</label>
+        <label className="block text-sm text-ink-secondary">Assign Branch</label>
         <Select
           value={branchId}
           onChange={(v) => setBranchId(v)}
@@ -106,45 +106,45 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       {role === 'branch_manager' && (
         <>
           <div>
-            <label className="block text-sm text-gray-600">Email</label>
-            <p className="text-xs text-gray-400 mb-1">Account is active immediately — no invite email is sent.</p>
+            <label className="block text-sm text-ink-secondary">Email</label>
+            <p className="text-xs text-ink-muted mb-1">Account is active immediately — no invite email is sent.</p>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600">Password</label>
+            <label className="block text-sm text-ink-secondary">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
         </>
       )}
       <div>
-        <label className="block text-sm text-gray-600">Set PIN</label>
+        <label className="block text-sm text-ink-secondary">Set PIN</label>
         <input
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           maxLength={4}
           inputMode="numeric"
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
-        <p className="text-xs text-gray-400 mt-1">Exactly 4 digits, unique per branch.</p>
+        <p className="text-xs text-ink-muted mt-1">Exactly 4 digits, unique per branch.</p>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-error">{error}</p>}
       <button
         type="submit"
         disabled={submitting}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50"
       >
         {submitting ? 'Adding…' : 'Add Employee'}
       </button>

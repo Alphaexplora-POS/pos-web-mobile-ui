@@ -12,13 +12,13 @@ const TopProductsChart: React.FC<TopProductsChartProps> = ({ topProducts }) => {
     <div className="space-y-3">
       {topProducts.map((p) => (
         <div key={p.productName}>
-          <div className="flex justify-between text-sm text-gray-600 mb-1">
+          <div className="flex justify-between text-sm text-ink-secondary mb-1">
             <span>{p.productName}</span>
             <span>${formatAmount(p.sales)}</span>
           </div>
-          <div className="h-4 bg-gray-100 rounded overflow-hidden">
+          <div className="h-4 bg-surface-hover rounded overflow-hidden">
             <div
-              className="h-full bg-blue-600 rounded"
+              className="h-full bg-brand rounded"
               style={{ width: `${(p.sales / max) * 100}%` }}
             />
           </div>

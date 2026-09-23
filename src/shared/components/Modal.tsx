@@ -33,9 +33,9 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
       />
       <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-ink-primary">{title}</h2>
           <button
-            className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
+            className="text-ink-muted hover:text-ink-secondary text-2xl leading-none"
             onClick={onClose}
             aria-label="Close"
           >

@@ -35,35 +35,35 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
       }}
     >
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Address</label>
+        <label className="block text-sm text-ink-secondary">Address</label>
         <input
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Contact</label>
+        <label className="block text-sm text-ink-secondary">Contact</label>
         <input
           value={contact}
           onChange={(e) => setContact(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <button
         type="submit"
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
       >
         {initial ? 'Save Branch' : 'Create Branch'}
       </button>

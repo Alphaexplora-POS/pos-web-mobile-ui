@@ -19,7 +19,7 @@ interface SelectProps<T extends string | number> {
 
 const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
   <svg
-    className={`h-4 w-4 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+    className={`h-4 w-4 text-ink-muted transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
     viewBox="0 0 20 20"
     fill="currentColor"
     aria-hidden="true"
@@ -33,7 +33,7 @@ const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
 );
 
 const CheckIcon: React.FC = () => (
-  <svg className="h-4 w-4 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+  <svg className="h-4 w-4 text-brand" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
     <path
       fillRule="evenodd"
       d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
@@ -116,11 +116,11 @@ function Select<T extends string | number>({
         onKeyDown={triggerKeyDown}
         className={`flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left text-sm transition-colors ${
           open
-            ? 'border-blue-500 ring-2 ring-blue-100'
-            : 'border-gray-300 hover:border-gray-400'
+            ? 'border-brand ring-2 ring-brand/20'
+            : 'border-line hover:border-line-strong'
         } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
       >
-        <span className={`truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
+        <span className={`truncate ${selected ? 'text-ink-primary' : 'text-ink-muted'}`}>
           {selected ? selected.label : placeholder ?? 'Select…'}
         </span>
         <ChevronIcon open={open} />
@@ -129,10 +129,10 @@ function Select<T extends string | number>({
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-auto rounded-lg border border-line bg-white py-1 shadow-lg"
         >
           {enabledOptions.length === 0 && (
-            <p className="px-3 py-2 text-sm text-gray-400">No options</p>
+            <p className="px-3 py-2 text-sm text-ink-muted">No options</p>
           )}
           {enabledOptions.map((opt, i) => {
             const isSelected = opt.value === value;
@@ -146,8 +146,8 @@ function Select<T extends string | number>({
                 onMouseEnter={() => setHighlight(i)}
                 onClick={() => selectOption(opt)}
                 className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm ${
-                  isHighlighted ? 'bg-blue-50' : ''
-                } ${isSelected ? 'font-medium text-blue-600' : 'text-gray-800'}`}
+                  isHighlighted ? 'bg-brand-light' : ''
+                } ${isSelected ? 'font-medium text-brand' : 'text-ink-primary'}`}
               >
                 <span className="truncate">{opt.label}</span>
                 {isSelected && <CheckIcon />}

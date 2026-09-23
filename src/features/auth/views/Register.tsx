@@ -61,7 +61,7 @@ const Register: React.FC = () => {
 
   const inputClass = (hasError: boolean) =>
     `mt-1 w-full rounded border px-3 py-2 focus:outline-none ${
-      hasError ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+      hasError ? 'border-error focus:border-error' : 'border-line focus:border-brand'
     }`;
 
   return (
@@ -71,7 +71,7 @@ const Register: React.FC = () => {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:underline">
+          <Link to="/login" className="text-brand hover:underline">
             Sign in
           </Link>
         </>
@@ -80,40 +80,40 @@ const Register: React.FC = () => {
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-700">Business name</label>
+            <label className="block text-sm text-ink-secondary">Business name</label>
             <input {...register('businessName')} className={inputClass(!!errors.businessName)} />
             {errors.businessName && (
-              <p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.businessName.message}</p>
             )}
           </div>
           <div>
-            <label className="block text-sm text-gray-700">Business type</label>
+            <label className="block text-sm text-ink-secondary">Business type</label>
             <input {...register('businessType')} placeholder="e.g. Retail, Restaurant" className={inputClass(!!errors.businessType)} />
             {errors.businessType && (
-              <p className="mt-1 text-sm text-red-600">{errors.businessType.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.businessType.message}</p>
             )}
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-700">First name</label>
+            <label className="block text-sm text-ink-secondary">First name</label>
             <input {...register('firstName')} className={inputClass(!!errors.firstName)} />
             {errors.firstName && (
-              <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.firstName.message}</p>
             )}
           </div>
           <div>
-            <label className="block text-sm text-gray-700">Last name</label>
+            <label className="block text-sm text-ink-secondary">Last name</label>
             <input {...register('lastName')} className={inputClass(!!errors.lastName)} />
             {errors.lastName && (
-              <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.lastName.message}</p>
             )}
           </div>
         </div>
         <div>
-          <label className="block text-sm text-gray-700">Email</label>
+          <label className="block text-sm text-ink-secondary">Email</label>
           <input type="email" autoComplete="email" {...register('email')} className={inputClass(!!errors.email)} />
-          {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+          {errors.email && <p className="mt-1 text-sm text-error">{errors.email.message}</p>}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -124,7 +124,7 @@ const Register: React.FC = () => {
               hasError={!!errors.password}
             />
             {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.password.message}</p>
             )}
           </div>
           <div>
@@ -135,15 +135,15 @@ const Register: React.FC = () => {
               hasError={!!errors.confirmPassword}
             />
             {errors.confirmPassword && (
-              <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+              <p className="mt-1 text-sm text-error">{errors.confirmPassword.message}</p>
             )}
           </div>
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-error">{error}</p>}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex w-full items-center justify-center gap-2 bg-blue-600 text-white rounded px-4 py-2 hover:bg-blue-700 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 bg-brand text-white rounded px-4 py-2 hover:bg-brand-dark disabled:opacity-50"
         >
           {isSubmitting ? (
             <>

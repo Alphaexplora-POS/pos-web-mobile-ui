@@ -74,25 +74,25 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       }}
     >
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Description</label>
+        <label className="block text-sm text-ink-secondary">Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Base Price</label>
+        <label className="block text-sm text-ink-secondary">Base Price</label>
         <input
           type="number"
           min="0"
@@ -100,19 +100,19 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
           value={basePrice}
           onChange={(e) => setBasePrice(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Image URL</label>
+        <label className="block text-sm text-ink-secondary">Image URL</label>
         <input
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Category</label>
+        <label className="block text-sm text-ink-secondary">Category</label>
         <Select
           value={categoryId}
           onChange={(v) => setCategoryId(v)}
@@ -121,7 +121,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
           className="mt-1 w-full"
         />
       </div>
-      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+      <button type="submit" className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark">
         {editingProduct ? 'Save Changes' : 'Create Product'}
       </button>
     </form>

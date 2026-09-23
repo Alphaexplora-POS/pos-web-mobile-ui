@@ -30,10 +30,13 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const visibleItems = ITEMS.filter((item) => item.roles.includes(role));
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col shrink-0 sticky top-0 h-screen">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">Alpha POS</h1>
+    <div className="flex min-h-screen bg-canvas">
+      <aside className="w-64 bg-navy text-white flex flex-col shrink-0 sticky top-0 h-screen">
+        <div className="px-6 py-5 border-b border-white/10">
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-brand inline-block shrink-0" />
+            Alpha POS
+          </h1>
         </div>
         <nav className="flex-1 py-4 overflow-y-auto">
           {visibleItems.map((item) => {
@@ -44,8 +47,8 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                 to={item.to}
                 className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600 font-medium'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-brand text-white font-medium'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {ICONS[item.icon]}
@@ -54,21 +57,36 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
             );
           })}
         </nav>
-        <div className="px-6 py-4 border-t border-gray-200 space-y-3">
+        <div className="px-4 py-4 border-t border-white/10 space-y-3">
           {session && (
-            <div className="text-sm">
-              <p className="text-gray-900 font-medium">
-                {session.firstName} {session.lastName}
-              </p>
-              <p className="text-gray-500 truncate">{session.tenantName}</p>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-brand text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                {session.firstName.charAt(0)}
+                {session.lastName.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-medium truncate">
+                  {session.firstName} {session.lastName}
+                </p>
+                <p className="text-white/60 truncate text-xs">{session.tenantName}</p>
+              </div>
             </div>
           )}
-          <button
-            className="w-full text-xs px-3 py-1 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
-            onClick={logout}
-          >
-            Sign out
-          </button>
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-xs px-2 py-1 rounded ${
+                role === 'owner' ? 'bg-brand text-white' : 'bg-white/10 text-white'
+              }`}
+            >
+              {role === 'owner' ? 'Owner' : 'Branch Manager'}
+            </span>
+            <button
+              className="flex-1 text-xs px-3 py-1 rounded bg-white/10 text-white/80 hover:bg-white/20"
+              onClick={logout}
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
       <main className="flex-1 overflow-x-auto">{children}</main>

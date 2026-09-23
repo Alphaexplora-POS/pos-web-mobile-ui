@@ -10,10 +10,10 @@ import Select from '../../../shared/components/Select';
 import { useAuth } from '../../../features/auth/hooks/useAuth';
 
 const statusChip: Record<RefundStatus, string> = {
-  pending_approval: 'bg-yellow-100 text-yellow-700',
-  approved: 'bg-blue-100 text-blue-700',
-  denied: 'bg-red-100 text-red-700',
-  completed: 'bg-green-100 text-green-700',
+  pending_approval: 'bg-warning/10 text-warning',
+  approved: 'bg-brand-light text-brand',
+  denied: 'bg-error/10 text-error',
+  completed: 'bg-success-light text-success',
 };
 
 const NewRefundForm: React.FC<{
@@ -52,10 +52,10 @@ const NewRefundForm: React.FC<{
 
   return (
     <form onSubmit={submit} className="mt-4 border-t pt-4 space-y-3">
-      <h4 className="font-semibold text-gray-900">Process Refund</h4>
+      <h4 className="font-semibold text-ink-primary">Process Refund</h4>
       <div className="flex gap-2">
         <div className="flex-1">
-          <label className="block text-sm text-gray-600">Amount</label>
+          <label className="block text-sm text-ink-secondary">Amount</label>
           <input
             type="number"
             min="0.01"
@@ -64,11 +64,11 @@ const NewRefundForm: React.FC<{
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-1"
+            className="mt-1 w-full rounded border border-line px-3 py-1"
           />
         </div>
         <div className="flex-1">
-          <label className="block text-sm text-gray-600">Reason</label>
+          <label className="block text-sm text-ink-secondary">Reason</label>
           <Select
             value={reasonId}
             onChange={(v) => setReasonId(v)}
@@ -78,8 +78,8 @@ const NewRefundForm: React.FC<{
           />
         </div>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button type="submit" disabled={submitting} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
+      {error && <p className="text-sm text-error">{error}</p>}
+      <button type="submit" disabled={submitting} className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50">
         {submitting ? 'Creating…' : 'Create Refund'}
       </button>
     </form>
@@ -113,20 +113,20 @@ const RefundActions: React.FC<{
     return (
       <div className="flex items-center gap-2">
         <button
-          className="text-xs px-3 py-1 rounded bg-green-100 text-green-700 disabled:opacity-50"
+          className="text-xs px-3 py-1 rounded bg-success-light text-success disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onApprove)}
         >
           Approve
         </button>
         <button
-          className="text-xs px-3 py-1 rounded bg-red-100 text-red-700 disabled:opacity-50"
+          className="text-xs px-3 py-1 rounded bg-error/10 text-error disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onDeny)}
         >
           Deny
         </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-error">{error}</span>}
       </div>
     );
   }
@@ -141,7 +141,7 @@ const RefundActions: React.FC<{
           className="w-40"
         />
         <button
-          className="text-xs px-3 py-1 rounded bg-green-100 text-green-700 disabled:opacity-50"
+          className="text-xs px-3 py-1 rounded bg-success-light text-success disabled:opacity-50"
           disabled={busy}
           onClick={() => {
             const method = paymentMethods.find((m) => m.id === paymentMethodId);
@@ -150,7 +150,7 @@ const RefundActions: React.FC<{
         >
           Complete
         </button>
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-error">{error}</span>}
       </div>
     );
   }
@@ -176,12 +176,12 @@ const Transactions: React.FC = () => {
   return (
     <PageLayout title="Transaction History">
       <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6 bg-white rounded-lg shadow p-4">
-        <label className="block text-sm text-gray-600">Filter</label>
+        <label className="block text-sm text-ink-secondary">Filter</label>
         <div className="flex gap-2">
           {(['today', 'week', 'month', 'custom'] as const).map((r) => (
             <button
               key={r}
-              className={`px-3 py-1 rounded text-sm ${vm.range === r ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              className={`px-3 py-1 rounded text-sm ${vm.range === r ? 'bg-brand text-white' : 'bg-surface-hover text-ink-secondary'}`}
               onClick={() => vm.setRange(r)}
             >
               {r === 'today' ? 'Today' : r === 'week' ? 'Week' : r === 'month' ? 'Month' : 'Custom'}
@@ -194,13 +194,13 @@ const Transactions: React.FC = () => {
               type="date"
               value={vm.startDate}
               onChange={(e) => vm.setStartDate(e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1"
+              className="rounded border border-line px-2 py-1"
             />
             <input
               type="date"
               value={vm.endDate}
               onChange={(e) => vm.setEndDate(e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1"
+              className="rounded border border-line px-2 py-1"
             />
           </div>
         )}
@@ -208,13 +208,13 @@ const Transactions: React.FC = () => {
 
       <div className="flex gap-4 mb-6">
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
           onClick={() => setActiveTab('history')}
         >
           Transactions
         </button>
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'refunds' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'refunds' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
           onClick={() => setActiveTab('refunds')}
         >
           Refund History
@@ -227,14 +227,14 @@ const Transactions: React.FC = () => {
             {vm.transactions.map((t) => (
               <div
                 key={t.id}
-                className={`p-3 rounded-lg border cursor-pointer ${selectedTxId === t.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}
+                className={`p-3 rounded-lg border cursor-pointer ${selectedTxId === t.id ? 'border-brand bg-brand-light' : 'border-line'}`}
                 onClick={() => setSelectedTxId(t.id)}
               >
                 <div className="flex justify-between">
-                  <span className="font-medium text-gray-800">{t.branchName}</span>
-                  <span className="text-sm font-semibold text-gray-900">${formatAmount(t.total)}</span>
+                  <span className="font-medium text-ink-primary">{t.branchName}</span>
+                  <span className="text-sm font-semibold text-ink-primary">${formatAmount(t.total)}</span>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-ink-muted">
                   {new Date(t.timestamp).toLocaleString()} · {t.paymentMethod}
                 </p>
               </div>
@@ -254,7 +254,7 @@ const Transactions: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-gray-400 text-center">
+              <div className="bg-white rounded-lg shadow p-6 text-ink-muted text-center">
                 Select a transaction to view details
               </div>
             )}
@@ -262,10 +262,10 @@ const Transactions: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Refund History</h2>
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">Refund History</h2>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-ink-muted border-b">
                 <th className="py-2">Refund</th>
                 <th>Transaction</th>
                 <th>Amount</th>

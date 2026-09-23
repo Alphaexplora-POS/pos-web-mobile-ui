@@ -59,16 +59,16 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
       }}
     >
       <div>
-        <label className="block text-sm text-gray-600">Name</label>
+        <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+          className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>
       <div>
-        <label className="block text-sm text-gray-600">Promo Type</label>
+        <label className="block text-sm text-ink-secondary">Promo Type</label>
         <div className="flex gap-4 mt-1">
           {(['percentage', 'fixed', 'bundle'] as PromoType[]).map((t) => (
             <label key={t} className="flex items-center gap-2 text-sm">
@@ -81,7 +81,7 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
 
       {promoType === 'percentage' && (
         <div>
-          <label className="block text-sm text-gray-600">Percent Off</label>
+          <label className="block text-sm text-ink-secondary">Percent Off</label>
           <input
             type="number"
             min="0"
@@ -89,13 +89,13 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
             value={percentOff}
             onChange={(e) => setPercentOff(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
           />
         </div>
       )}
       {promoType === 'fixed' && (
         <div>
-          <label className="block text-sm text-gray-600">Fixed Amount Off</label>
+          <label className="block text-sm text-ink-secondary">Fixed Amount Off</label>
           <input
             type="number"
             min="0"
@@ -103,30 +103,30 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
             value={fixedAmountOff}
             onChange={(e) => setFixedAmountOff(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
           />
         </div>
       )}
       {promoType === 'bundle' && (
         <div>
-          <label className="block text-sm text-gray-600">Bundle Rule (e.g. Buy 3 for 1000)</label>
+          <label className="block text-sm text-ink-secondary">Bundle Rule (e.g. Buy 3 for 1000)</label>
           <input
             value={bundleRule}
             onChange={(e) => setBundleRule(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
           />
         </div>
       )}
 
       {isOwner && (
         <div>
-          <label className="block text-sm text-gray-600">Applicable Categories</label>
+          <label className="block text-sm text-ink-secondary">Applicable Categories</label>
           <div className="flex flex-wrap gap-2 mt-1">
             {categories.map((c) => (
               <label
                 key={c.id}
-                className={`text-xs px-3 py-1 rounded border cursor-pointer ${categoryIds.includes(c.id) ? 'bg-blue-100 border-blue-400' : 'border-gray-300'}`}
+                className={`text-xs px-3 py-1 rounded border cursor-pointer ${categoryIds.includes(c.id) ? 'bg-brand-light border-brand' : 'border-line'}`}
               >
                 <input
                   type="checkbox"
@@ -142,12 +142,12 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
       )}
 
       <div>
-        <label className="block text-sm text-gray-600">Applicable Products</label>
+        <label className="block text-sm text-ink-secondary">Applicable Products</label>
         <div className="flex flex-wrap gap-2 mt-1">
           {products.map((p) => (
             <label
               key={p.id}
-              className={`text-xs px-3 py-1 rounded border cursor-pointer ${productIds.includes(p.id) ? 'bg-blue-100 border-blue-400' : 'border-gray-300'}`}
+              className={`text-xs px-3 py-1 rounded border cursor-pointer ${productIds.includes(p.id) ? 'bg-brand-light border-brand' : 'border-line'}`}
             >
               <input
                 type="checkbox"
@@ -170,7 +170,7 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
 
       {isOwner ? (
         <div>
-          <label className="block text-sm text-gray-600">Status</label>
+          <label className="block text-sm text-ink-secondary">Status</label>
           <div className="flex gap-4 mt-1">
             <label className="flex items-center gap-2 text-sm">
               <input type="radio" checked={isActive} onChange={() => setIsActive(true)} />
@@ -184,9 +184,9 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
         </div>
       ) : (
         <div>
-          <label className="block text-sm text-gray-600">Status</label>
-          <p className="text-sm font-medium text-gray-700 mt-1">Inactive</p>
-          <p className="text-xs text-amber-600 mt-1">
+          <label className="block text-sm text-ink-secondary">Status</label>
+          <p className="text-sm font-medium text-ink-secondary mt-1">Inactive</p>
+          <p className="text-xs text-warning mt-1">
             Promotions created by a Branch Manager require Owner approval before going active.
           </p>
         </div>
@@ -195,27 +195,27 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
       {isActive && (
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-600">Start Date (optional)</label>
+            <label className="block text-sm text-ink-secondary">Start Date (optional)</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-600">End Date (optional)</label>
+            <label className="block text-sm text-ink-secondary">End Date (optional)</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
             />
           </div>
         </div>
       )}
 
-      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+      <button type="submit" className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark">
         Create Promotion
       </button>
     </form>

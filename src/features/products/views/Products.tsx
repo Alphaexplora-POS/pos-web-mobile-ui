@@ -38,13 +38,13 @@ const Products: React.FC = () => {
     <PageLayout title="Product Management">
       <div className="flex gap-4 mb-6">
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'products' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'products' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
           onClick={() => setActiveTab('products')}
         >
           Products & Categories
         </button>
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'promotions' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border'}`}
+          className={`px-4 py-2 rounded ${activeTab === 'promotions' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
           onClick={() => setActiveTab('promotions')}
         >
           Promotions
@@ -56,10 +56,10 @@ const Products: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Products</h2>
+                <h2 className="text-lg font-semibold text-ink-primary">Products</h2>
                 {isOwner && (
                   <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
                     onClick={() => setAddingProduct(true)}
                   >
                     Add Product
@@ -68,7 +68,7 @@ const Products: React.FC = () => {
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-500 border-b">
+                  <tr className="text-left text-ink-muted border-b">
                     <th className="py-2">Name</th>
                     <th>Category</th>
                     <th>Price</th>
@@ -80,15 +80,15 @@ const Products: React.FC = () => {
                     <tr
                       key={p.id}
                       className={`border-b cursor-pointer ${
-                        selectedProductId === p.id ? 'bg-blue-50' : ''
+                        selectedProductId === p.id ? 'bg-brand-light' : ''
                       }`}
                       onClick={() => handleSelectProduct(p.id)}
                     >
-                      <td className="py-2 font-medium text-gray-800">{p.name}</td>
+                      <td className="py-2 font-medium text-ink-primary">{p.name}</td>
                       <td>{vm.categories.find((c) => c.id === p.categoryId)?.name ?? '-'}</td>
                       <td>${p.basePrice}</td>
                       <td>
-                        <span className={`text-xs px-2 py-1 rounded ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        <span className={`text-xs px-2 py-1 rounded ${p.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
                           {p.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -100,10 +100,10 @@ const Products: React.FC = () => {
 
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Categories</h2>
+                <h2 className="text-lg font-semibold text-ink-primary">Categories</h2>
                 {isOwner && (
                   <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
                     onClick={() => setCategoryModal({ mode: 'create' })}
                   >
                     Add Category
@@ -111,7 +111,7 @@ const Products: React.FC = () => {
                 )}
               </div>
               {vm.categories.length === 0 ? (
-                <p className="text-sm text-gray-400">No categories yet.</p>
+                <p className="text-sm text-ink-muted">No categories yet.</p>
               ) : (
                 <div className="space-y-2">
                   {vm.categories.map((c) => {
@@ -119,19 +119,19 @@ const Products: React.FC = () => {
                     return (
                       <div key={c.id} className="flex items-center justify-between border rounded p-3">
                         <div>
-                          <p className="font-medium text-gray-800">{c.name}</p>
+                          <p className="font-medium text-ink-primary">{c.name}</p>
                           {parent ? (
-                            <p className="text-xs text-gray-500">
-                              Child of <span className="font-medium text-gray-700">{parent.name}</span>
+                            <p className="text-xs text-ink-muted">
+                              Child of <span className="font-medium text-ink-secondary">{parent.name}</span>
                             </p>
                           ) : (
-                            <p className="text-xs text-gray-500">Top-level</p>
+                            <p className="text-xs text-ink-muted">Top-level</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <span
                             className={`text-xs px-2 py-1 rounded ${
-                              c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                              c.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'
                             }`}
                           >
                             {c.isActive ? 'Active' : 'Inactive'}
@@ -139,14 +139,14 @@ const Products: React.FC = () => {
                           {isOwner && (
                             <>
                               <button
-                                className="text-xs px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                                className="text-xs px-3 py-1 rounded border border-line text-ink-secondary hover:bg-canvas"
                                 onClick={() => setCategoryModal({ mode: 'edit', category: c })}
                               >
                                 Edit
                               </button>
                               <button
                                 className={`text-xs px-3 py-1 rounded ${
-                                  c.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                                  c.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'
                                 }`}
                                 onClick={() => vm.setCategoryActive(c.id, !c.isActive)}
                               >
@@ -167,9 +167,9 @@ const Products: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Promotions</h2>
+              <h2 className="text-lg font-semibold text-ink-primary">Promotions</h2>
               <button
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
                 onClick={() => setPromoModalOpen(true)}
               >
                 Add Promotion
@@ -179,8 +179,8 @@ const Products: React.FC = () => {
               {vm.promotions.map((promo) => (
                 <div key={promo.id} className="border rounded-lg p-4 flex items-center justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{promo.name}</h3>
-                    <p className="text-sm text-gray-500">
+                    <h3 className="font-semibold text-ink-primary">{promo.name}</h3>
+                    <p className="text-sm text-ink-muted">
                       {promo.promoType === 'percentage'
                         ? `${promo.config.percentOff}% off`
                         : promo.promoType === 'fixed'
@@ -188,7 +188,7 @@ const Products: React.FC = () => {
                         : promo.config.bundleRule}
                       {promo.isStackable ? ' · Stackable' : ''}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ink-muted">
                       {promo.applicableItems.length > 0
                         ? `${promo.applicableItems.filter((i) => i.scope === 'product').length} product(s), ${promo.applicableItems.filter((i) => i.scope === 'category').length} category(s)`
                         : 'Applies to everything'}
@@ -197,7 +197,7 @@ const Products: React.FC = () => {
                   <div className="flex items-center gap-3">
                     {isOwner && (
                       <button
-                        className={`text-xs px-3 py-1 rounded ${promo.isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}
+                        className={`text-xs px-3 py-1 rounded ${promo.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
                         onClick={() => vm.setPromotionActive(promo.id, !promo.isActive)}
                       >
                         {promo.isActive ? 'Deactivate' : 'Activate'}
@@ -205,7 +205,7 @@ const Products: React.FC = () => {
                     )}
                     <span
                       className={`text-xs px-2 py-1 rounded ${
-                        promo.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        promo.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'
                       }`}
                     >
                       {promo.isActive ? 'Active' : 'Inactive'}
