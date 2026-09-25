@@ -176,7 +176,6 @@ export const createVariant = async (productId: string, input: CreateVariantInput
   const data = await apiRequest<RawVariant>(`/catalog/products/${productId}/variants`, {
     method: 'POST',
     body: JSON.stringify({
-      branchId: input.branchId,
       sku: input.sku,
       size: input.size,
       color: input.color,

@@ -63,7 +63,6 @@ export interface CreateProductInput {
 }
 
 export interface CreateVariantInput {
-  branchId?: string;
   size?: string;
   color?: string;
   sku: string;

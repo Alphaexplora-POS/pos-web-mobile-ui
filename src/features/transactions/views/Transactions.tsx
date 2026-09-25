@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import type { RefundStatus } from '../models/transactionTypes';
 import { useTransactionsViewModel } from '../viewModels/useTransactionsViewModel';
 import TransactionDetail from './TransactionDetail';
@@ -8,6 +10,9 @@ import ErrorState from '../../../shared/components/ErrorState';
 import { formatAmount } from '../../../shared/utils/formatCurrency';
 import Select from '../../../shared/components/Select';
 import { useAuth } from '../../../features/auth/hooks/useAuth';
+import { useRole } from '../../../shared/hooks/useRole';
+import TableEmptyState from '../../../shared/components/TableEmptyState';
+import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 
 const statusChip: Record<RefundStatus, string> = {
   pending_approval: 'bg-warning/10 text-warning',
@@ -64,7 +69,7 @@ const NewRefundForm: React.FC<{
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-line px-3 py-1"
+            className="mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </div>
         <div className="flex-1">
@@ -79,7 +84,7 @@ const NewRefundForm: React.FC<{
         </div>
       </div>
       {error && <p className="text-sm text-error">{error}</p>}
-      <button type="submit" disabled={submitting} className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50">
+      <button type="submit" disabled={submitting} className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark disabled:opacity-50 transition-colors">
         {submitting ? 'Creating…' : 'Create Refund'}
       </button>
     </form>
@@ -113,14 +118,14 @@ const RefundActions: React.FC<{
     return (
       <div className="flex items-center gap-2">
         <button
-          className="text-xs px-3 py-1 rounded bg-success-light text-success disabled:opacity-50"
+          className="text-xs px-3 py-1 rounded-md bg-success-light text-success transition-colors disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onApprove)}
         >
           Approve
         </button>
         <button
-          className="text-xs px-3 py-1 rounded bg-error/10 text-error disabled:opacity-50"
+          className="text-xs px-3 py-1 rounded-md bg-error/10 text-error transition-colors disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onDeny)}
         >
@@ -160,61 +165,96 @@ const RefundActions: React.FC<{
 
 const Transactions: React.FC = () => {
   const vm = useTransactionsViewModel();
+  const loading = useMinimumLoading(vm.isLoading);
   const { session } = useAuth();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'refunds'>('history');
-  const { isOwner } = useAuthContextRole();
+  const { isOwner } = useRole();
+  const [customDate, setCustomDate] = useState<Date | null>(null);
+
+  const selectCustom = (date: Date) => {
+    setCustomDate(date);
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    vm.setStartDate(`${yyyy}-${mm}-${dd}`);
+    vm.setEndDate(`${yyyy}-${mm}-${dd}`);
+  };
 
   const selectedTx = vm.transactions.find((t) => t.id === selectedTxId);
   const approvedByName = session ? `${session.firstName} ${session.lastName}`.trim() : 'Staff';
 
-  if (vm.isLoading) return <TransactionsSkeleton />;
+  if (loading) return <TransactionsSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   const refundReasonCodes = vm.reasonCodes.filter((r) => r.type === 'refund' && r.isActive);
 
   return (
     <PageLayout title="Transaction History">
-      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6 bg-white rounded-lg shadow p-4">
-        <label className="block text-sm text-ink-secondary">Filter</label>
-        <div className="flex gap-2">
-          {(['today', 'week', 'month', 'custom'] as const).map((r) => (
-            <button
-              key={r}
-              className={`px-3 py-1 rounded text-sm ${vm.range === r ? 'bg-brand text-white' : 'bg-surface-hover text-ink-secondary'}`}
-              onClick={() => vm.setRange(r)}
-            >
-              {r === 'today' ? 'Today' : r === 'week' ? 'Week' : r === 'month' ? 'Month' : 'Custom'}
-            </button>
-          ))}
-        </div>
-        {vm.range === 'custom' && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={vm.startDate}
-              onChange={(e) => vm.setStartDate(e.target.value)}
-              className="rounded border border-line px-2 py-1"
-            />
-            <input
-              type="date"
-              value={vm.endDate}
-              onChange={(e) => vm.setEndDate(e.target.value)}
-              className="rounded border border-line px-2 py-1"
-            />
+      <div className="mb-6 bg-white rounded-lg border border-line p-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="inline-flex items-center gap-1 rounded-lg bg-canvas p-1">
+            {(['today', 'week', 'month'] as const).map((r) => (
+              <button
+                key={r}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  vm.range === r
+                    ? 'bg-brand text-white'
+                    : 'text-ink-secondary hover:text-ink-primary hover:bg-white'
+                }`}
+                onClick={() => vm.setRange(r)}
+              >
+                {r === 'today' ? 'Today' : r === 'week' ? 'Week' : 'Month'}
+              </button>
+            ))}
           </div>
-        )}
+          <DatePicker
+            selected={customDate}
+            onChange={(date: Date | null) => {
+              if (date) {
+                vm.setRange('custom');
+                selectCustom(date);
+              }
+            }}
+            showYearDropdown
+            showMonthDropdown
+            dropdownMode="select"
+            customInput={
+              <button
+                type="button"
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${
+                  vm.range === 'custom'
+                    ? 'bg-brand text-white'
+                    : 'bg-white border border-line text-ink-secondary hover:text-ink-primary'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Customize Date
+              </button>
+            }
+          />
+        </div>
       </div>
 
-      <div className="flex gap-4 mb-6">
+      <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'history' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'history'
+              ? 'bg-brand text-white'
+              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+          }`}
           onClick={() => setActiveTab('history')}
         >
           Transactions
         </button>
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'refunds' ? 'bg-brand text-white' : 'bg-white text-ink-secondary border'}`}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'refunds'
+              ? 'bg-brand text-white'
+              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+          }`}
           onClick={() => setActiveTab('refunds')}
         >
           Refund History
@@ -222,27 +262,53 @@ const Transactions: React.FC = () => {
       </div>
 
       {activeTab === 'history' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1 space-y-2">
-            {vm.transactions.map((t) => (
-              <div
-                key={t.id}
-                className={`p-3 rounded-lg border cursor-pointer ${selectedTxId === t.id ? 'border-brand bg-brand-light' : 'border-line'}`}
-                onClick={() => setSelectedTxId(t.id)}
-              >
-                <div className="flex justify-between">
-                  <span className="font-medium text-ink-primary">{t.branchName}</span>
-                  <span className="text-sm font-semibold text-ink-primary">${formatAmount(t.total)}</span>
-                </div>
-                <p className="text-xs text-ink-muted">
-                  {new Date(t.timestamp).toLocaleString()} · {t.paymentMethod}
-                </p>
-              </div>
-            ))}
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg border border-line p-6">
+            <h2 className="text-lg font-semibold text-ink-primary mb-4">
+              Transactions
+              <span className="ml-2 text-sm font-normal text-ink-muted">
+                {vm.transactions.length} found
+              </span>
+            </h2>
+            <div className="overflow-x-auto">
+              {vm.transactions.length === 0 ? (
+                <TableEmptyState message="No transactions in this period" />
+              ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-canvas border-b border-line">
+                    <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Branch</th>
+                    <th className="py-2.5 text-left font-medium text-ink-muted">Items</th>
+                    <th className="py-2.5 text-left font-medium text-ink-muted">Payment</th>
+                    <th className="py-2.5 text-left font-medium text-ink-muted">Date</th>
+                    <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vm.transactions.map((t) => (
+                    <tr
+                      key={t.id}
+                      className={`border-b border-line last:border-0 cursor-pointer transition-colors ${
+                        selectedTxId === t.id ? 'bg-brand-light' : 'hover:bg-canvas'
+                      }`}
+                      onClick={() => setSelectedTxId(t.id)}
+                    >
+                      <td className="py-2.5 pl-3 font-medium text-ink-primary">{t.branchName}</td>
+                      <td className="py-2.5 text-ink-secondary">{t.items.length} items</td>
+                      <td className="py-2.5 text-ink-secondary">{t.paymentMethod}</td>
+                      <td className="py-2.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
+                      <td className="py-2.5 pr-3 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
           </div>
-          <div className="lg:col-span-2">
-            {selectedTx ? (
-              <div className="bg-white rounded-lg shadow p-6">
+
+          {selectedTx && (
+            <div className="flex-1 bg-white rounded-lg border border-line p-6">
+              <div className="h-full flex flex-col">
                 <TransactionDetail transaction={selectedTx} />
                 {isOwner && (
                   <NewRefundForm
@@ -253,65 +319,62 @@ const Transactions: React.FC = () => {
                   />
                 )}
               </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6 text-ink-muted text-center">
-                Select a transaction to view details
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg border border-line p-6">
           <h2 className="text-lg font-semibold text-ink-primary mb-4">Refund History</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-ink-muted border-b">
-                <th className="py-2">Refund</th>
-                <th>Transaction</th>
-                <th>Amount</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Date</th>
-                {isOwner && <th>Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {vm.refunds.map((r) => (
-                <tr key={r.id} className="border-b align-top">
-                  <td className="py-2">{r.id}</td>
-                  <td>{r.transactionId}</td>
-                  <td>${formatAmount(r.amount)}</td>
-                  <td>{r.reasonCode}</td>
-                  <td>
-                    <span className={`text-xs px-2 py-1 rounded ${statusChip[r.status]}`}>
-                      {r.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td>{new Date(r.refundedAt).toLocaleString()}</td>
-                  {isOwner && (
-                    <td className="py-2">
-                      <RefundActions
-                        status={r.status}
-                        paymentMethods={vm.paymentMethods}
-                        onApprove={() => vm.approveRefund(r.id, approvedByName)}
-                        onDeny={() => vm.denyRefund(r.id, approvedByName)}
-                        onComplete={(a, b) => vm.completeRefund(r.id, a, b, r.amount)}
-                      />
-                    </td>
-                  )}
+          <div className="overflow-x-auto">
+            {vm.refunds.length === 0 ? (
+                <TableEmptyState message="No refunds in this period" />
+              ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-canvas border-b border-line">
+                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Refund</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Transaction</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Amount</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Reason</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Date</th>
+                  {isOwner && <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Actions</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {vm.refunds.map((r) => (
+                  <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors align-top">
+                    <td className="py-2.5 pl-3 font-mono text-xs">{r.id}</td>
+                    <td className="py-2.5 font-mono text-xs">{r.transactionId}</td>
+                    <td className="py-2.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
+                    <td className="py-2.5">{r.reasonCode}</td>
+                    <td className="py-2.5">
+                      <span className={`text-xs px-2 py-1 rounded ${statusChip[r.status]}`}>
+                        {r.status.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-2.5">{new Date(r.refundedAt).toLocaleString()}</td>
+                    {isOwner && (
+                      <td className="py-2.5 pr-3">
+                        <RefundActions
+                          status={r.status}
+                          paymentMethods={vm.paymentMethods}
+                          onApprove={() => vm.approveRefund(r.id, approvedByName)}
+                          onDeny={() => vm.denyRefund(r.id, approvedByName)}
+                          onComplete={(a, b) => vm.completeRefund(r.id, a, b, r.amount)}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
         </div>
       )}
     </PageLayout>
   );
-};
-
-const useAuthContextRole = () => {
-  const { session } = useAuth();
-  return { isOwner: session?.role === 'owner' };
 };
 
 export default Transactions;

@@ -57,8 +57,11 @@ export const useInventoryViewModel = (isOwner: boolean) => {
         if (isOwner) {
           const combined = await fetchCombinedInventory();
           setCombinedItems(combined);
-          const data = branchId ? await fetchBranchInventory(branchId) : combined;
-          setItems(data);
+          setItems(combined);
+          if (branchId) {
+            const data = await fetchBranchInventory(branchId);
+            setItems(data);
+          }
         } else if (branchId) {
           const data = await fetchBranchInventory(branchId);
           setItems(data);

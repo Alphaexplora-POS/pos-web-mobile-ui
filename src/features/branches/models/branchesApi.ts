@@ -2,7 +2,7 @@ export { fetchBranches } from '../../../shared/models/branchesApi';
 
 import type { CreateBranchInput, CreateEmployeeInput, Employee, EmployeeRole } from './branchTypes';
 import type { Branch } from '../../../shared/models/branchTypes';
-import { toBranch, type RawBranch } from '../../../shared/models/branchesApi';
+import { toBranch, type RawBranch, invalidateBranchesCache } from '../../../shared/models/branchesApi';
 import { apiRequest } from '../../../shared/models/apiClient';
 
 interface RawEmployee {
@@ -39,6 +39,7 @@ export const createBranch = async (input: CreateBranchInput): Promise<Branch> =>
     method: 'POST',
     body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
   });
+  invalidateBranchesCache();
   return toBranch(data);
 };
 
@@ -47,11 +48,13 @@ export const updateBranch = async (id: string, input: Partial<CreateBranchInput>
     method: 'PATCH',
     body: JSON.stringify({ name: input.name, address: input.address, contactNumber: input.contact }),
   });
+  invalidateBranchesCache();
   return toBranch(data);
 };
 
 export const deactivateBranch = async (id: string): Promise<void> => {
   await apiRequest<unknown>(`/identity/branches/${id}/deactivate`, { method: 'POST' });
+  invalidateBranchesCache();
 };
 
 export const fetchEmployees = async (): Promise<Employee[]> => {

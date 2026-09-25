@@ -17,7 +17,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [basePrice, setBasePrice] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [categoryId, setCategoryId] = useState('');
 
   useEffect(() => {
@@ -25,13 +24,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       setName(editingProduct.name);
       setDescription(editingProduct.description);
       setBasePrice(String(editingProduct.basePrice));
-      setImageUrl(editingProduct.imageUrl ?? '');
       setCategoryId(editingProduct.categoryId);
     } else {
       setName('');
       setDescription('');
       setBasePrice('');
-      setImageUrl('');
       setCategoryId('');
     }
   }, [editingProduct]);
@@ -44,7 +41,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       name,
       description: description || undefined,
       basePrice: Number(basePrice),
-      imageUrl: imageUrl || undefined,
     });
     if (!check.success) {
       toast.error(firstZodMessage(check.error));
@@ -54,7 +50,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       name,
       description,
       basePrice: Number(basePrice),
-      imageUrl: imageUrl || undefined,
       categoryId,
     };
     if (editingProduct && onUpdate) {
@@ -100,14 +95,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
           value={basePrice}
           onChange={(e) => setBasePrice(e.target.value)}
           required
-          className="mt-1 w-full rounded border border-line px-3 py-2"
-        />
-      </div>
-      <div>
-        <label className="block text-sm text-ink-secondary">Image URL</label>
-        <input
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
           className="mt-1 w-full rounded border border-line px-3 py-2"
         />
       </div>

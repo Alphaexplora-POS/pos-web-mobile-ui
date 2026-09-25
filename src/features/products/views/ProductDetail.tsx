@@ -1,15 +1,14 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { toast } from 'sonner';
 import type { CreateVariantInput, Product, ProductAttribute, ProductVariant } from '../models/productTypes';
-import type { Branch } from '../../../shared/models/branchTypes';
 import { useRole } from '../../../shared/hooks/useRole';
+import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface ProductDetailProps {
   product: Product;
   variants: ProductVariant[];
   attributes: ProductAttribute[];
-  branches: Branch[];
   onAddVariant: (input: CreateVariantInput) => void | Promise<void>;
   onUpdateVariant: (variantId: string, input: Partial<CreateVariantInput>) => void | Promise<void>;
   onAddAttribute: (attributeKey: string, attributeValue: string) => void | Promise<void>;
@@ -23,7 +22,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   product,
   variants,
   attributes,
-  branches,
   onAddVariant,
   onUpdateVariant,
   onAddAttribute,
@@ -40,7 +38,6 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const [priceOverride, setPriceOverride] = useState('');
   const [attrKey, setAttrKey] = useState('');
   const [attrValue, setAttrValue] = useState('');
-  const [branchId, setBranchId] = useState('');
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingAttrId, setEditingAttrId] = useState<string | null>(null);
 
@@ -52,159 +49,208 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     setPriceOverride('');
   };
 
-  const activeBranchId = branchId || branches[0]?.id || '';
+  const handleAddVariant = (e: React.FormEvent) => {
+    e.preventDefault();
+    const data: CreateVariantInput = {
+      size,
+      color,
+      sku,
+      costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
+      priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+    };
+    const check = variantSchema.safeParse({
+      sku,
+      size: size || null,
+      color: color || null,
+      priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+      costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
+    });
+    if (!check.success) {
+      toast.error(firstZodMessage(check.error));
+      return;
+    }
+    onAddVariant(data);
+    resetVariantForm();
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-2">
-          {isOwner && (
+      <div className="rounded-lg border border-line p-4">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-3">
+            <span className={`text-xs px-2 py-1 rounded ${product.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
+              {product.isActive ? 'Active' : 'Inactive'}
+            </span>
+            <span className="text-sm font-medium text-ink-primary">Base Price: ${product.basePrice}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                className="text-sm px-3 py-1 rounded-md border border-line text-ink-secondary hover:bg-surface-hover transition-colors"
+                onClick={onEdit}
+              >
+                Edit
+              </button>
+            )}
             <button
-              className="text-sm px-3 py-1 rounded border border-line text-ink-secondary hover:bg-canvas"
-              onClick={onEdit}
+              className={`text-sm px-3 py-1 rounded-md ${product.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
+              onClick={() => onToggleProduct(!product.isActive)}
             >
-              Edit
+              {product.isActive ? 'Deactivate' : 'Activate'}
             </button>
-          )}
-          <button
-            className={`text-sm px-3 py-1 rounded ${product.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
-            onClick={() => onToggleProduct(!product.isActive)}
-          >
-            {product.isActive ? 'Deactivate' : 'Activate'}
-          </button>
+          </div>
         </div>
-      <p className="text-sm text-ink-secondary">{product.description}</p>
-      <p className="text-sm text-ink-muted">Base Price: ${product.basePrice}</p>
+        <p className="text-sm text-ink-secondary">{product.description}</p>
+      </div>
 
       <div>
-        <h4 className="font-semibold text-ink-primary mb-2">Variants</h4>
+        <h4 className="font-semibold text-ink-primary mb-1">Variants</h4>
+        <p className="text-xs text-ink-muted mb-3">
+          {variants.length} variant(s) for this product
+        </p>
+
         <form
-          className="flex flex-wrap gap-2 mb-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const data: CreateVariantInput = {
-              branchId: activeBranchId,
-              size,
-              color,
-              sku,
-              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
-              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
-            };
-            const check = variantSchema.safeParse({
-              branchId: activeBranchId,
-              sku,
-              size: size || null,
-              color: color || null,
-              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
-              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
-            });
-            if (!check.success) {
-              toast.error(firstZodMessage(check.error));
-              return;
-            }
-            onAddVariant(data);
-            resetVariantForm();
-          }}
+          className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-line p-3"
+          onSubmit={handleAddVariant}
         >
-          <input
-            placeholder="Size"
-            value={size}
-            onChange={(e) => setSize(e.target.value)}
-            className="flex-1 min-w-24 rounded border border-line px-3 py-1"
-          />
-          <input
-            placeholder="Color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="flex-1 min-w-24 rounded border border-line px-3 py-1"
-          />
-          <input
-            placeholder="SKU"
-            value={sku}
-            onChange={(e) => setSku(e.target.value)}
-            required
-            className="flex-1 min-w-24 rounded border border-line px-3 py-1"
-          />
+          <div className="flex-1 min-w-32">
+            <label className="block text-xs text-ink-muted mb-1">Size</label>
+            <input
+              placeholder="e.g. Small"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              className="w-full rounded-md border border-line px-3 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex-1 min-w-32">
+            <label className="block text-xs text-ink-muted mb-1">Color</label>
+            <input
+              placeholder="e.g. Red"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-full rounded-md border border-line px-3 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex-1 min-w-32">
+            <label className="block text-xs text-ink-muted mb-1">SKU</label>
+            <input
+              placeholder="Required"
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              required
+              className="w-full rounded-md border border-line px-3 py-1.5 text-sm"
+            />
+          </div>
           {isOwner && (
             <>
-              <input
-                placeholder="Cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
-                className="flex-1 min-w-20 rounded border border-line px-3 py-1"
-              />
-              <input
-                placeholder="Price over"
-                type="number"
-                min="0"
-                step="0.01"
-                value={priceOverride}
-                onChange={(e) => setPriceOverride(e.target.value)}
-                className="flex-1 min-w-20 rounded border border-line px-3 py-1"
-              />
+              <div className="flex-1 min-w-24">
+                <label className="block text-xs text-ink-muted mb-1">Cost</label>
+                <input
+                  placeholder="0.00"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(e.target.value)}
+                  className="w-full rounded-md border border-line px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div className="flex-1 min-w-24">
+                <label className="block text-xs text-ink-muted mb-1">Price</label>
+                <input
+                  placeholder="0.00"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={priceOverride}
+                  onChange={(e) => setPriceOverride(e.target.value)}
+                  className="w-full rounded-md border border-line px-3 py-1.5 text-sm"
+                />
+              </div>
             </>
           )}
-<select
-            value={activeBranchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            className="rounded border border-line px-3 py-1"
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <button className="bg-brand text-white px-3 py-1 rounded" type="submit">Add</button>
+          <button className="bg-brand text-white px-4 py-1.5 rounded-md hover:bg-brand-dark transition-colors text-sm" type="submit">
+            Add Variant
+          </button>
         </form>
-        <div className="space-y-2">
-          {variants.map((v) => (
-            <div key={v.id} className="border rounded p-2 text-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="font-medium text-ink-primary">{v.size ?? '-'} / {v.color ?? '-'}</span>
-                  <span className="text-ink-muted">SKU: {v.sku}</span>
-                  {isOwner && (
-                    <span className="text-ink-muted">
-                      Cost: ${v.costPrice ?? '-'} · Price: ${v.priceOverride ?? '-'}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="text-xs text-ink-secondary underline"
-                    onClick={() => setEditingVariantId(editingVariantId === v.id ? null : v.id)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className={`px-2 py-1 rounded ${v.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
-                    onClick={() => onToggleVariant(v.id, !v.isActive)}
-                  >
-                    {v.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                </div>
-              </div>
-              {editingVariantId === v.id && (
-                <VariantEditRow
-                  variant={v}
-                  isOwner={isOwner}
-                  onSave={(input) => {
-                    onUpdateVariant(v.id, input);
-                    setEditingVariantId(null);
-                  }}
-                  onCancel={() => setEditingVariantId(null)}
-                />
-              )}
-            </div>
-          ))}
+
+        <div className="overflow-x-auto">
+          {variants.length === 0 ? (
+            <TableEmptyState message="No variants yet. Add one above" />
+          ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-canvas border-b border-line">
+                <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Variant</th>
+                <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
+                {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Cost</th>}
+                {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Price</th>}
+                <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
+                <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variants.map((v) => (
+                  <Fragment key={v.id}>
+                    <tr className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-2.5 pl-3 font-medium text-ink-primary">
+                        {v.size ?? v.color ?? 'Default'}
+                      </td>
+                      <td className="py-2.5">{v.sku}</td>
+                      {isOwner && (
+                        <td className="py-2.5">{v.costPrice != null ? `$${v.costPrice}` : '-'}</td>
+                      )}
+                      {isOwner && (
+                        <td className="py-2.5">{v.priceOverride != null ? `$${v.priceOverride}` : '-'}</td>
+                      )}
+                      <td className="py-2.5">
+                        <span className={`text-xs px-2 py-1 rounded ${v.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
+                          {v.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="text-xs text-ink-secondary underline"
+                            onClick={() => setEditingVariantId(editingVariantId === v.id ? null : v.id)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`text-xs px-2 py-1 rounded ${v.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
+                            onClick={() => onToggleVariant(v.id, !v.isActive)}
+                          >
+                            {v.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {editingVariantId === v.id && (
+                      <tr className="bg-brand-light">
+                        <td colSpan={isOwner ? 6 : 4} className="px-3 py-3">
+                          <VariantEditRow
+                            variant={v}
+                            isOwner={isOwner}
+                            onSave={(input) => {
+                              onUpdateVariant(v.id, input);
+                              setEditingVariantId(null);
+                            }}
+                            onCancel={() => setEditingVariantId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+            </tbody>
+          </table>
+          )}
         </div>
       </div>
 
       <div>
-        <h4 className="font-semibold text-ink-primary mb-2">Custom Attributes</h4>
+        <h4 className="font-semibold text-ink-primary mb-1">Custom Attributes</h4>
+        <p className="text-xs text-ink-muted mb-3">Extra product details like material or origin</p>
         <form
           className="flex gap-2 mb-3"
           onSubmit={(e) => {
@@ -219,19 +265,24 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             value={attrKey}
             onChange={(e) => setAttrKey(e.target.value)}
             required
-            className="flex-1 rounded border border-line px-3 py-1"
+            className="flex-1 rounded-md border border-line px-3 py-1.5 text-sm"
           />
           <input
             placeholder="Value"
             value={attrValue}
             onChange={(e) => setAttrValue(e.target.value)}
             required
-            className="flex-1 rounded border border-line px-3 py-1"
+            className="flex-1 rounded-md border border-line px-3 py-1.5 text-sm"
           />
-          <button className="bg-brand text-white px-3 py-1 rounded" type="submit">Add</button>
+          <button className="bg-brand text-white px-3 py-1.5 rounded-md hover:bg-brand-dark transition-colors text-sm" type="submit">Add</button>
         </form>
         <div className="flex flex-wrap gap-2">
-          {attributes.map((a) => (
+          {attributes.length === 0 ? (
+            <div className="w-full rounded-lg border border-line">
+              <TableEmptyState message="No attributes yet" />
+            </div>
+          ) : (
+          attributes.map((a) => (
             <span key={a.id} className="text-xs bg-surface-hover rounded px-2 py-1 flex items-center gap-1">
               {editingAttrId === a.id ? (
                 <AttrEditRow
@@ -255,7 +306,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                 </>
               )}
             </span>
-          ))}
+          )))}
         </div>
       </div>
     </div>
@@ -277,62 +328,62 @@ const VariantEditRow: React.FC<VariantEditRowProps> = ({ variant, isOwner, onSav
   const [priceOverride, setPriceOverride] = useState(variant.priceOverride != null ? String(variant.priceOverride) : '');
 
   return (
-    <div className="flex flex-wrap gap-2 border-t pt-2">
-      <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" className="flex-1 min-w-20 rounded border border-line px-2 py-1" />
-      <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" className="flex-1 min-w-20 rounded border border-line px-2 py-1" />
-      <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" className="flex-1 min-w-20 rounded border border-line px-2 py-1" />
-      {isOwner && (
-        <>
-          <input
-            value={costPrice}
-            type="number"
-            min="0"
-            step="0.01"
-            onChange={(e) => setCostPrice(e.target.value)}
-            placeholder="Cost"
-            className="flex-1 min-w-16 rounded border border-line px-2 py-1"
-          />
-          <input
-            value={priceOverride}
-            type="number"
-            min="0"
-            step="0.01"
-            onChange={(e) => setPriceOverride(e.target.value)}
-            placeholder="Price"
-            className="flex-1 min-w-16 rounded border border-line px-2 py-1"
-          />
-        </>
-      )}
-      <div className="flex items-center gap-2">
-        <button
-          className="text-xs bg-brand text-white px-2 py-1 rounded"
-          onClick={() => {
-            const input = {
-              sku,
-              size: size || undefined,
-              color: color || undefined,
-              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
-              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
-            };
-            const check = variantSchema.safeParse({
-              sku,
-              size: size || null,
-              color: color || null,
-              costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
-              priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
-            });
-            if (!check.success) {
-              toast.error(firstZodMessage(check.error));
-              return;
-            }
-            onSave(input);
-          }}
-        >
-          Save
-        </button>
-        <button className="text-xs text-ink-secondary underline" onClick={onCancel}>Cancel</button>
+    <div className="flex flex-wrap items-center gap-2">
+        <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Size" className="flex-1 min-w-20 rounded-md border border-line px-2 py-1 text-sm" />
+        <input value={color} onChange={(e) => setColor(e.target.value)} placeholder="Color" className="flex-1 min-w-20 rounded-md border border-line px-2 py-1 text-sm" />
+        <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="SKU" className="flex-1 min-w-20 rounded-md border border-line px-2 py-1 text-sm" />
+        {isOwner && (
+          <>
+            <input
+              value={costPrice}
+              type="number"
+              min="0"
+              step="0.01"
+              onChange={(e) => setCostPrice(e.target.value)}
+              placeholder="Cost"
+              className="flex-1 min-w-16 rounded-md border border-line px-2 py-1 text-sm"
+            />
+            <input
+              value={priceOverride}
+              type="number"
+              min="0"
+              step="0.01"
+              onChange={(e) => setPriceOverride(e.target.value)}
+              placeholder="Price"
+              className="flex-1 min-w-16 rounded-md border border-line px-2 py-1 text-sm"
+            />
+          </>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            className="text-xs bg-brand text-white px-2 py-1 rounded-md"
+            onClick={() => {
+              const input = {
+                sku,
+                size: size || undefined,
+                color: color || undefined,
+                costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
+                priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+              };
+              const check = variantSchema.safeParse({
+                sku,
+                size: size || null,
+                color: color || null,
+                costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
+                priceOverride: isOwner && priceOverride !== '' ? Number(priceOverride) : undefined,
+              });
+              if (!check.success) {
+                toast.error(firstZodMessage(check.error));
+                return;
+              }
+              onSave(input);
+            }}
+          >
+            Save
+          </button>
+          <button className="text-xs text-ink-secondary underline" onClick={onCancel}>Cancel</button>
+        </div>
       </div>
-    </div>
   );
 };
 
@@ -348,9 +399,9 @@ const AttrEditRow: React.FC<AttrEditRowProps> = ({ value, onSave, onCancel }) =>
 
   return (
     <span className="inline-flex items-center gap-1">
-      <input value={key} onChange={(e) => setKey(e.target.value)} className="w-20 rounded border border-line px-1 py-0.5" />
+      <input value={key} onChange={(e) => setKey(e.target.value)} className="w-20 rounded-md border border-line px-1 py-0.5" />
       <span>:</span>
-      <input value={val} onChange={(e) => setVal(e.target.value)} className="w-20 rounded border border-line px-1 py-0.5" />
+      <input value={val} onChange={(e) => setVal(e.target.value)} className="w-20 rounded-md border border-line px-1 py-0.5" />
       <button className="text-brand font-medium" onClick={() => onSave(key, val)}>Save</button>
       <button className="text-ink-muted underline" onClick={onCancel}>Cancel</button>
     </span>

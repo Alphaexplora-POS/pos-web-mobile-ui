@@ -104,6 +104,10 @@ const fetchBranchRanking = async (branchIds: string[]): Promise<TopProduct[]> =>
     .slice(0, 5);
 };
 
+export const fetchBranchTopProducts = async (branchId: string): Promise<TopProduct[]> => {
+  return fetchBranchRanking([branchId]);
+};
+
 export const fetchCompanyAnalytics = async (): Promise<AnalyticsData> => {
   const branches = (await fetchBranches()).filter((branch) => branch.isActive);
   if (!branches.length) {

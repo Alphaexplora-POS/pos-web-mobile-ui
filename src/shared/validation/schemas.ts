@@ -46,12 +46,10 @@ export const productSchema = z
     name: z.string().min(1, 'Please enter a product name').max(255, 'Product name is too long'),
     description: z.string().max(1000, 'Description is too long'),
     basePrice: z.number('Please enter a valid price').nonnegative('Price cannot be negative'),
-    imageUrl: z.string().max(1000, 'Image URL is too long'),
   })
   .refine((value) => Number.isFinite(value.basePrice), { message: 'Please enter a valid price', path: ['basePrice'] });
 
 export const variantSchema = z.object({
-  branchId: z.string().min(1, 'Please provide a valid branch'),
   sku: z.string().min(1, 'Please enter a SKU').max(100, 'SKU is too long'),
   size: z.string().max(50, 'Size is too long').nullable().optional(),
   color: z.string().max(50, 'Color is too long').nullable().optional(),

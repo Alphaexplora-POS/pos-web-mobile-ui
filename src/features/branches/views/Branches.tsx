@@ -9,8 +9,10 @@ import ErrorState from '../../../shared/components/ErrorState';
 import OwnerOnlyBadge from '../../../shared/components/OwnerOnlyBadge';
 import Select from '../../../shared/components/Select';
 import Modal from '../../../shared/components/Modal';
+import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 
 type BranchModalState = { mode: 'create' } | { mode: 'edit'; branch: Branch } | null;
 
@@ -18,6 +20,8 @@ const Branches: React.FC = () => {
   const vm = useBranchesViewModel();
   const { isOwner } = useRole();
   const { session } = useAuth();
+  const loading = useMinimumLoading(vm.isLoading);
+  const [activeSection, setActiveSection] = useState<'branches' | 'employees'>('branches');
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [branchModal, setBranchModal] = useState<BranchModalState>(null);
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
@@ -36,7 +40,21 @@ const Branches: React.FC = () => {
     ? [branchManagerBranch]
     : [];
 
-  if (vm.isLoading) return <BranchesSkeleton />;
+  const roleLabel: Record<EmployeeRole, string> = {
+    branch_manager: 'Branch Manager',
+    supervisor: 'Supervisor',
+    cashier: 'Cashier',
+    staff: 'Staff',
+  };
+
+  const roleBadgeClass: Record<EmployeeRole, string> = {
+    branch_manager: 'bg-brand-light text-brand',
+    supervisor: 'bg-info/10 text-info',
+    cashier: 'bg-warning/10 text-warning',
+    staff: 'bg-surface-hover text-ink-secondary',
+  };
+
+  if (loading) return <BranchesSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (
@@ -45,7 +63,7 @@ const Branches: React.FC = () => {
       actions={!isOwner ? <OwnerOnlyBadge label="Branch Manager view" /> : undefined}
     >
       {session && (
-        <div className="mb-6 bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="mb-6 bg-white rounded-lg border border-line p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm text-ink-secondary">Workspace:</span>
           <span className="text-sm font-semibold text-ink-primary">{session.tenantName || '—'}</span>
           <span className="text-xs text-ink-muted">
@@ -54,29 +72,56 @@ const Branches: React.FC = () => {
         </div>
       )}
       {!isOwner && (
-        <div className="mb-6 bg-white rounded-lg shadow p-4 flex items-center gap-2">
+        <div className="mb-6 bg-white rounded-lg border border-line p-4 flex items-center gap-2">
           <span className="text-sm text-ink-secondary">Your Branch:</span>
           <span className="text-sm font-semibold text-ink-primary">
             {branchManagerBranch?.name ?? '—'}
           </span>
         </div>
       )}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-lg shadow p-6">
+
+      <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeSection === 'branches'
+              ? 'bg-brand text-white'
+              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+          }`}
+          onClick={() => setActiveSection('branches')}
+        >
+          Branches
+        </button>
+        <button
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            activeSection === 'employees'
+              ? 'bg-brand text-white'
+              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+          }`}
+          onClick={() => setActiveSection('employees')}
+        >
+          Employees
+        </button>
+      </div>
+
+      {activeSection === 'branches' ? (
+        <div>
+          {isOwner && vm.branches.length > tenantBranches.length && (
+            <p className="mb-4 text-xs text-warning">
+              {vm.branches.length - tenantBranches.length} branch(es) belong to a different workspace and are hidden.
+              Sign in with the account that owns them to see their employees.
+            </p>
+          )}
+          <div className="bg-white rounded-lg border border-line p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-ink-primary">Branches</h2>
               <div className="flex items-center gap-2">
                 {isOwner && (
                   <button
-                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
+                    className="bg-brand text-white px-4 py-1.5 rounded-md hover:bg-brand-dark transition-colors"
                     onClick={() => setBranchModal({ mode: 'create' })}
                   >
                     Add Branch
                   </button>
-                )}
-                {isOwner && (
-                  <label className="text-sm text-ink-secondary">Branch</label>
                 )}
                 {isOwner && (
                   <Select
@@ -92,15 +137,20 @@ const Branches: React.FC = () => {
               </div>
             </div>
             <div className="space-y-3">
+              {visibleBranches.length === 0 && (
+                <TableEmptyState message="No branches yet" />
+              )}
               {visibleBranches.map((b) => (
                 <div
                   key={b.id}
-                  className={`p-4 rounded-lg border cursor-pointer ${
+                  className={`p-4 rounded-lg border transition-colors cursor-pointer ${
                     selectedBranchId === b.id
                       ? 'border-brand bg-brand-light'
-                      : 'border-line'
+                      : 'border-line hover:border-line-strong hover:bg-canvas'
                   }`}
-                  onClick={() => setSelectedBranchId(b.id)}
+                  onClick={() =>
+                    setSelectedBranchId((prev) => (prev === b.id ? null : b.id))
+                  }
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-ink-primary">{b.name}</h3>
@@ -110,7 +160,7 @@ const Branches: React.FC = () => {
                       </span>
                       {isOwner && (
                         <button
-                          className="text-xs px-3 py-1 rounded border border-line text-ink-secondary hover:bg-canvas"
+                          className="text-xs px-3 py-1 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             setBranchModal({ mode: 'edit', branch: b });
@@ -138,69 +188,57 @@ const Branches: React.FC = () => {
               ))}
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
-              <div className="flex items-center gap-3">
-                {isOwner && (
-                  <button
-                    className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
-                    onClick={() => setEmployeeModalOpen(true)}
-                  >
-                    Add Employee
-                  </button>
-                )}
-                <span className="text-xs text-ink-muted">{vm.employees.length} in this workspace</span>
-              </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-line p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
+            <div className="flex items-center gap-3">
+              {isOwner && (
+                <button
+                  className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark transition-colors"
+                  onClick={() => setEmployeeModalOpen(true)}
+                >
+                  Add Employee
+                </button>
+              )}
+              <span className="text-xs text-ink-muted">{vm.employees.length} in this workspace</span>
             </div>
-            {vm.employees.length === 0 && (
-              <p className="text-sm text-warning mb-3">
-                No employees in this workspace yet. Use "Add Employee" to create one with a branch from this workspace.
-              </p>
-            )}
+          </div>
+          <div className="overflow-x-auto">
+            {vm.employees.length === 0 ? (
+              <TableEmptyState message="No employees in this workspace yet" />
+            ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-ink-muted border-b">
-                  <th className="py-2">Name</th>
-                  <th>Role</th>
-                  <th>Branch</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                <tr className="bg-canvas border-b border-line">
+                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Name</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Role</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
+                  {isOwner && <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {vm.employees
                   .filter((e) => (isOwner ? true : e.branchId === branchManagerBranch?.id))
-                  .map((e) => {
-                    const roleLabel: Record<EmployeeRole, string> = {
-                      branch_manager: 'Branch Manager',
-                      supervisor: 'Supervisor',
-                      cashier: 'Cashier',
-                      staff: 'Staff',
-                    };
-                    const roleBadgeClass: Record<EmployeeRole, string> = {
-                      branch_manager: 'bg-brand-light text-brand',
-                      supervisor: 'bg-info/10 text-info',
-                      cashier: 'bg-warning/10 text-warning',
-                      staff: 'bg-surface-hover text-ink-secondary',
-                    };
-                    return (
-                      <tr key={e.id} className="border-b">
-                        <td className="py-2">{e.name}</td>
-                        <td>
-                          <span className={`text-xs px-2 py-1 rounded ${roleBadgeClass[e.role]}`}>
-                            {roleLabel[e.role]}
-                          </span>
-                        </td>
-                        <td>{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
-                        <td>
-                          <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
-                            {e.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td>
-                          {isOwner && e.isActive && (
+                  .map((e) => (
+                    <tr key={e.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-2.5 pl-3 font-medium text-ink-primary">{e.name}</td>
+                      <td className="py-2.5">
+                        <span className={`text-xs px-2 py-1 rounded ${roleBadgeClass[e.role]}`}>
+                          {roleLabel[e.role]}
+                        </span>
+                      </td>
+                      <td className="py-2.5">{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
+                      <td className="py-2.5">
+                        <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
+                          {e.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      {isOwner && (
+                        <td className="py-2.5 pr-3">
+                          {e.isActive && (
                             <button
                               className="text-error hover:text-error"
                               onClick={() => vm.deactivateEmployee(e.id)}
@@ -209,23 +247,15 @@ const Branches: React.FC = () => {
                             </button>
                           )}
                         </td>
-                      </tr>
-                    );
-                  })}
+                      )}
+                    </tr>
+                  ))}
               </tbody>
             </table>
+            )}
           </div>
         </div>
-
-        <div className="space-y-6">
-          {isOwner && vm.branches.length > tenantBranches.length && (
-            <p className="text-xs text-warning">
-              {vm.branches.length - tenantBranches.length} branch(es) belong to a different workspace and are hidden.
-              Sign in with the account that owns them to see their employees.
-            </p>
-          )}
-        </div>
-      </div>
+      )}
 
       {isOwner && branchModal && (
         <Modal

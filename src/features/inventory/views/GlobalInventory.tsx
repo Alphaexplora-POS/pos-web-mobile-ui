@@ -6,8 +6,10 @@ import PageLayout from '../../../shared/components/PageLayout';
 import { InventorySkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Modal from '../../../shared/components/Modal';
+import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
+import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 
 const stockClass = (qty: number) => {
   if (qty <= 0) return 'text-error font-semibold';
@@ -153,7 +155,7 @@ const AdjustStockForm: React.FC<{
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             required
-            className="mt-1 w-full rounded border border-line px-3 py-2"
+            className="mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </div>
         <div>
@@ -181,12 +183,12 @@ const AdjustStockForm: React.FC<{
           <input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="mt-1 w-full rounded border border-line px-3 py-2"
+            className="mt-1 w-full rounded-md border border-line px-3 py-2"
           />
         </div>
       </div>
       {error && <p className="text-sm text-error mt-3">{error}</p>}
-      <button type="submit" disabled={submitting} className="mt-4 bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark disabled:opacity-50">
+      <button type="submit" disabled={submitting} className="mt-4 bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark disabled:opacity-50 transition-colors">
         {submitting ? 'Adjusting…' : 'Apply Adjustment'}
       </button>
     </form>
@@ -197,8 +199,10 @@ const GlobalInventory: React.FC = () => {
   const { isOwner } = useRole();
   const vm = useInventoryViewModel(isOwner);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<'stock' | 'audit'>('stock');
+  const loading = useMinimumLoading(vm.isLoading);
 
-  if (vm.isLoading)
+  if (loading)
     return <InventorySkeleton title={isOwner ? 'Global Inventory' : 'Branch Inventory'} />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
@@ -208,100 +212,141 @@ const GlobalInventory: React.FC = () => {
   return (
     <PageLayout title={isOwner ? 'Global Inventory' : 'Branch Inventory'}>
       <div className="space-y-6">
-        {isOwner && (
-          <div className="bg-white rounded-lg shadow p-4">
-            <label className="block text-sm text-ink-secondary mb-2">View Stock</label>
-            <Select
-              value={vm.selectedBranchId ?? ''}
-              onChange={(v) => vm.setSelectedBranchId(v || null)}
-              options={[
-                { value: '', label: 'All Branches (Combined)' },
-                ...vm.branches.map((b) => ({ value: b.id, label: b.name })),
-              ]}
-              className="w-full md:w-64"
-            />
-            <p className="text-xs text-ink-muted mt-2">
-              Combined stock across all branches with per-branch drilldown.
-            </p>
+        <div className="inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+          <button
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeSection === 'stock'
+                ? 'bg-brand text-white'
+                : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+            }`}
+            onClick={() => setActiveSection('stock')}
+          >
+            Stock
+          </button>
+          <button
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeSection === 'audit'
+                ? 'bg-brand text-white'
+                : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+            }`}
+            onClick={() => setActiveSection('audit')}
+          >
+            Audit Log
+          </button>
+        </div>
+
+        {activeSection === 'stock' && (
+        <>
+          {isOwner && (
+            <div className="bg-white rounded-lg border border-line p-4">
+              <label className="block text-sm text-ink-secondary mb-2">View Stock</label>
+              <Select
+                value={vm.selectedBranchId ?? ''}
+                onChange={(v) => vm.setSelectedBranchId(v || null)}
+                options={[
+                  { value: '', label: 'All Branches (Combined)' },
+                  ...vm.branches.map((b) => ({ value: b.id, label: b.name })),
+                ]}
+                className="w-full md:w-64"
+              />
+              <p className="text-xs text-ink-muted mt-2">
+                Combined stock across all branches with per-branch drilldown.
+              </p>
+            </div>
+          )}
+        <div className="bg-white rounded-lg border border-line p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-ink-primary">
+              {vm.selectedBranchId
+                ? vm.branches.find((b) => b.id === vm.selectedBranchId)?.name
+                : isOwner
+                ? 'Combined Stock'
+                : 'Your Branch Stock'}
+            </h2>
+            <button
+              className="bg-brand text-white px-4 py-1.5 rounded-md hover:bg-brand-dark transition-colors"
+              onClick={() => setAdjustModalOpen(true)}
+            >
+              Adjust Stock
+            </button>
           </div>
+          <div className="overflow-x-auto">
+            {vm.items.length === 0 ? (
+              <TableEmptyState message="No stock found" />
+            ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-canvas border-b border-line">
+                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Item</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
+                  {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>}
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Qty On Hand</th>
+                  <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {vm.items.map((item) => (
+                  <tr key={item.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{item.productName}</td>
+                    <td className="py-2.5">{item.variantSku}</td>
+                    {isOwner && <td className="py-2.5">{item.branchName}</td>}
+                    <td className={`py-2.5 ${stockClass(item.quantity)}`}>{item.quantity}</td>
+                    <td className="py-2.5 pr-3">
+                      <span
+                        className={`text-xs px-2 py-1 rounded ${
+                          item.origin === 'automatic'
+                            ? 'bg-surface-hover text-ink-secondary'
+                            : 'bg-brand-light text-brand'
+                        }`}
+                      >
+                        {item.origin === 'automatic' ? 'Auto' : 'Manual'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
+        </div>
+        </>
         )}
 
-        <button
-          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
-          onClick={() => setAdjustModalOpen(true)}
-        >
-          Adjust Stock
-        </button>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-ink-primary mb-4">
-            {vm.selectedBranchId
-              ? vm.branches.find((b) => b.id === vm.selectedBranchId)?.name
-              : isOwner
-              ? 'Combined Stock'
-              : 'Your Branch Stock'}
-          </h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-ink-muted border-b">
-                <th className="py-2">Product</th>
-                <th>SKU</th>
-                {isOwner && <th>Branch</th>}
-                <th>Quantity</th>
-                <th>Origin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vm.items.map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="py-2">{item.productName}</td>
-                  <td>{item.variantSku}</td>
-                  {isOwner && <td>{item.branchName}</td>}
-                  <td className={stockClass(item.quantity)}>{item.quantity}</td>
-                  <td>
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${
-                        item.origin === 'automatic'
-                          ? 'bg-surface-hover text-ink-secondary'
-                          : 'bg-brand-light text-brand'
-                      }`}
-                    >
-                      {item.origin === 'automatic' ? 'Auto (Variant)' : 'Manual'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
+        {activeSection === 'audit' && (
+        <div className="bg-white rounded-lg border border-line p-6">
           <h2 className="text-lg font-semibold text-ink-primary mb-4">Audit Log</h2>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-ink-muted border-b">
-                <th className="py-2">Product</th>
-                <th>SKU</th>
-                {isOwner && <th>Branch</th>}
-                <th>Action</th>
-                <th>Delta</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vm.auditLogs.map((log) => (
-                <tr key={log.id} className="border-b">
-                  <td className="py-2">{log.productName}</td>
-                  <td>{log.variantSku}</td>
-                  {isOwner && <td>{log.branchName}</td>}
-                  <td>{log.action}</td>
-                  <td>{log.quantityDelta}</td>
-                  <td>{new Date(log.timestamp).toLocaleString()}</td>
+          <div className="overflow-x-auto">
+            {vm.auditLogs.length === 0 ? (
+              <TableEmptyState message="No audit logs yet" />
+            ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-canvas border-b border-line">
+                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Product</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
+                  {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>}
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Action</th>
+                  <th className="py-2.5 text-left font-medium text-ink-muted">Delta</th>
+                  <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {vm.auditLogs.map((log) => (
+                  <tr key={log.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{log.productName}</td>
+                    <td className="py-2.5">{log.variantSku}</td>
+                    {isOwner && <td className="py-2.5">{log.branchName}</td>}
+                    <td className="py-2.5">{log.action}</td>
+                    <td className="py-2.5">{log.quantityDelta}</td>
+                    <td className="py-2.5 pr-3">{new Date(log.timestamp).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
         </div>
+        )}
       </div>
 
       {adjustModalOpen && (
