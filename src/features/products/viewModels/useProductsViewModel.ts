@@ -37,7 +37,7 @@ import {
 } from '../models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
-export const useProductsViewModel = () => {
+export const useProductsViewModel = (managerBranchId?: string | null) => {
   const [categories, setCategories] = useState<Category[]>(getCachedCategories);
   const [products, setProducts] = useState<Product[]>(getCachedProducts);
   const [promotions, setPromotions] = useState<Promotion[]>(getCachedPromotions);
@@ -54,7 +54,7 @@ export const useProductsViewModel = () => {
     try {
       const [catData, prodData, promoData] = await Promise.all([
         fetchCategories(),
-        fetchProducts(),
+        fetchProducts(managerBranchId),
         fetchPromotions(),
       ]);
       setCategories(catData);
@@ -65,7 +65,7 @@ export const useProductsViewModel = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [managerBranchId]);
 
   useEffect(() => {
     load();
@@ -143,7 +143,7 @@ export const useProductsViewModel = () => {
   };
 
   const handleCreateVariant = async (productId: string, input: CreateVariantInput) => {
-    const branchId = branches[0]?.id;
+    const branchId = managerBranchId ?? branches[0]?.id;
     if (!branchId) {
       throw new Error('No branch available — select a branch first');
     }

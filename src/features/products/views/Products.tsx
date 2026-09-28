@@ -14,14 +14,16 @@ import Drawer from '../../../shared/components/Drawer';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
+import { useAuth } from '../../auth/hooks/useAuth';
 import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 
 type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 type Section = 'products' | 'categories' | 'promotions';
 
 const Products: React.FC = () => {
-  const vm = useProductsViewModel();
+  const { session } = useAuth();
   const { isOwner } = useRole();
+  const vm = useProductsViewModel(session?.branchId ?? null);
   const loading = useMinimumLoading(vm.isLoading);
   const [activeSection, setActiveSection] = useState<Section>('products');
   const [summarizeProductId, setSummarizeProductId] = useState<string | null>(null);

@@ -15,7 +15,7 @@ import { fetchEmployees } from '../../branches/models/branchesApi';
 import { fetchAllVariants } from '../../products/models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
-export const useInventoryViewModel = (isOwner: boolean) => {
+export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string | null) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [combinedItems, setCombinedItems] = useState<InventoryItem[]>([]);
   const [variants, setVariants] = useState<{ id: string; label: string }[]>([]);
@@ -39,7 +39,7 @@ export const useInventoryViewModel = (isOwner: boolean) => {
   useEffect(() => {
     fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
     fetchEmployees().then(setEmployees).catch(() => setEmployees([]));
-    fetchAllVariants()
+    fetchAllVariants(managerBranchId)
       .then((vs) =>
         setVariants(
           vs.map((v) => ({
@@ -49,7 +49,7 @@ export const useInventoryViewModel = (isOwner: boolean) => {
         ),
       )
       .catch(() => setVariants([]));
-  }, []);
+  }, [managerBranchId]);
 
   const load = useCallback(
     async (branchId?: string) => {
@@ -110,10 +110,13 @@ export const useInventoryViewModel = (isOwner: boolean) => {
 
   useEffect(() => {
     if (!isOwner && selectedBranchId === null && branches.length > 0) {
-      const first = branches.find((b) => b.isActive) ?? branches[0];
-      if (first) setSelectedBranchId(first.id);
+      const first = managerBranchId
+        ? branches.find((b) => b.id === managerBranchId)
+        : undefined;
+      const target = first ?? (branches.find((b) => b.isActive) ?? branches[0]);
+      if (target) setSelectedBranchId(target.id);
     }
-  }, [isOwner, selectedBranchId, branches]);
+  }, [isOwner, selectedBranchId, branches, managerBranchId]);
 
   return {
     items,

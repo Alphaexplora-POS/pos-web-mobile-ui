@@ -148,13 +148,15 @@ export const getCachedProducts = (): Product[] => {
   return (data?.products ?? []).map(toProduct);
 };
 
-export const fetchProducts = async (): Promise<Product[]> => {
-  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products', CACHE_OPTIONS);
+export const fetchProducts = async (branchId?: string | null): Promise<Product[]> => {
+  const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products${qs}`, CACHE_OPTIONS);
   return (data.products ?? []).map(toProduct);
 };
 
-export const fetchAllVariants = async (): Promise<ProductVariant[]> => {
-  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products?limit=100', CACHE_OPTIONS);
+export const fetchAllVariants = async (branchId?: string | null): Promise<ProductVariant[]> => {
+  const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : `?limit=100`;
+  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products${qs}`, CACHE_OPTIONS);
   return (data.products ?? []).flatMap((p) => (p.variants ?? []).map(toVariant));
 };
 

@@ -40,7 +40,10 @@ const Branches: React.FC = () => {
     : vm.branches;
 
   const branchManagerBranch: Branch | null = !isOwner
-    ? tenantBranches.find((b) => b.isActive) ?? tenantBranches[0] ?? null
+    ? tenantBranches.find((b) => b.id === session?.branchId) ??
+      tenantBranches.find((b) => b.isActive) ??
+      tenantBranches[0] ??
+      null
     : null;
 
   const visibleBranches = isOwner

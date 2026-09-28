@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import type { InventoryAdjustAction, InventoryAdjustInput, InventoryItem } from '../models/inventoryTypes';
 import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
@@ -10,6 +10,7 @@ import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
 import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
+import { useAuth } from '../../auth/hooks/useAuth';
 
 const stockClass = (qty: number) => {
   if (qty <= 0) return 'text-error font-semibold';
@@ -23,10 +24,18 @@ const AdjustStockForm: React.FC<{
   variants: { id: string; label: string }[];
   reasonCodes: { id: string; name: string }[];
   employees: { id: string; name: string }[];
+  isOwner: boolean;
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
   onDone?: () => void;
-}> = ({ items, branches, variants, reasonCodes, employees, onAdjust, onDone }) => {
-  const [branchId, setBranchId] = useState('');
+}> = ({ items, branches, variants, reasonCodes, employees, isOwner, onAdjust, onDone }) => {
+  const initialBranchId = isOwner ? '' : branches[0]?.id ?? '';
+  const [branchId, setBranchId] = useState(initialBranchId);
+
+  useEffect(() => {
+    if (!isOwner && !branchId && branches[0]?.id) {
+      setBranchId(branches[0].id);
+    }
+  }, [isOwner, branchId, branches]);
   const [variantId, setVariantId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
   const [quantity, setQuantity] = useState('');
@@ -106,19 +115,21 @@ const AdjustStockForm: React.FC<{
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-ink-secondary">Branch</label>
-          <Select
-            value={branchId}
-            onChange={(v) => {
-              setBranchId(v);
-              setVariantId('');
-            }}
-            options={branchOptions}
-            placeholder="Select branch"
-            className="mt-1 w-full"
-          />
-        </div>
+        {isOwner && (
+          <div>
+            <label className="block text-sm text-ink-secondary">Branch</label>
+            <Select
+              value={branchId}
+              onChange={(v) => {
+                setBranchId(v);
+                setVariantId('');
+              }}
+              options={branchOptions}
+              placeholder="Select branch"
+              className="mt-1 w-full"
+            />
+          </div>
+        )}
         <div>
           <label className="block text-sm text-ink-secondary">Item</label>
           <Select
@@ -199,7 +210,8 @@ const AdjustStockForm: React.FC<{
 
 const GlobalInventory: React.FC = () => {
   const { isOwner } = useRole();
-  const vm = useInventoryViewModel(isOwner);
+  const { session } = useAuth();
+  const vm = useInventoryViewModel(isOwner, session?.branchId ?? null);
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<'stock' | 'audit'>('stock');
   const loading = useMinimumLoading(vm.isLoading);
@@ -259,11 +271,11 @@ const GlobalInventory: React.FC = () => {
         <div className="bg-white rounded-lg border border-line p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-ink-primary">
-              {vm.selectedBranchId
-                ? vm.branches.find((b) => b.id === vm.selectedBranchId)?.name
-                : isOwner
-                ? 'Combined Stock'
-                : 'Your Branch Stock'}
+              {isOwner
+                ? vm.selectedBranchId
+                  ? vm.branches.find((b) => b.id === vm.selectedBranchId)?.name
+                  : 'Combined Stock'
+                : 'Stock'}
             </h2>
             <button
               className="bg-brand text-white px-4 py-1.5 rounded-md hover:bg-brand-dark transition-colors"
@@ -361,6 +373,7 @@ const GlobalInventory: React.FC = () => {
             variants={vm.variants}
             reasonCodes={inventoryReasonCodes}
             employees={employees}
+            isOwner={isOwner}
             onAdjust={vm.adjustStock}
             onDone={() => setAdjustModalOpen(false)}
           />

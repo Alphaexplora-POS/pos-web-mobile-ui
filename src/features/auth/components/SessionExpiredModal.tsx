@@ -23,6 +23,7 @@ const SessionExpiredModal: React.FC = () => {
   useEffect(() => {
     const onExpired = () => {
       if (redirectingRef.current) return;
+      if (!hasBeenSignedIn()) return;
       closeAllModals();
       setOpen(true);
     };
