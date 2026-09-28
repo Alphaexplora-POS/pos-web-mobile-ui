@@ -5,9 +5,11 @@ import {
   createBranch,
   updateBranch,
   deactivateBranch,
+  activateBranch,
   fetchEmployees,
   createEmployee,
   deactivateEmployee,
+  activateEmployee,
 } from '../models/branchesApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
@@ -51,6 +53,12 @@ export const useBranchesViewModel = () => {
     await load();
   };
 
+  const handleActivateBranch = async (id: string) => {
+    await activateBranch(id);
+    notifySuccess('Branch reactivated');
+    await load();
+  };
+
   const handleCreateEmployee = async (input: CreateEmployeeInput) => {
     await createEmployee(input);
     notifySuccess('Employee added');
@@ -63,6 +71,12 @@ export const useBranchesViewModel = () => {
     await load();
   };
 
+  const handleActivateEmployee = async (id: string) => {
+    await activateEmployee(id);
+    notifySuccess('Employee reactivated');
+    await load();
+  };
+
   return {
     branches,
     employees,
@@ -71,7 +85,9 @@ export const useBranchesViewModel = () => {
     createBranch: handleCreateBranch,
     updateBranch: handleUpdateBranch,
     deactivateBranch: handleDeactivateBranch,
+    activateBranch: handleActivateBranch,
     createEmployee: handleCreateEmployee,
     deactivateEmployee: handleDeactivateEmployee,
+    activateEmployee: handleActivateEmployee,
   };
 };

@@ -9,7 +9,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import Select from '../../../shared/components/Select';
 import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 import { fetchBranches } from '../../../shared/models/branchesApi';
-import { fetchBranchTopProducts } from '../models/analyticsApi';
+import { fetchBranchAnalytics } from '../models/analyticsApi';
 import type { Branch } from '../../../shared/models/branchTypes';
 import type { TopProduct } from '../models/analyticsTypes';
 
@@ -19,6 +19,7 @@ const Analytics: React.FC = () => {
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedTopProducts, setSelectedTopProducts] = useState<TopProduct[]>([]);
+  const [branchSales, setBranchSales] = useState<{ today: number; monthly: number } | null>(null);
   const [isBranchLoading, setIsBranchLoading] = useState(false);
   const [branchError, setBranchError] = useState<string | null>(null);
 
@@ -45,9 +46,15 @@ const Analytics: React.FC = () => {
     let active = true;
     setIsBranchLoading(true);
     setBranchError(null);
-    fetchBranchTopProducts(selectedBranch)
-      .then((products) => {
-        if (active) setSelectedTopProducts(products);
+    setBranchSales(null);
+    fetchBranchAnalytics(selectedBranch)
+      .then((analytics) => {
+        if (!active) return;
+        setSelectedTopProducts(analytics.topProducts);
+        setBranchSales({
+          today: analytics.metrics.salesToday,
+          monthly: analytics.metrics.salesMonthly,
+        });
       })
       .catch((err) => {
         if (active) setBranchError(err instanceof Error ? err.message : 'Failed to load branch products');
@@ -75,6 +82,26 @@ const Analytics: React.FC = () => {
         <div className="mb-6 bg-white rounded-lg border border-line p-4 flex items-center gap-2">
           <span className="text-sm text-ink-secondary">Your Branch:</span>
           <span className="text-sm font-semibold text-ink-primary">{data.branchName ?? '—'}</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg border border-line p-6">
+            <h3 className="text-sm text-ink-muted">Sales Today</h3>
+            <p className="text-3xl font-bold text-ink-primary mt-1">
+              ${data.metrics.salesToday.toFixed(2)}
+            </p>
+            <p className="text-sm text-ink-muted mt-1">
+              {data.metrics.transactionCountToday} transactions
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border border-line p-6">
+            <h3 className="text-sm text-ink-muted">Sales Monthly</h3>
+            <p className="text-3xl font-bold text-ink-primary mt-1">
+              ${data.metrics.salesMonthly.toFixed(2)}
+            </p>
+            <p className="text-sm text-ink-muted mt-1">
+              {data.metrics.transactionCountMonthly} transactions
+            </p>
+          </div>
         </div>
         <div className="bg-white rounded-lg border border-line p-6">
           <h3 className="text-base font-semibold text-ink-primary mb-4">Top Products</h3>
@@ -119,11 +146,34 @@ const Analytics: React.FC = () => {
                 placeholder="All branches"
               />
             </div>
-            {isBranchLoading && (
-              <span className="block mt-2 text-sm text-ink-muted">Loading products…</span>
-            )}
+            {isBranchLoading &&
+              <div className="mt-3 space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between gap-4">
+                    <span className="skeleton h-3 w-2/5 rounded" />
+                    <span className="skeleton h-3 w-10 rounded" />
+                  </div>
+                ))}
+              </div>
+            }
             {branchError && (
               <span className="block mt-2 text-sm text-error">{branchError}</span>
+            )}
+            {selectedBranch && !isBranchLoading && branchSales && (
+              <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line p-4">
+                <div>
+                  <p className="text-xs text-ink-muted">Branch Sales Today</p>
+                  <p className="text-lg font-semibold text-ink-primary mt-1">
+                    ${branchSales.today.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink-muted">Branch Sales Monthly</p>
+                  <p className="text-lg font-semibold text-ink-primary mt-1">
+                    ${branchSales.monthly.toFixed(2)}
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 

@@ -8,6 +8,7 @@ import { useAuth } from '../../features/auth/hooks/useAuth';
 import { notifySessionExpired } from '../../features/auth/sessionExpiry';
 import { logout as logoutRequest } from '../../features/auth/models/authApi';
 import Modal from './Modal';
+import Spinner from './Spinner';
 import type { Role } from '../models/userTypes';
 
 interface SidebarItem {
@@ -37,9 +38,10 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    await logout();
-    setConfirmLogout(false);
+    await new Promise((r) => setTimeout(r, 1_500));
     setLoggingOut(false);
+    setConfirmLogout(false);
+    await logout();
   };
 
   return (
@@ -134,9 +136,16 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
               type="button"
               disabled={loggingOut}
               onClick={handleLogout}
-              className="text-sm px-4 py-2 rounded-md bg-error text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="text-sm px-4 py-2 rounded-md bg-error text-white hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center gap-2"
             >
-              {loggingOut ? 'Signing out…' : 'Sign out'}
+              {loggingOut ? (
+                <>
+                  <Spinner />
+                  Signing out…
+                </>
+              ) : (
+                'Sign out'
+              )}
             </button>
           </div>
         </Modal>

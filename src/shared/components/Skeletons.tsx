@@ -5,16 +5,27 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div aria-hidden="true" className={`skeleton ${className}`} />
 );
 
-const SkeletonTable: React.FC<{ headers: string[]; rows?: number; className?: string }> = ({
+export const SkeletonList: React.FC<{ rows?: number }> = ({ rows = 3 }) => (
+  <ul className="divide-y divide-line rounded-lg border border-line">
+    {Array.from({ length: rows }).map((_, i) => (
+      <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+        <Skeleton className="h-3 w-24 rounded" />
+        <Skeleton className="h-3 w-16 rounded" />
+      </li>
+    ))}
+  </ul>
+);
+
+export const SkeletonTable: React.FC<{ headers: string[]; rows?: number; className?: string }> = ({
   headers,
   rows = 4,
   className = '',
 }) => (
-  <table className={`w-full text-sm ${className}`}>
+  <table className={`w-full text-base ${className}`}>
     <thead>
       <tr className="text-left border-b border-line">
         {headers.map((h) => (
-          <th key={h} className="py-2">
+          <th key={h} className="py-3">
             <Skeleton className="h-3 w-16 rounded" />
           </th>
         ))}
@@ -24,7 +35,7 @@ const SkeletonTable: React.FC<{ headers: string[]; rows?: number; className?: st
       {Array.from({ length: rows }).map((_, r) => (
         <tr key={r} className="border-b border-line">
           {headers.map((h, i) => (
-            <td key={h} className="py-3">
+            <td key={h} className="py-4">
               <Skeleton
                 className={`h-3 rounded ${
                   i === 0 ? 'w-3/5' : i === headers.length - 1 ? 'w-12' : 'w-20'
@@ -165,18 +176,16 @@ export const AnalyticsSkeleton: React.FC<{ title: string; owner?: boolean }> = (
         <Skeleton className="h-3 w-40 rounded" />
       </div>
     )}
-    {owner && (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg border border-line p-6">
-            <Skeleton className="h-3 w-24 rounded" />
-            <Skeleton className="h-8 w-32 mt-2 rounded" />
-            <Skeleton className="h-3 w-28 mt-2 rounded" />
-          </div>
-        ))}
-      </div>
-    )}
-    <div className={`grid grid-cols-1 ${owner ? 'xl:grid-cols-3 gap-6 mt-6' : ''}`}>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div key={i} className="bg-white rounded-lg border border-line p-6">
+          <Skeleton className="h-3 w-24 rounded" />
+          <Skeleton className="h-8 w-32 mt-2 rounded" />
+          <Skeleton className="h-3 w-28 mt-2 rounded" />
+        </div>
+      ))}
+    </div>
+    <div className={`grid grid-cols-1 ${owner ? 'xl:grid-cols-3 gap-6 mt-6' : 'mt-6'}`}>
       <div className={`bg-white rounded-lg border border-line p-6 ${owner ? 'xl:col-span-2' : ''}`}>
         {owner && (
           <>

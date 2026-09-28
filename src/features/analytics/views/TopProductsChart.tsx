@@ -7,27 +7,28 @@ interface TopProductsChartProps {
 
 const TopProductsChart: React.FC<TopProductsChartProps> = ({ topProducts }) => {
   if (!topProducts.length) {
-    return <p className="text-sm text-ink-muted py-8 text-center">No product data available</p>;
+    return (
+      <div className="flex min-h-[320px] items-center justify-center py-12">
+        <p className="text-sm text-ink-muted">No product data available</p>
+      </div>
+    );
   }
 
-  const max = Math.max(...topProducts.map((p) => p.sales), 1);
+  const total = topProducts.reduce((sum, p) => sum + p.sales, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {topProducts.map((p) => {
-        const pct = (p.sales / max) * 100;
+        const pct = total > 0 ? (p.sales / total) * 100 : 0;
         return (
-          <div key={p.productName}>
-            <div className="flex justify-between text-sm text-ink-secondary mb-1">
-              <span className="font-medium text-ink-primary">{p.productName}</span>
-              <span>${formatAmount(p.sales)}</span>
-            </div>
-            <div className="h-2 bg-surface-hover rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand rounded-full transition-all duration-200"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+          <div
+            key={p.productName}
+            className="flex items-center justify-between gap-4 py-2 border-b border-line/60 last:border-b-0 text-sm"
+          >
+            <span className="font-medium text-ink-primary truncate">{p.productName}</span>
+            <span className="text-ink-secondary shrink-0">
+              {pct.toFixed(1)}% · ${formatAmount(p.sales)}
+            </span>
           </div>
         );
       })}

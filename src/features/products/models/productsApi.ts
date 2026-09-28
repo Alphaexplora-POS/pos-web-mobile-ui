@@ -8,7 +8,15 @@ import type {
   ProductVariant,
   Promotion,
 } from './productTypes';
-import { apiRequest } from '../../../shared/models/apiClient';
+import { apiRequest, invalidateCache, getCache } from '../../../shared/models/apiClient';
+
+const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
+
+export const invalidateProductCaches = (): void => {
+  invalidateCache('GET /catalog/products');
+  invalidateCache('GET /catalog/categories');
+  invalidateCache('GET /promotion/promotions');
+};
 
 interface RawProduct {
   id: string;
@@ -93,10 +101,17 @@ const toPromotion = (raw: Promotion & { applicableItems?: Promotion['applicableI
   applicableItems: raw.applicableItems ?? [],
 });
 
+export const getCachedCategories = (): Category[] => {
+  const data = getCache<{ categories: { id: string; name: string; parentId: string | null; isActive: boolean }[] }>(
+    'GET /catalog/categories',
+  );
+  return (data?.categories ?? []).map(toCategory);
+};
+
 export const fetchCategories = async (): Promise<Category[]> => {
   const data = await apiRequest<{
     categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
-  }>('/catalog/categories');
+  }>('/catalog/categories', CACHE_OPTIONS);
   return (data.categories ?? []).map(toCategory);
 };
 
@@ -128,13 +143,18 @@ export const setCategoryActive = async (id: string, isActive: boolean): Promise<
   });
 };
 
+export const getCachedProducts = (): Product[] => {
+  const data = getCache<{ products: RawProduct[] }>('GET /catalog/products');
+  return (data?.products ?? []).map(toProduct);
+};
+
 export const fetchProducts = async (): Promise<Product[]> => {
-  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products');
+  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products', CACHE_OPTIONS);
   return (data.products ?? []).map(toProduct);
 };
 
 export const fetchAllVariants = async (): Promise<ProductVariant[]> => {
-  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products?limit=100');
+  const data = await apiRequest<{ products: RawProduct[] }>('/catalog/products?limit=100', CACHE_OPTIONS);
   return (data.products ?? []).flatMap((p) => (p.variants ?? []).map(toVariant));
 };
 
@@ -167,15 +187,26 @@ export const setProductActive = async (id: string, isActive: boolean): Promise<v
   });
 };
 
+export const uploadProductImage = async (file: File): Promise<string> => {
+  const form = new FormData();
+  form.append('image', file);
+  const data = await apiRequest<{ imageUrl: string }>('/catalog/products/image', {
+    method: 'POST',
+    body: form,
+  });
+  return data.imageUrl;
+};
+
 export const fetchVariants = async (productId: string): Promise<ProductVariant[]> => {
   const data = await apiRequest<{ data: RawVariant[] }>(`/catalog/products/${productId}/variants`);
   return (Array.isArray(data) ? data : data.data ?? []).map(toVariant);
 };
 
-export const createVariant = async (productId: string, input: CreateVariantInput): Promise<ProductVariant> => {
+export const createVariant = async (productId: string, input: CreateVariantInput & { branchId: string }): Promise<ProductVariant> => {
   const data = await apiRequest<RawVariant>(`/catalog/products/${productId}/variants`, {
     method: 'POST',
     body: JSON.stringify({
+      branchId: input.branchId,
       sku: input.sku,
       size: input.size,
       color: input.color,
@@ -222,8 +253,13 @@ export const updateAttribute = async (productId: string, id: string, attributeKe
   return toAttribute(data);
 };
 
+export const getCachedPromotions = (): Promotion[] => {
+  const cached = getCache<{ promotions: Promotion[] }>('GET /promotion/promotions');
+  return (cached?.promotions ?? []).map(toPromotion);
+};
+
 export const fetchPromotions = async (): Promise<Promotion[]> => {
-  const data = await apiRequest<{ promotions: Promotion[] }>('/promotion/promotions');
+  const data = await apiRequest<{ promotions: Promotion[] }>('/promotion/promotions', CACHE_OPTIONS);
   return (data.promotions ?? []).map(toPromotion);
 };
 

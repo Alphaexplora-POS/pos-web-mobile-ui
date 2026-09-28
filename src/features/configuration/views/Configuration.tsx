@@ -6,6 +6,7 @@ import { ConfigurationSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Select from '../../../shared/components/Select';
 import Modal from '../../../shared/components/Modal';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
@@ -20,7 +21,7 @@ const ReasonOptions: { value: ReasonType; label: string }[] = [
 
 const StatusBadge: React.FC<{ isActive: boolean }> = ({ isActive }) => (
   <span
-    className={`text-xs px-2 py-1 rounded ${
+    className={`text-sm px-3 py-1 rounded ${
       isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'
     }`}
   >
@@ -36,7 +37,7 @@ const ActionButton: React.FC<{
   <button
     type="button"
     onClick={onClick}
-    className={`text-xs px-3 py-1.5 rounded-md border border-line transition-colors ${
+    className={`text-sm px-4 py-1.5 rounded-md border border-line transition-colors ${
       variant === 'danger'
         ? 'text-error hover:bg-error/5'
         : 'text-ink-secondary hover:bg-canvas'
@@ -64,6 +65,13 @@ const Configuration: React.FC = () => {
   const [editingReasonId, setEditingReasonId] = useState<string | null>(null);
   const [editReasonName, setEditReasonName] = useState('');
   const [editReasonType, setEditReasonType] = useState<ReasonType>('refund');
+
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
 
   if (loading) return <ConfigurationSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
@@ -144,24 +152,24 @@ const Configuration: React.FC = () => {
             {vm.paymentMethods.length === 0 ? (
               <TableEmptyState message="No payment methods yet" />
             ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Name</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Type</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
-                  <th className="py-2.5 pr-3 text-right font-medium text-ink-muted">Actions</th>
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                  <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {vm.paymentMethods.map((m) => (
                   <tr key={m.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{m.name}</td>
-                    <td className="py-2.5 text-ink-secondary">{m.type}</td>
-                    <td className="py-2.5">
+                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{m.name}</td>
+                    <td className="py-3.5 text-ink-secondary">{m.type}</td>
+                    <td className="py-3.5">
                       <StatusBadge isActive={m.isActive} />
                     </td>
-                    <td className="py-2.5 pr-3">
+                    <td className="py-3.5 pr-4">
                       <div className="flex items-center justify-end gap-2">
                         <ActionButton
                           onClick={() => {
@@ -174,7 +182,14 @@ const Configuration: React.FC = () => {
                         </ActionButton>
                         <ActionButton
                           variant="danger"
-                          onClick={() => vm.togglePaymentMethod(m.id, !m.isActive)}
+                          onClick={() =>
+                            setConfirmState({
+                              title: m.isActive ? 'Deactivate Payment Method' : 'Reactivate Payment Method',
+                              message: `${m.isActive ? 'Deactivate' : 'Reactivate'} payment method "${m.name}"?`,
+                              confirmLabel: m.isActive ? 'Deactivate' : 'Reactivate',
+                              onConfirm: () => vm.togglePaymentMethod(m.id, !m.isActive),
+                            })
+                          }
                         >
                           {m.isActive ? 'Deactivate' : 'Reactivate'}
                         </ActionButton>
@@ -205,24 +220,24 @@ const Configuration: React.FC = () => {
             {vm.reasonCodes.length === 0 ? (
               <TableEmptyState message="No reason codes yet" />
             ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Name</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Type</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
-                  <th className="py-2.5 pr-3 text-right font-medium text-ink-muted">Actions</th>
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                  <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {vm.reasonCodes.map((r) => (
                   <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{r.name}</td>
-                    <td className="py-2.5 text-ink-secondary">{r.type}</td>
-                    <td className="py-2.5">
+                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{r.name}</td>
+                    <td className="py-3.5 text-ink-secondary">{r.type}</td>
+                    <td className="py-3.5">
                       <StatusBadge isActive={r.isActive} />
                     </td>
-                    <td className="py-2.5 pr-3">
+                    <td className="py-3.5 pr-4">
                       <div className="flex items-center justify-end gap-2">
                         <ActionButton
                           onClick={() => {
@@ -235,7 +250,14 @@ const Configuration: React.FC = () => {
                         </ActionButton>
                         <ActionButton
                           variant="danger"
-                          onClick={() => vm.toggleReasonCode(r.id, !r.isActive)}
+                          onClick={() =>
+                            setConfirmState({
+                              title: r.isActive ? 'Deactivate Reason Code' : 'Reactivate Reason Code',
+                              message: `${r.isActive ? 'Deactivate' : 'Reactivate'} reason code "${r.name}"?`,
+                              confirmLabel: r.isActive ? 'Deactivate' : 'Reactivate',
+                              onConfirm: () => vm.toggleReasonCode(r.id, !r.isActive),
+                            })
+                          }
                         >
                           {r.isActive ? 'Deactivate' : 'Reactivate'}
                         </ActionButton>
@@ -450,6 +472,19 @@ const Configuration: React.FC = () => {
             </div>
           </form>
         </Modal>
+      )}
+
+      {confirmState && (
+        <ConfirmModal
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          onConfirm={async () => {
+            await confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onClose={() => setConfirmState(null)}
+        />
       )}
     </PageLayout>
   );

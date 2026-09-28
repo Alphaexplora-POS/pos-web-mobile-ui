@@ -3,6 +3,16 @@ import { buildSession } from './session';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
+export class AuthError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AuthError';
+    this.status = status;
+  }
+}
+
 const unwrap = (data: unknown): unknown => {
   if (data && typeof data === 'object' && 'data' in data && typeof (data as { data: unknown }).data === 'object') {
     return (data as { data: unknown }).data;
@@ -22,6 +32,9 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const data = await res.json();
   if (!res.ok) {
     const payload = data as { message?: string };
+    if (res.status === 401) {
+      throw new AuthError(payload.message ?? 'Not authenticated', res.status);
+    }
     throw new Error(payload.message ?? 'Request failed');
   }
   return unwrap(data) as T;
@@ -84,7 +97,7 @@ export const loginWithEmail = async (input: LoginInput): Promise<AuthSession> =>
   });
 };
 
-export const fetchMe = async (): Promise<AuthSession | null> => {
+export const fetchMe = async (): Promise<AuthSession | null | undefined> => {
   try {
     const payload = await request<MePayload>('/identity/auth/me');
     return buildSession({
@@ -92,8 +105,11 @@ export const fetchMe = async (): Promise<AuthSession | null> => {
       tenantName: payload.tenantName,
       accessToken: '',
     });
-  } catch {
-    return null;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AuthError') {
+      return null;
+    }
+    return undefined;
   }
 };
 

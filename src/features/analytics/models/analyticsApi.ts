@@ -2,13 +2,21 @@ import type { AnalyticsData, BranchComparison, SalesMetrics, TopProduct } from '
 import { apiRequest } from '../../../shared/models/apiClient';
 import { fetchBranches } from '../../../shared/models/branchesApi';
 
-const toISODate = (date: Date): string => date.toISOString().slice(0, 10);
+const PH_TIME_ZONE = 'Asia/Manila';
 
-const today = (): string => toISODate(new Date());
+const toPHDate = (date: Date): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: PH_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
+const today = (): string => toPHDate(new Date());
 
 const monthStart = (): string => {
-  const date = new Date();
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const [year, month] = today().split('-');
+  return `${year}-${month}-01`;
 };
 
 const num = (value: unknown): number => Number(value ?? 0) || 0;

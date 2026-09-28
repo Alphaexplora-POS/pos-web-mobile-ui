@@ -2,12 +2,14 @@ import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 
+export const CLOSE_ALL_MODALS_EVENT = 'pos:close-all-modals';
+
 interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
   animate?: boolean;
-  size?: 'md' | 'sm';
+  size?: 'md' | 'sm' | 'lg';
 }
 
 const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true, size = 'md' }) => {
@@ -15,9 +17,12 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
+    const onCloseAll = () => onClose();
+    window.addEventListener(CLOSE_ALL_MODALS_EVENT, onCloseAll);
     window.addEventListener('keydown', onKeyDown);
     document.body.style.overflow = 'hidden';
     return () => {
+      window.removeEventListener(CLOSE_ALL_MODALS_EVENT, onCloseAll);
       window.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = '';
     };
@@ -38,14 +43,14 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
         transition={{ duration: 0.25, ease: 'easeOut' }}
       />
       <motion.div
-        className={`relative bg-white rounded-lg shadow-xl w-full flex flex-col ${
-          size === 'sm' ? 'max-w-sm' : 'max-w-lg'
+        className={`relative bg-white rounded-lg shadow-xl w-full flex flex-col max-h-[90vh] ${
+          size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg'
         }`}
         initial={animate ? { y: -24 } : false}
         animate={{ y: 0 }}
         transition={{ type: 'tween', duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
           <h2 className="text-lg font-semibold text-ink-primary">{title}</h2>
           <button
             className="text-ink-muted hover:text-ink-secondary text-2xl leading-none"
@@ -55,7 +60,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
             ×
           </button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-6 overflow-y-auto">{children}</div>
       </motion.div>
     </div>
   );

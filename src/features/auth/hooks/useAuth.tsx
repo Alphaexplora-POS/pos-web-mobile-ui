@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { AuthSession, LoginInput, RegisterInput } from '../models/authTypes';
 import { fetchMe, loginWithEmail, logout as logoutRequest, registerTenantOwner } from '../models/authApi';
 import { markSignedIn, clearSignedIn, hasBeenSignedIn, notifySessionExpired } from '../sessionExpiry';
+import { prefetchAppData } from '../../../shared/models/prefetch';
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -42,15 +43,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     fetchMe()
-      .then((stored) => setSession(stored))
+      .then((stored) => setSession(stored ?? null))
       .finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
     if (!session) return;
+    prefetchAppData();
     const check = async () => {
       const me = await fetchMe();
-      if (!me) {
+      if (me === null) {
         notifySessionExpired();
       }
     };
@@ -73,13 +75,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const handleLogout = async (): Promise<void> => {
-    try {
-      await logoutRequest();
-    } catch {
-      /* ignore backend errors on logout */
-    }
     clearSignedIn();
     setSession(null);
+    void logoutRequest().catch(() => {
+      /* best-effort revoke, never block sign-out on the backend */
+    });
   };
 
   return (

@@ -16,24 +16,24 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
       </div>
       <p className="text-sm text-ink-secondary mb-4">Branch: {transaction.branchName}</p>
       <div className="flex-1 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-base">
           <thead>
             <tr className="bg-canvas border-b border-line">
-              <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Item</th>
-              <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
-              <th className="py-2.5 text-left font-medium text-ink-muted">Qty</th>
-              <th className="py-2.5 text-left font-medium text-ink-muted">Unit Price</th>
-              <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Discount</th>
+              <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Item</th>
+              <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
+              <th className="py-3 text-left font-semibold text-ink-muted">Qty</th>
+              <th className="py-3 text-left font-semibold text-ink-muted">Unit Price</th>
+              <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Discount</th>
             </tr>
           </thead>
           <tbody>
             {transaction.items.map((item, i) => (
               <tr key={i} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                <td className="py-2.5 pl-3">{item.productName}</td>
-                <td className="py-2.5">{item.variantSku}</td>
-                <td className="py-2.5">{item.quantity}</td>
-                <td className="py-2.5">${formatAmount(item.unitPrice)}</td>
-                <td className="py-2.5 pr-3">${formatAmount(item.discount)}</td>
+                <td className="py-3.5 pl-4">{item.productName}</td>
+                <td className="py-3.5">{item.variantSku}</td>
+                <td className="py-3.5">{item.quantity}</td>
+                <td className="py-3.5">${formatAmount(item.unitPrice)}</td>
+                <td className="py-3.5 pr-4">${formatAmount(item.discount)}</td>
               </tr>
             ))}
           </tbody>

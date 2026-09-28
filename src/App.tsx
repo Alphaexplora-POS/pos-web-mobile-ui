@@ -59,11 +59,31 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <RoleProvider>
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster
+          position="top-right"
+          closeButton
+          toastOptions={{
+            style: { background: '#1B2A47', color: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' },
+          }}
+        />
         <SessionExpiredModal />
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={null}>
+                <Login />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <Suspense fallback={null}>
+                <Register />
+              </Suspense>
+            }
+          />
           <Route
             path="/analytics"
             element={

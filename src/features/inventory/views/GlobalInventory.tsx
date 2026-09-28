@@ -24,7 +24,8 @@ const AdjustStockForm: React.FC<{
   reasonCodes: { id: string; name: string }[];
   employees: { id: string; name: string }[];
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
-}> = ({ items, branches, variants, reasonCodes, employees, onAdjust }) => {
+  onDone?: () => void;
+}> = ({ items, branches, variants, reasonCodes, employees, onAdjust, onDone }) => {
   const [branchId, setBranchId] = useState('');
   const [variantId, setVariantId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
@@ -94,6 +95,7 @@ const AdjustStockForm: React.FC<{
       setQuantity('');
       setReasonId('');
       setNotes('');
+      onDone?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to adjust stock');
     } finally {
@@ -274,26 +276,26 @@ const GlobalInventory: React.FC = () => {
             {vm.items.length === 0 ? (
               <TableEmptyState message="No stock found" />
             ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Item</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
-                  {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>}
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Qty On Hand</th>
-                  <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Source</th>
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Item</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
+                  {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
+                  <th className="py-3 text-left font-semibold text-ink-muted">Qty On Hand</th>
+                  <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Source</th>
                 </tr>
               </thead>
               <tbody>
                 {vm.items.map((item) => (
                   <tr key={item.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{item.productName}</td>
-                    <td className="py-2.5">{item.variantSku}</td>
-                    {isOwner && <td className="py-2.5">{item.branchName}</td>}
-                    <td className={`py-2.5 ${stockClass(item.quantity)}`}>{item.quantity}</td>
-                    <td className="py-2.5 pr-3">
+                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{item.productName}</td>
+                    <td className="py-3.5">{item.variantSku}</td>
+                    {isOwner && <td className="py-3.5">{item.branchName}</td>}
+                    <td className={`py-3.5 ${stockClass(item.quantity)}`}>{item.quantity}</td>
+                    <td className="py-3.5 pr-4">
                       <span
-                        className={`text-xs px-2 py-1 rounded ${
+                        className={`text-sm px-3 py-1 rounded ${
                           item.origin === 'automatic'
                             ? 'bg-surface-hover text-ink-secondary'
                             : 'bg-brand-light text-brand'
@@ -319,26 +321,26 @@ const GlobalInventory: React.FC = () => {
             {vm.auditLogs.length === 0 ? (
               <TableEmptyState message="No audit logs yet" />
             ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Product</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">SKU</th>
-                  {isOwner && <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>}
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Action</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Delta</th>
-                  <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Timestamp</th>
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Product</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
+                  {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
+                  <th className="py-3 text-left font-semibold text-ink-muted">Action</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Delta</th>
+                  <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Timestamp</th>
                 </tr>
               </thead>
               <tbody>
                 {vm.auditLogs.map((log) => (
                   <tr key={log.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-2.5 pl-3 font-medium text-ink-primary">{log.productName}</td>
-                    <td className="py-2.5">{log.variantSku}</td>
-                    {isOwner && <td className="py-2.5">{log.branchName}</td>}
-                    <td className="py-2.5">{log.action}</td>
-                    <td className="py-2.5">{log.quantityDelta}</td>
-                    <td className="py-2.5 pr-3">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{log.productName}</td>
+                    <td className="py-3.5">{log.variantSku}</td>
+                    {isOwner && <td className="py-3.5">{log.branchName}</td>}
+                    <td className="py-3.5">{log.action}</td>
+                    <td className="py-3.5">{log.quantityDelta}</td>
+                    <td className="py-3.5 pr-4">{new Date(log.timestamp).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -360,6 +362,7 @@ const GlobalInventory: React.FC = () => {
             reasonCodes={inventoryReasonCodes}
             employees={employees}
             onAdjust={vm.adjustStock}
+            onDone={() => setAdjustModalOpen(false)}
           />
         </Modal>
       )}

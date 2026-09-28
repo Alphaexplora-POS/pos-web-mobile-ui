@@ -274,14 +274,14 @@ const Transactions: React.FC = () => {
               {vm.transactions.length === 0 ? (
                 <TableEmptyState message="No transactions in this period" />
               ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-base">
                 <thead>
                   <tr className="bg-canvas border-b border-line">
-                    <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Branch</th>
-                    <th className="py-2.5 text-left font-medium text-ink-muted">Items</th>
-                    <th className="py-2.5 text-left font-medium text-ink-muted">Payment</th>
-                    <th className="py-2.5 text-left font-medium text-ink-muted">Date</th>
-                    <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Total</th>
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Branch</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Items</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Payment</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Date</th>
+                    <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -293,11 +293,11 @@ const Transactions: React.FC = () => {
                       }`}
                       onClick={() => setSelectedTxId(t.id)}
                     >
-                      <td className="py-2.5 pl-3 font-medium text-ink-primary">{t.branchName}</td>
-                      <td className="py-2.5 text-ink-secondary">{t.items.length} items</td>
-                      <td className="py-2.5 text-ink-secondary">{t.paymentMethod}</td>
-                      <td className="py-2.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
-                      <td className="py-2.5 pr-3 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{t.branchName}</td>
+                      <td className="py-3.5 text-ink-secondary">{t.items.length} items</td>
+                      <td className="py-3.5 text-ink-secondary">{t.paymentMethod}</td>
+                      <td className="py-3.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
+                      <td className="py-3.5 pr-4 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -329,33 +329,33 @@ const Transactions: React.FC = () => {
             {vm.refunds.length === 0 ? (
                 <TableEmptyState message="No refunds in this period" />
               ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Refund</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Transaction</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Amount</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Reason</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Date</th>
-                  {isOwner && <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Actions</th>}
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Refund</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Transaction</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Amount</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Reason</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Date</th>
+                  {isOwner && <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {vm.refunds.map((r) => (
                   <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors align-top">
-                    <td className="py-2.5 pl-3 font-mono text-xs">{r.id}</td>
-                    <td className="py-2.5 font-mono text-xs">{r.transactionId}</td>
-                    <td className="py-2.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
-                    <td className="py-2.5">{r.reasonCode}</td>
-                    <td className="py-2.5">
-                      <span className={`text-xs px-2 py-1 rounded ${statusChip[r.status]}`}>
+                    <td className="py-3.5 pl-4 font-mono text-sm">{r.id}</td>
+                    <td className="py-3.5 font-mono text-sm">{r.transactionId}</td>
+                    <td className="py-3.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
+                    <td className="py-3.5">{r.reasonCode}</td>
+                    <td className="py-3.5">
+                      <span className={`text-sm px-3 py-1 rounded ${statusChip[r.status]}`}>
                         {r.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="py-2.5">{new Date(r.refundedAt).toLocaleString()}</td>
+                    <td className="py-3.5">{new Date(r.refundedAt).toLocaleString()}</td>
                     {isOwner && (
-                      <td className="py-2.5 pr-3">
+                      <td className="py-3.5 pr-4">
                         <RefundActions
                           status={r.status}
                           paymentMethods={vm.paymentMethods}

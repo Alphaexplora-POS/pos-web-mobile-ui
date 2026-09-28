@@ -57,10 +57,13 @@ export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Pro
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...rest,
-    headers: {
-      'Content-Type': 'application/json',
-      ...rest?.headers,
-    },
+    headers:
+      rest?.body instanceof FormData
+        ? rest?.headers
+        : {
+            'Content-Type': 'application/json',
+            ...rest?.headers,
+          },
   });
   const data = await res.json();
   if (!res.ok) {

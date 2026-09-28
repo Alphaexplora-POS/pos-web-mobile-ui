@@ -57,6 +57,11 @@ export const deactivateBranch = async (id: string): Promise<void> => {
   invalidateBranchesCache();
 };
 
+export const activateBranch = async (id: string): Promise<void> => {
+  await apiRequest<unknown>(`/identity/branches/${id}/activate`, { method: 'POST' });
+  invalidateBranchesCache();
+};
+
 export const fetchEmployees = async (): Promise<Employee[]> => {
   const data = await apiRequest<{ employees: RawEmployee[] }>('/identity/employees');
   return (data.employees ?? []).map(toEmployee);
@@ -81,4 +86,8 @@ export const createEmployee = async (input: CreateEmployeeInput): Promise<Employ
 
 export const deactivateEmployee = async (id: string): Promise<void> => {
   await apiRequest<unknown>(`/identity/employees/${id}/deactivate`, { method: 'POST' });
+};
+
+export const activateEmployee = async (id: string): Promise<void> => {
+  await apiRequest<unknown>(`/identity/employees/${id}/activate`, { method: 'POST' });
 };

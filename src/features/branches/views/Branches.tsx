@@ -13,8 +13,16 @@ import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
+import ConfirmModal from '../../../shared/components/ConfirmModal';
 
 type BranchModalState = { mode: 'create' } | { mode: 'edit'; branch: Branch } | null;
+
+type ConfirmState = {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void | Promise<void>;
+} | null;
 
 const Branches: React.FC = () => {
   const vm = useBranchesViewModel();
@@ -25,6 +33,7 @@ const Branches: React.FC = () => {
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [branchModal, setBranchModal] = useState<BranchModalState>(null);
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
 
   const tenantBranches = session?.tenantId
     ? vm.branches.filter((b) => !b.tenantId || b.tenantId === session.tenantId)
@@ -111,7 +120,7 @@ const Branches: React.FC = () => {
               Sign in with the account that owns them to see their employees.
             </p>
           )}
-          <div className="bg-white rounded-lg border border-line p-6">
+          <div className="bg-white rounded-lg border border-line p-6 min-h-[26rem]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-ink-primary">Branches</h2>
               <div className="flex items-center gap-2">
@@ -143,7 +152,7 @@ const Branches: React.FC = () => {
               {visibleBranches.map((b) => (
                 <div
                   key={b.id}
-                  className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                  className={`p-4 rounded-lg border transition-colors cursor-pointer min-h-24 flex flex-col justify-center ${
                     selectedBranchId === b.id
                       ? 'border-brand bg-brand-light'
                       : 'border-line hover:border-line-strong hover:bg-canvas'
@@ -173,15 +182,22 @@ const Branches: React.FC = () => {
                   </div>
                   <p className="text-sm text-ink-secondary mt-1">{b.address}</p>
                   <p className="text-sm text-ink-muted">{b.contact}</p>
-                  {isOwner && b.isActive && (
+                  {isOwner && (
                     <button
-                      className="mt-3 text-sm text-error hover:text-error"
+                      className={`mt-3 text-sm ${b.isActive ? 'text-error hover:text-error' : 'text-brand hover:text-brand-dark'}`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        vm.deactivateBranch(b.id);
+                        setConfirmState({
+                          title: b.isActive ? 'Deactivate Branch' : 'Reactivate Branch',
+                          message: `${b.isActive ? 'Deactivate' : 'Reactivate'} branch "${b.name}"?`,
+                          confirmLabel: b.isActive ? 'Deactivate' : 'Reactivate',
+                          onConfirm: b.isActive
+                            ? () => vm.deactivateBranch(b.id)
+                            : () => vm.activateBranch(b.id),
+                        });
                       }}
                     >
-                      Deactivate
+                      {b.isActive ? 'Deactivate' : 'Reactivate'}
                     </button>
                   )}
                 </div>
@@ -190,7 +206,7 @@ const Branches: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-line p-6">
+        <div className="bg-white rounded-lg border border-line p-6 min-h-[26rem]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
             <div className="flex items-center gap-3">
@@ -209,14 +225,14 @@ const Branches: React.FC = () => {
             {vm.employees.length === 0 ? (
               <TableEmptyState message="No employees in this workspace yet" />
             ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
-                  <th className="py-2.5 pl-3 text-left font-medium text-ink-muted">Name</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Role</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Branch</th>
-                  <th className="py-2.5 text-left font-medium text-ink-muted">Status</th>
-                  {isOwner && <th className="py-2.5 pr-3 text-left font-medium text-ink-muted">Actions</th>}
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Role</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>
+                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                  {isOwner && <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -224,28 +240,35 @@ const Branches: React.FC = () => {
                   .filter((e) => (isOwner ? true : e.branchId === branchManagerBranch?.id))
                   .map((e) => (
                     <tr key={e.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                      <td className="py-2.5 pl-3 font-medium text-ink-primary">{e.name}</td>
-                      <td className="py-2.5">
-                        <span className={`text-xs px-2 py-1 rounded ${roleBadgeClass[e.role]}`}>
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{e.name}</td>
+                      <td className="py-3.5">
+                        <span className={`text-sm px-3 py-1 rounded ${roleBadgeClass[e.role]}`}>
                           {roleLabel[e.role]}
                         </span>
                       </td>
-                      <td className="py-2.5">{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
-                      <td className="py-2.5">
-                        <span className={`text-xs px-2 py-1 rounded ${e.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
+                      <td className="py-3.5">{tenantBranches.find((b) => b.id === e.branchId)?.name ?? '-'}</td>
+                      <td className="py-3.5">
+                        <span className={`text-sm px-3 py-1 rounded ${e.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
                           {e.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       {isOwner && (
-                        <td className="py-2.5 pr-3">
-                          {e.isActive && (
-                            <button
-                              className="text-error hover:text-error"
-                              onClick={() => vm.deactivateEmployee(e.id)}
-                            >
-                              Deactivate
-                            </button>
-                          )}
+                        <td className="py-3.5 pr-4">
+                          <button
+                            className={`text-sm ${e.isActive ? 'text-error hover:text-error' : 'text-brand hover:text-brand-dark'}`}
+                            onClick={() =>
+                              setConfirmState({
+                                title: e.isActive ? 'Deactivate Employee' : 'Reactivate Employee',
+                                message: `${e.isActive ? 'Deactivate' : 'Reactivate'} employee "${e.name}"?`,
+                                confirmLabel: e.isActive ? 'Deactivate' : 'Reactivate',
+                                onConfirm: e.isActive
+                                  ? () => vm.deactivateEmployee(e.id)
+                                  : () => vm.activateEmployee(e.id),
+                              })
+                            }
+                          >
+                            {e.isActive ? 'Deactivate' : 'Reactivate'}
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -280,8 +303,28 @@ const Branches: React.FC = () => {
 
       {isOwner && employeeModalOpen && (
         <Modal title="Add Employee" onClose={() => setEmployeeModalOpen(false)}>
-          <EmployeeForm branches={tenantBranches} isOwner={isOwner} onSubmit={vm.createEmployee} />
+          <EmployeeForm
+            branches={tenantBranches}
+            isOwner={isOwner}
+            onSubmit={async (data) => {
+              await vm.createEmployee(data);
+              setEmployeeModalOpen(false);
+            }}
+          />
         </Modal>
+      )}
+
+      {confirmState && (
+        <ConfirmModal
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          onConfirm={async () => {
+            await confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onClose={() => setConfirmState(null)}
+        />
       )}
     </PageLayout>
   );
