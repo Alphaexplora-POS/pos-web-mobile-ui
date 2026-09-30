@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import LoadingButton from '../../../shared/components/LoadingButton';
 import type { InventoryAdjustAction, InventoryAdjustInput, InventoryItem } from '../models/inventoryTypes';
 import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
@@ -9,8 +10,13 @@ import Modal from '../../../shared/components/Modal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 import { useAuth } from '../../auth/hooks/useAuth';
+import { useServerPagination } from '../../../shared/hooks/useServerPagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useUrlSection } from '../../../shared/hooks/useUrlSection';
+import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import ViewportTable from '../../../shared/components/ViewportTable';
+import { fetchInventoryPage, fetchInventoryAuditLogsPage } from '../models/inventoryApi';
 
 const stockClass = (qty: number) => {
   if (qty <= 0) return 'text-error font-semibold';
@@ -21,13 +27,14 @@ const stockClass = (qty: number) => {
 const AdjustStockForm: React.FC<{
   items: InventoryItem[];
   branches: { id: string; name: string }[];
-  variants: { id: string; label: string }[];
+  products: { id: string; label: string }[];
   reasonCodes: { id: string; name: string }[];
-  employees: { id: string; name: string }[];
+  employees: { id: string; name: string; email?: string }[];
   isOwner: boolean;
+  sessionEmail?: string;
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
   onDone?: () => void;
-}> = ({ items, branches, variants, reasonCodes, employees, isOwner, onAdjust, onDone }) => {
+}> = ({ items, branches, products, reasonCodes, employees, isOwner, sessionEmail, onAdjust, onDone }) => {
   const initialBranchId = isOwner ? '' : branches[0]?.id ?? '';
   const [branchId, setBranchId] = useState(initialBranchId);
 
@@ -36,23 +43,33 @@ const AdjustStockForm: React.FC<{
       setBranchId(branches[0].id);
     }
   }, [isOwner, branchId, branches]);
-  const [variantId, setVariantId] = useState('');
+  const [productId, setProductId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
   const [quantity, setQuantity] = useState('');
   const [reasonId, setReasonId] = useState('');
   const [notes, setNotes] = useState('');
-  const [performedBy, setPerformedBy] = useState(employees[0]?.id ?? '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const performedBy = useMemo(() => {
+    if (!employees.length) return '';
+    if (sessionEmail) {
+      const emailMatch = employees.find(
+        (e) => e.email && e.email.toLowerCase() === sessionEmail.toLowerCase(),
+      );
+      if (emailMatch) return emailMatch.id;
+    }
+    return employees[0].id;
+  }, [employees, sessionEmail]);
+  const performedByName = employees.find((e) => e.id === performedBy)?.name ?? '';
+
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
 
-  const branchQuantity = new Map(
-    items
-      .filter((i) => i.branchId === branchId)
-      .map((i) => [i.productVariantId, i.quantity]),
-  );
-  const selectedQuantity = variantId ? (branchQuantity.get(variantId) ?? 0) : null;
+  const branchQuantity = new Map<string, number>();
+  items
+    .filter((i) => i.branchId === branchId && i.productId)
+    .forEach((i) => branchQuantity.set(i.productId, (branchQuantity.get(i.productId) ?? 0) + i.quantity));
+  const selectedQuantity = productId ? (branchQuantity.get(productId) ?? 0) : null;
 
   const fail = (msg: string) => {
     setError(msg);
@@ -65,8 +82,8 @@ const AdjustStockForm: React.FC<{
       fail('Select a branch');
       return;
     }
-    if (!variantId) {
-      fail('Select an item');
+    if (!productId) {
+      fail('Select a product');
       return;
     }
     if (!reasonId) {
@@ -74,7 +91,7 @@ const AdjustStockForm: React.FC<{
       return;
     }
     if (!performedBy) {
-      fail('Select who performed the adjustment');
+      fail('No active employee available');
       return;
     }
     if (action === 'stock_in' || action === 'stock_out') {
@@ -93,14 +110,14 @@ const AdjustStockForm: React.FC<{
     try {
       await onAdjust({
         branchId,
-        productVariantId: variantId,
+        productId,
         action,
         quantity: Number(quantity),
         reasonId,
         notes: notes || undefined,
         performedBy,
       });
-      setVariantId('');
+      setProductId('');
       setQuantity('');
       setReasonId('');
       setNotes('');
@@ -122,7 +139,7 @@ const AdjustStockForm: React.FC<{
               value={branchId}
               onChange={(v) => {
                 setBranchId(v);
-                setVariantId('');
+                setProductId('');
               }}
               options={branchOptions}
               placeholder="Select branch"
@@ -131,18 +148,18 @@ const AdjustStockForm: React.FC<{
           </div>
         )}
         <div>
-          <label className="block text-sm text-ink-secondary">Item</label>
+          <label className="block text-sm text-ink-secondary">Product</label>
           <Select
-            value={variantId}
-            onChange={(v) => setVariantId(v)}
-            options={variants.map((v) => {
-              const qty = branchQuantity.get(v.id);
+            value={productId}
+            onChange={(v) => setProductId(v)}
+            options={products.map((p) => {
+              const qty = branchQuantity.get(p.id);
               return {
-                value: v.id,
-                label: qty === undefined ? `${v.label} · no stock yet` : `${v.label} · (${qty})`,
+                value: p.id,
+                label: qty === undefined ? `${p.label} · no stock yet` : `${p.label} · (${qty})`,
               };
             })}
-            placeholder={branchId ? 'Select item' : 'Select branch first'}
+            placeholder={branchId ? 'Select product' : 'Select branch first'}
             className="mt-1 w-full"
           />
         </div>
@@ -182,16 +199,6 @@ const AdjustStockForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-sm text-ink-secondary">Performed By</label>
-          <Select
-            value={performedBy}
-            onChange={(v) => setPerformedBy(v)}
-            options={employees.map((emp) => ({ value: emp.id, label: emp.name }))}
-            placeholder="Select employee"
-            className="mt-1 w-full"
-          />
-        </div>
-        <div>
           <label className="block text-sm text-ink-secondary">Notes</label>
           <input
             value={notes}
@@ -200,10 +207,11 @@ const AdjustStockForm: React.FC<{
           />
         </div>
       </div>
+      <p className="text-sm text-ink-muted">Performed by: {performedByName || '—'}</p>
       {error && <p className="text-sm text-error mt-3">{error}</p>}
-      <button type="submit" disabled={submitting} className="mt-4 bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark disabled:opacity-50 transition-colors">
-        {submitting ? 'Adjusting…' : 'Apply Adjustment'}
-      </button>
+      <LoadingButton loading={submitting} loadingLabel="Adjusting…" className="mt-4">
+        Apply Adjustment
+      </LoadingButton>
     </form>
   );
 };
@@ -212,9 +220,32 @@ const GlobalInventory: React.FC = () => {
   const { isOwner } = useRole();
   const { session } = useAuth();
   const vm = useInventoryViewModel(isOwner, session?.branchId ?? null);
-  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<'stock' | 'audit'>('stock');
-  const loading = useMinimumLoading(vm.isLoading);
+const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [activeSection, setActiveSection] = useUrlSection<'stock' | 'audit'>(
+    'section',
+    'stock',
+    (v) => (v === 'audit' ? 'audit' : 'stock'),
+  );
+  const [tableHeight, setTableHeight] = useState<number>(0);
+  const [rowHeight, setRowHeight] = useState<number>(0);
+
+  const pageSize = useResponsivePageSize(tableHeight, rowHeight);
+  const stockPage = useServerPagination(
+    (page) => fetchInventoryPage(page, vm.selectedBranchId ?? undefined),
+    pageSize,
+    { deps: [vm.selectedBranchId ?? ''], queryKey: ['inventory-stock', vm.selectedBranchId ?? ''] },
+  );
+  const auditPage = useServerPagination(
+    (page) => fetchInventoryAuditLogsPage(page, vm.selectedBranchId ? { branchId: vm.selectedBranchId } : undefined),
+    pageSize,
+    {
+      deps: [vm.selectedBranchId ?? ''],
+      queryKey: ['inventory-audit', vm.selectedBranchId ?? ''],
+      refetchInterval: 90_000,
+    },
+  );
+
+  const loading = (stockPage.loading || auditPage.loading) && stockPage.totalCount === 0 && auditPage.totalCount === 0;
 
   if (loading)
     return <InventorySkeleton title={isOwner ? 'Global Inventory' : 'Branch Inventory'} />;
@@ -284,44 +315,56 @@ const GlobalInventory: React.FC = () => {
               Adjust Stock
             </button>
           </div>
-          <div className="overflow-x-auto">
-            {vm.items.length === 0 ? (
-              <TableEmptyState message="No stock found" />
-            ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="bg-canvas border-b border-line">
-                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Item</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
-                  {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
-                  <th className="py-3 text-left font-semibold text-ink-muted">Qty On Hand</th>
-                  <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vm.items.map((item) => (
-                  <tr key={item.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{item.productName}</td>
-                    <td className="py-3.5">{item.variantSku}</td>
-                    {isOwner && <td className="py-3.5">{item.branchName}</td>}
-                    <td className={`py-3.5 ${stockClass(item.quantity)}`}>{item.quantity}</td>
-                    <td className="py-3.5 pr-4">
-                      <span
-                        className={`text-sm px-3 py-1 rounded ${
-                          item.origin === 'automatic'
-                            ? 'bg-surface-hover text-ink-secondary'
-                            : 'bg-brand-light text-brand'
-                        }`}
-                      >
-                        {item.origin === 'automatic' ? 'Auto' : 'Manual'}
-                      </span>
-                    </td>
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {stockPage.items.length === 0 ? (
+                <TableEmptyState message="No stock found" />
+              ) : (
+              <table className="w-full text-base">
+                <thead>
+                  <tr className="bg-canvas border-b border-line">
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Item</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
+                    {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
+                    <th className="py-3 text-left font-semibold text-ink-muted">Qty On Hand</th>
+                    <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Source</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {stockPage.items.map((item) => (
+                    <tr key={item.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{item.productName}</td>
+                      <td className="py-3.5">{item.variantSku}</td>
+                      {isOwner && <td className="py-3.5">{item.branchName}</td>}
+                      <td className={`py-3.5 ${stockClass(item.quantity)}`}>{item.quantity}</td>
+                      <td className="py-3.5 pr-4">
+                        <span
+                          className={`text-sm px-3 py-1 rounded ${
+                            item.origin === 'automatic'
+                              ? 'bg-surface-hover text-ink-secondary'
+                              : 'bg-brand-light text-brand'
+                          }`}
+                        >
+                          {item.origin === 'automatic' ? 'Auto' : 'Manual'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+            {stockPage.totalCount > 0 && (
+              <Pagination
+                page={stockPage.page}
+                totalPages={stockPage.totalPages}
+                onPageChange={stockPage.goToPage}
+                totalCount={stockPage.totalCount}
+                pageStart={stockPage.pageStart}
+                pageEnd={stockPage.pageEnd}
+              />
             )}
-          </div>
+          </ViewportTable>
         </div>
         </>
         )}
@@ -329,36 +372,50 @@ const GlobalInventory: React.FC = () => {
         {activeSection === 'audit' && (
         <div className="bg-white rounded-lg border border-line p-6">
           <h2 className="text-lg font-semibold text-ink-primary mb-4">Audit Log</h2>
-          <div className="overflow-x-auto">
-            {vm.auditLogs.length === 0 ? (
-              <TableEmptyState message="No audit logs yet" />
-            ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="bg-canvas border-b border-line">
-                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Product</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
-                  {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
-                  <th className="py-3 text-left font-semibold text-ink-muted">Action</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Delta</th>
-                  <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vm.auditLogs.map((log) => (
-                  <tr key={log.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{log.productName}</td>
-                    <td className="py-3.5">{log.variantSku}</td>
-                    {isOwner && <td className="py-3.5">{log.branchName}</td>}
-                    <td className="py-3.5">{log.action}</td>
-                    <td className="py-3.5">{log.quantityDelta}</td>
-                    <td className="py-3.5 pr-4">{new Date(log.timestamp).toLocaleString()}</td>
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {auditPage.items.length === 0 ? (
+                <TableEmptyState message="No audit logs yet" />
+              ) : (
+              <table className="w-full text-base">
+                <thead>
+                  <tr className="bg-canvas border-b border-line">
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Product</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">SKU</th>
+                    {isOwner && <th className="py-3 text-left font-semibold text-ink-muted">Branch</th>}
+                    <th className="py-3 text-left font-semibold text-ink-muted">Action</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Delta</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Performed By</th>
+                    <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Timestamp</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {auditPage.items.map((log) => (
+                    <tr key={log.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{log.productName}</td>
+                      <td className="py-3.5">{log.variantSku}</td>
+                      {isOwner && <td className="py-3.5">{log.branchName}</td>}
+                      <td className="py-3.5">{log.action}</td>
+                      <td className="py-3.5 font-medium text-ink-primary">{log.quantityDelta}</td>
+                      <td className="py-3.5 text-ink-secondary">{log.performedByName || '—'}</td>
+                      <td className="py-3.5 pr-4">{new Date(log.timestamp).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+            {auditPage.totalCount > 0 && (
+              <Pagination
+                page={auditPage.page}
+                totalPages={auditPage.totalPages}
+                onPageChange={auditPage.goToPage}
+                totalCount={auditPage.totalCount}
+                pageStart={auditPage.pageStart}
+                pageEnd={auditPage.pageEnd}
+              />
             )}
-          </div>
+          </ViewportTable>
         </div>
         )}
       </div>
@@ -370,11 +427,16 @@ const GlobalInventory: React.FC = () => {
             branches={
               isOwner ? vm.branches : vm.branches.filter((b) => b.id === vm.selectedBranchId)
             }
-            variants={vm.variants}
+            products={vm.products}
             reasonCodes={inventoryReasonCodes}
             employees={employees}
             isOwner={isOwner}
-            onAdjust={vm.adjustStock}
+            sessionEmail={session?.email}
+            onAdjust={async (input) => {
+              await vm.adjustStock(input);
+              stockPage.reset();
+              auditPage.reset();
+            }}
             onDone={() => setAdjustModalOpen(false)}
           />
         </Modal>

@@ -1,5 +1,14 @@
 import type { CreateRefundInput, CreateSaleInput, PosSession, Refund, RefundStatus, SessionSummary, Transaction, TransactionFilters } from './transactionTypes';
-import { apiRequest } from '../../../shared/models/apiClient';
+import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
+
+const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
+
+export const invalidateTransactionsCache = (): void => {
+  invalidateCache('GET /transaction/sales');
+  invalidateCache('GET /refund/refunds');
+  invalidateCache('GET /identity/sessions');
+};
 
 interface RawTransactionItem {
   id: string;
@@ -23,6 +32,8 @@ interface RawTransaction {
   sessionId: string;
   employeeId: string;
   employeeName: string;
+  orNumber?: string | null;
+  invoiceNumber?: string | null;
   subtotal: string | number;
   totalDiscount: string | number;
   totalAmount: string | number;
@@ -73,6 +84,8 @@ const toTransaction = (raw: RawTransaction): Transaction => ({
   sessionId: raw.sessionId,
   employeeId: raw.employeeId,
   employeeName: raw.employeeName,
+  orNumber: raw.orNumber ?? undefined,
+  invoiceNumber: raw.invoiceNumber ?? undefined,
   items: (raw.items ?? []).map(toTransactionItem),
   subtotal: num(raw.subtotal),
   discountTotal: num(raw.totalDiscount),
@@ -133,9 +146,29 @@ export const fetchTransactions = async (filters: TransactionFilters): Promise<Tr
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
-  params.set('limit', '200');
-  const data = await apiRequest<{ transactions: RawTransaction[] }>(`/transaction/sales?${params.toString()}`);
+  params.set('limit', '100');
+  const data = await apiRequest<{ transactions: RawTransaction[] }>(
+    `/transaction/sales?${params.toString()}`,
+    CACHE_OPTIONS,
+  );
   return (data.transactions ?? []).map(toTransaction);
+};
+
+export const fetchTransactionsPage = async (
+  page: number,
+  filters: TransactionFilters,
+): Promise<ServerPage<Transaction>> => {
+  const { dateFrom, dateTo } = buildDateRange(filters);
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  params.set('page', String(page));
+  params.set('limit', String(SERVER_PAGE_SIZE));
+  const data = await apiRequest<{ transactions: RawTransaction[] }>(
+    `/transaction/sales?${params.toString()}`,
+  );
+  const transactions = (data.transactions ?? []).map(toTransaction);
+  return toServerPage<Transaction>({ ...data, transactions }, 'transactions');
 };
 
 export const fetchTransactionById = async (id: string): Promise<Transaction> => {
@@ -148,9 +181,24 @@ export const fetchRefunds = async (filters: TransactionFilters): Promise<Refund[
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
-  params.set('limit', '200');
-  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
+  params.set('limit', '100');
+  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`, CACHE_OPTIONS);
   return (data.refunds ?? []).map(toRefund);
+};
+
+export const fetchRefundsPage = async (
+  page: number,
+  filters: TransactionFilters,
+): Promise<ServerPage<Refund>> => {
+  const { dateFrom, dateTo } = buildDateRange(filters);
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  params.set('page', String(page));
+  params.set('limit', String(SERVER_PAGE_SIZE));
+  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
+  const refunds = (data.refunds ?? []).map(toRefund);
+  return toServerPage<Refund>({ ...data, refunds }, 'refunds');
 };
 
 export const createRefund = async (input: CreateRefundInput): Promise<Refund> => {
@@ -174,6 +222,7 @@ export const createRefund = async (input: CreateRefundInput): Promise<Refund> =>
       items: input.refundItems ?? [],
     }),
   });
+  invalidateTransactionsCache();
   return {
     id: data.id,
     transactionId: input.transactionId,
@@ -189,6 +238,7 @@ export const approveRefund = async (id: string, approvedBy: string, approvedByNa
     method: 'PATCH',
     body: JSON.stringify({ approvedBy, approvedByName }),
   });
+  invalidateTransactionsCache();
 };
 
 export const denyRefund = async (id: string, approvedBy: string, approvedByName: string): Promise<void> => {
@@ -196,6 +246,7 @@ export const denyRefund = async (id: string, approvedBy: string, approvedByName:
     method: 'PATCH',
     body: JSON.stringify({ approvedBy, approvedByName }),
   });
+  invalidateTransactionsCache();
 };
 
 export const completeRefund = async (id: string, paymentMethodId: string, paymentMethodName: string, amount: number): Promise<void> => {
@@ -203,6 +254,7 @@ export const completeRefund = async (id: string, paymentMethodId: string, paymen
     method: 'PATCH',
     body: JSON.stringify({ paymentMethodId, paymentMethodName, amount }),
   });
+  invalidateTransactionsCache();
 };
 
 export const createSale = async (input: CreateSaleInput): Promise<Transaction> => {
@@ -233,6 +285,7 @@ export const createSale = async (input: CreateSaleInput): Promise<Transaction> =
       payments: [{ paymentMethodId: input.paymentMethodId, paymentMethodName: input.paymentMethodName, amount: totalAmount }],
     }),
   });
+  invalidateTransactionsCache();
   return toTransaction(data);
 };
 
@@ -241,19 +294,21 @@ export const openSession = async (branchId: string, employeeId: string): Promise
     method: 'POST',
     body: JSON.stringify({ branchId, employeeId }),
   });
+  invalidateCache('GET /identity/sessions');
   return toSession(data);
 };
 
 export const closeSession = async (id: string): Promise<PosSession> => {
   const data = await apiRequest<RawSession>(`/identity/sessions/${id}/close`, { method: 'PATCH' });
+  invalidateCache('GET /identity/sessions');
   return toSession(data);
 };
 
 export const fetchSessions = async (): Promise<PosSession[]> => {
-  const data = await apiRequest<RawSession[]>('/identity/sessions/active');
+  const data = await apiRequest<RawSession[]>('/identity/sessions/active', CACHE_OPTIONS);
   return (Array.isArray(data) ? data : []).map(toSession);
 };
 
 export const fetchSessionSummary = async (id: string): Promise<SessionSummary> => {
-  return apiRequest<SessionSummary>(`/identity/sessions/${id}/summary`);
+  return apiRequest<SessionSummary>(`/identity/sessions/${id}/summary`, CACHE_OPTIONS);
 };

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useProductsViewModel } from '../viewModels/useProductsViewModel';
 import CategoryForm from './CategoryForm';
 import ProductForm from './ProductForm';
@@ -6,6 +7,14 @@ import PromoForm from './PromoForm';
 import VariantForm from './VariantForm';
 import AttributeForm from './AttributeForm';
 import type { Category, ProductAttribute, ProductVariant } from '../models/productTypes';
+import {
+  fetchAttributes,
+  fetchCategoriesPage,
+  fetchProductsPage,
+  fetchPromotionsPage,
+  fetchVariants,
+} from '../models/productsApi';
+import { queryClient } from '../../../shared/models/queryClient';
 import PageLayout from '../../../shared/components/PageLayout';
 import { ProductsSkeleton, SkeletonList, SkeletonTable } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
@@ -15,7 +24,12 @@ import ConfirmModal from '../../../shared/components/ConfirmModal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
+import { usePagination } from '../../../shared/hooks/usePagination';
+import { useServerPagination } from '../../../shared/hooks/useServerPagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useUrlSection } from '../../../shared/hooks/useUrlSection';
+import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import ViewportTable from '../../../shared/components/ViewportTable';
 
 type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 type Section = 'products' | 'categories' | 'promotions';
@@ -24,8 +38,11 @@ const Products: React.FC = () => {
   const { session } = useAuth();
   const { isOwner } = useRole();
   const vm = useProductsViewModel(session?.branchId ?? null);
-  const loading = useMinimumLoading(vm.isLoading);
-  const [activeSection, setActiveSection] = useState<Section>('products');
+  const [activeSection, setActiveSection] = useUrlSection<Section>(
+    'section',
+    'products',
+    (v) => (v === 'categories' || v === 'promotions' ? v : 'products'),
+  );
   const [summarizeProductId, setSummarizeProductId] = useState<string | null>(null);
   const [categoryModal, setCategoryModal] = useState<CategoryModalState>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -44,19 +61,55 @@ const Products: React.FC = () => {
     onConfirm: () => void | Promise<void>;
   } | null>(null);
 
-  const summarizeProduct = vm.products.find((p) => p.id === summarizeProductId);
-  const editingProduct = vm.products.find((p) => p.id === editingProductId) ?? null;
+  const [tableHeight, setTableHeight] = useState<number>(0);
+  const [rowHeight, setRowHeight] = useState<number>(0);
+  const pageSize = useResponsivePageSize(tableHeight, rowHeight);
+  const productPage = useServerPagination(
+    (page) => fetchProductsPage(page, session?.branchId ?? null),
+    pageSize,
+    { deps: [session?.branchId ?? ''], queryKey: ['products', session?.branchId ?? ''] },
+  );
+  const categoriesPage = useServerPagination((page) => fetchCategoriesPage(page), pageSize, {
+    queryKey: ['categories'],
+  });
+  const promotionsPage = useServerPagination((page) => fetchPromotionsPage(page), pageSize, {
+    queryKey: ['promotions'],
+  });
+
+  const variantQuery = useQuery<ProductVariant[]>({
+    queryKey: ['product-variants', variantViewProductId ?? ''],
+    queryFn: () => fetchVariants(variantViewProductId as string),
+    enabled: variantViewProductId !== null,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+  });
+  const attributeQuery = useQuery<ProductAttribute[]>({
+    queryKey: ['product-attributes', attributeViewProductId ?? ''],
+    queryFn: () => fetchAttributes(attributeViewProductId as string),
+    enabled: attributeViewProductId !== null,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+  });
+
+  const loading = productPage.loading && productPage.totalCount === 0;
+  const variantItems = variantQuery.data ?? [];
+  const attributeItems = attributeQuery.data ?? [];
+  const variantPagination = usePagination(variantItems, pageSize);
+  const attributePagination = usePagination(attributeItems, pageSize);
+
+  const summarizeProduct = productPage.items.find((p) => p.id === summarizeProductId);
+  const editingProduct = productPage.items.find((p) => p.id === editingProductId) ?? null;
 
   const variantViewProduct = variantViewProductId
-    ? vm.products.find((p) => p.id === variantViewProductId) ?? null
+    ? productPage.items.find((p) => p.id === variantViewProductId) ?? null
     : null;
   const attributeViewProduct = attributeViewProductId
-    ? vm.products.find((p) => p.id === attributeViewProductId) ?? null
+    ? productPage.items.find((p) => p.id === attributeViewProductId) ?? null
     : null;
 
   const viewingProductDetail = variantViewProductId !== null || attributeViewProductId !== null;
 
-  if (loading) return <ProductsSkeleton />;
+  if (loading) return <ProductsSkeleton isOwner={isOwner} />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   const tabBtn = (section: Section, label: string) => (
@@ -107,13 +160,14 @@ const Products: React.FC = () => {
               </button>
             )}
           </div>
-          <div className="overflow-x-auto">
-            {vm.detailsLoading[variantViewProductId!] ? (
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            {variantQuery.isLoading ? (
               <SkeletonTable
                 headers={isOwner ? ['Variant', 'SKU', 'Cost', 'Price', 'Status', 'Actions'] : ['Variant', 'SKU', 'Status', 'Actions']}
                 rows={4}
               />
-            ) : (vm.variants[variantViewProductId ?? ''] ?? []).length === 0 ? (
+            ) : variantItems.length === 0 ? (
               <TableEmptyState message="No variants for this product yet. Add one" />
             ) : (
             <table className="w-full text-base">
@@ -128,17 +182,17 @@ const Products: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {(vm.variants[variantViewProductId ?? ''] ?? []).map((v) => (
+                {variantPagination.pageItems.map((v) => (
                   <tr key={v.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
                     <td className="py-3.5 pl-4 font-medium text-ink-primary">
                       {v.size ?? v.color ?? 'Default'}
                     </td>
                     <td className="py-3.5">{v.sku}</td>
                     {isOwner && (
-                      <td className="py-3.5">{v.costPrice != null ? `$${v.costPrice}` : '-'}</td>
+                      <td className="py-3.5">{v.costPrice != null ? `₱${v.costPrice}` : '-'}</td>
                     )}
                     {isOwner && (
-                      <td className="py-3.5">{v.priceOverride != null ? `$${v.priceOverride}` : '-'}</td>
+                      <td className="py-3.5">{v.priceOverride != null ? `₱${v.priceOverride}` : '-'}</td>
                     )}
                     <td className="py-3.5">
                       <span className={`text-sm px-3 py-1 rounded ${v.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
@@ -165,6 +219,7 @@ const Products: React.FC = () => {
                               confirmLabel: v.isActive ? 'Deactivate' : 'Activate',
                               onConfirm: async () => {
                                 await vm.setVariantActive(variantViewProductId!, v.id, !v.isActive);
+                                queryClient.invalidateQueries({ queryKey: ['product-variants', variantViewProductId] });
                                 setConfirmState(null);
                               },
                             })
@@ -179,7 +234,18 @@ const Products: React.FC = () => {
               </tbody>
             </table>
             )}
-          </div>
+            </div>
+            {variantItems.length > 0 && (
+              <Pagination
+                page={variantPagination.page}
+                totalPages={variantPagination.totalPages}
+                onPageChange={variantPagination.goToPage}
+                totalCount={variantPagination.totalCount}
+                pageStart={variantPagination.pageStart}
+                pageEnd={variantPagination.pageEnd}
+              />
+            )}
+          </ViewportTable>
         </div>
       )}
 
@@ -208,13 +274,14 @@ const Products: React.FC = () => {
             )}
           </div>
           <p className="text-xs text-ink-muted mb-3">Extra product details like material or origin</p>
-          <div className="overflow-x-auto">
-            {vm.detailsLoading[attributeViewProductId!] ? (
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            {attributeQuery.isLoading ? (
               <SkeletonTable
                 headers={isOwner ? ['Attribute', 'Value', 'Actions'] : ['Attribute', 'Value']}
                 rows={4}
               />
-            ) : (vm.attributes[attributeViewProductId ?? ''] ?? []).length === 0 ? (
+            ) : attributeItems.length === 0 ? (
               <TableEmptyState message="No attributes yet" />
             ) : (
               <table className="w-full text-base">
@@ -226,7 +293,7 @@ const Products: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(vm.attributes[attributeViewProductId ?? ''] ?? []).map((a) => (
+                  {attributePagination.pageItems.map((a) => (
                     <tr key={a.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
                       <td className="py-3.5 pl-4 font-medium text-ink-primary">{a.attributeKey}</td>
                       <td className="py-3.5 text-ink-secondary">{a.attributeValue}</td>
@@ -249,11 +316,22 @@ const Products: React.FC = () => {
               </table>
             )}
           </div>
+          {attributeItems.length > 0 && (
+            <Pagination
+              page={attributePagination.page}
+              totalPages={attributePagination.totalPages}
+              onPageChange={attributePagination.goToPage}
+              totalCount={attributePagination.totalCount}
+              pageStart={attributePagination.pageStart}
+              pageEnd={attributePagination.pageEnd}
+            />
+          )}
+          </ViewportTable>
         </div>
       )}
 
       {activeSection === 'products' && !viewingProductDetail && (
-        <div className="bg-white rounded-lg border border-line p-6 min-h-[36rem]">
+        <div className="bg-white rounded-lg border border-line p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-ink-primary">Products</h2>
             {isOwner && (
@@ -265,8 +343,9 @@ const Products: React.FC = () => {
               </button>
             )}
           </div>
-          <div className="overflow-x-auto max-h-[calc(100vh-16rem)] overflow-y-auto">
-            {vm.products.length === 0 ? (
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            {productPage.items.length === 0 ? (
               <TableEmptyState message="No products yet. Add one to get started" />
             ) : (
             <table className="w-full text-sm">
@@ -284,7 +363,7 @@ const Products: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {vm.products.map((p) => (
+                {productPage.items.map((p) => (
                   <tr
                     key={p.id}
                     className="border-b border-line last:border-0 hover:bg-canvas transition-colors"
@@ -304,7 +383,7 @@ const Products: React.FC = () => {
                     </td>
                     <td className="py-3 pl-4 font-medium text-ink-primary">{p.name}</td>
                     <td className="py-3">{vm.categories.find((c) => c.id === p.categoryId)?.name ?? '-'}</td>
-                    <td className="py-3">${p.basePrice}</td>
+                    <td className="py-3">₱{p.basePrice}</td>
                     <td className="py-3">
                       <button
                         className="text-xs px-3 py-1.5 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
@@ -364,7 +443,18 @@ const Products: React.FC = () => {
               </tbody>
             </table>
             )}
-          </div>
+            </div>
+            {productPage.totalCount > 0 && (
+              <Pagination
+                page={productPage.page}
+                totalPages={productPage.totalPages}
+                onPageChange={productPage.goToPage}
+                totalCount={productPage.totalCount}
+                pageStart={productPage.pageStart}
+                pageEnd={productPage.pageEnd}
+              />
+            )}
+          </ViewportTable>
         </div>
       )}
 
@@ -381,11 +471,16 @@ const Products: React.FC = () => {
               </button>
             )}
           </div>
-          {vm.categories.length === 0 ? (
+          {categoriesPage.loading && categoriesPage.totalCount === 0 ? (
+            <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+              <SkeletonTable headers={['Name', 'Status', 'Actions']} rows={4} />
+            </ViewportTable>
+          ) : categoriesPage.totalCount === 0 ? (
             <TableEmptyState message="No categories yet" />
           ) : (
-            <div className="space-y-3">
-              {vm.categories.map((c) => {
+            <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 space-y-3">
+              {categoriesPage.items.map((c) => {
                 const parent = vm.categories.find((p) => p.id === c.parentId);
                 return (
                   <div key={c.id} className="flex items-center justify-between rounded-lg border border-line p-4 transition-colors hover:border-line-strong hover:bg-canvas">
@@ -426,6 +521,7 @@ const Products: React.FC = () => {
                                 confirmLabel: c.isActive ? 'Deactivate' : 'Activate',
                                 onConfirm: async () => {
                                   await vm.setCategoryActive(c.id, !c.isActive);
+                                  categoriesPage.reset();
                                   setConfirmState(null);
                                 },
                               })
@@ -440,6 +536,17 @@ const Products: React.FC = () => {
                 );
               })}
             </div>
+            {categoriesPage.totalCount > 0 && (
+              <Pagination
+                page={categoriesPage.page}
+                totalPages={categoriesPage.totalPages}
+                onPageChange={categoriesPage.goToPage}
+                totalCount={categoriesPage.totalCount}
+                pageStart={categoriesPage.pageStart}
+                pageEnd={categoriesPage.pageEnd}
+              />
+            )}
+            </ViewportTable>
           )}
         </div>
       )}
@@ -455,11 +562,16 @@ const Products: React.FC = () => {
               Add Promotion
             </button>
           </div>
-          {vm.promotions.length === 0 ? (
+          {promotionsPage.loading && promotionsPage.totalCount === 0 ? (
+            <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+              <SkeletonTable headers={['Name', 'Details', 'Status']} rows={4} />
+            </ViewportTable>
+          ) : promotionsPage.totalCount === 0 ? (
             <TableEmptyState message="No promotions yet" />
           ) : (
-          <div className="space-y-3">
-            {vm.promotions.map((promo) => (
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+          <div className="flex-1 space-y-3">
+            {promotionsPage.items.map((promo) => (
               <div key={promo.id} className="rounded-lg border border-line p-4 flex items-center justify-between transition-colors hover:border-line-strong hover:bg-canvas">
                 <div>
                   <h3 className="text-base font-semibold text-ink-primary">{promo.name}</h3>
@@ -467,7 +579,7 @@ const Products: React.FC = () => {
                     {promo.promoType === 'percentage'
                       ? `${promo.config.percentOff}% off`
                       : promo.promoType === 'fixed'
-                      ? `$${promo.config.fixedAmountOff} off`
+                      ? `₱${promo.config.fixedAmountOff} off`
                       : promo.config.bundleRule}
                     {promo.isStackable ? ' · Stackable' : ''}
                   </p>
@@ -488,6 +600,7 @@ const Products: React.FC = () => {
                           confirmLabel: promo.isActive ? 'Deactivate' : 'Activate',
                           onConfirm: async () => {
                             await vm.setPromotionActive(promo.id, !promo.isActive);
+                            promotionsPage.reset();
                             setConfirmState(null);
                           },
                         })
@@ -507,6 +620,17 @@ const Products: React.FC = () => {
               </div>
             ))}
           </div>
+          {promotionsPage.totalCount > 0 && (
+            <Pagination
+              page={promotionsPage.page}
+              totalPages={promotionsPage.totalPages}
+              onPageChange={promotionsPage.goToPage}
+              totalCount={promotionsPage.totalCount}
+              pageStart={promotionsPage.pageStart}
+              pageEnd={promotionsPage.pageEnd}
+            />
+          )}
+          </ViewportTable>
           )}
         </div>
       )}
@@ -517,21 +641,6 @@ const Products: React.FC = () => {
             const variants = vm.variants[summarizeProduct.id] ?? [];
             const attributes = vm.attributes[summarizeProduct.id] ?? [];
             const detailsLoading = vm.detailsLoading[summarizeProduct.id] ?? false;
-            const variantLimit = 4;
-            const attributeLimit = 4;
-            const visibleVariants = variants.slice(0, variantLimit);
-            const visibleAttributes = attributes.slice(0, attributeLimit);
-
-            const openVariantView = () => {
-              setSummarizeProductId(null);
-              setVariantViewProductId(summarizeProduct.id);
-              vm.loadProductDetails(summarizeProduct.id);
-            };
-            const openAttributeView = () => {
-              setSummarizeProductId(null);
-              setAttributeViewProductId(summarizeProduct.id);
-              vm.loadProductDetails(summarizeProduct.id);
-            };
 
             return (
           <div className="space-y-5">
@@ -554,7 +663,7 @@ const Products: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-line p-3">
                 <p className="text-xs text-ink-muted">Base Price</p>
-                <p className="text-sm font-semibold text-ink-primary mt-1">${summarizeProduct.basePrice}</p>
+                <p className="text-sm font-semibold text-ink-primary mt-1">₱{summarizeProduct.basePrice}</p>
               </div>
               <div className="rounded-lg border border-line p-3">
                 <p className="text-xs text-ink-muted">Variants</p>
@@ -582,23 +691,22 @@ const Products: React.FC = () => {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-ink-primary">Variants</h4>
-                {!detailsLoading && variants.length > 0 && (
-                  <button
-                    className="text-xs text-brand font-medium hover:underline"
-                    onClick={openVariantView}
-                  >
-                    View all →
-                  </button>
-                )}
+                <h4 className="text-sm font-semibold text-ink-primary">
+                  Variants{' '}
+                  <span className="ml-1 text-xs font-normal text-ink-muted">({variants.length})</span>
+                </h4>
               </div>
               {detailsLoading ? (
                 <SkeletonList rows={3} />
-              ) : visibleVariants.length === 0 ? (
+              ) : variants.length === 0 ? (
                 <p className="text-sm text-ink-muted py-2">No variants yet</p>
               ) : (
-                <ul className="divide-y divide-line rounded-lg border border-line">
-                  {visibleVariants.map((v) => (
+                <ul
+                  className={`divide-y divide-line rounded-lg border border-line ${
+                    variants.length > 5 ? 'max-h-52 overflow-y-auto' : ''
+                  }`}
+                >
+                  {variants.map((v) => (
                     <li key={v.id} className="flex items-center justify-between px-3 py-2">
                       <span className="text-sm font-medium text-ink-primary">
                         {v.size ?? v.color ?? 'Default'}
@@ -608,49 +716,32 @@ const Products: React.FC = () => {
                   ))}
                 </ul>
               )}
-              {!detailsLoading && variants.length > variantLimit && (
-                <button
-                  className="w-full text-sm text-brand font-medium py-2 hover:underline"
-                  onClick={openVariantView}
-                >
-                  View all {variants.length} variants
-                </button>
-              )}
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-ink-primary">Attributes</h4>
-                {!detailsLoading && attributes.length > 0 && (
-                  <button
-                    className="text-xs text-brand font-medium hover:underline"
-                    onClick={openAttributeView}
-                  >
-                    View all →
-                  </button>
-                )}
+                <h4 className="text-sm font-semibold text-ink-primary">
+                  Attributes{' '}
+                  <span className="ml-1 text-xs font-normal text-ink-muted">({attributes.length})</span>
+                </h4>
               </div>
               {detailsLoading ? (
                 <SkeletonList rows={3} />
-              ) : visibleAttributes.length === 0 ? (
+              ) : attributes.length === 0 ? (
                 <p className="text-sm text-ink-muted py-2">No attributes yet</p>
               ) : (
-                <ul className="divide-y divide-line rounded-lg border border-line">
-                  {visibleAttributes.map((a) => (
+                <ul
+                  className={`divide-y divide-line rounded-lg border border-line ${
+                    attributes.length > 5 ? 'max-h-52 overflow-y-auto' : ''
+                  }`}
+                >
+                  {attributes.map((a) => (
                     <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2">
                       <span className="text-sm font-medium text-ink-primary">{a.attributeKey}</span>
                       <span className="text-sm text-ink-secondary">{a.attributeValue}</span>
                     </li>
                   ))}
                 </ul>
-              )}
-              {!detailsLoading && attributes.length > attributeLimit && (
-                <button
-                  className="w-full text-sm text-brand font-medium py-2 hover:underline"
-                  onClick={openAttributeView}
-                >
-                  View all {attributes.length} attributes
-                </button>
               )}
             </div>
           </div>
@@ -668,10 +759,12 @@ const Products: React.FC = () => {
             categories={vm.categories}
             onSubmit={async (name, parentId) => {
               await vm.createCategory(name, parentId);
+              categoriesPage.reset();
               setCategoryModal(null);
             }}
             onUpdate={async (id, name, parentId) => {
               await vm.updateCategory(id, name, parentId);
+              categoriesPage.reset();
               setCategoryModal(null);
             }}
             editingCategory={categoryModal.mode === 'edit' ? categoryModal.category : null}
@@ -694,11 +787,13 @@ const Products: React.FC = () => {
             isOwner={isOwner}
             onSubmit={async (data) => {
               await vm.createProduct(data);
+              productPage.reset();
               setAddingProduct(false);
             }}
             editingProduct={editingProduct}
             onUpdate={async (id, data) => {
               await vm.updateProduct(id, data);
+              productPage.reset();
               setEditingProductId(null);
             }}
             onCancelEdit={() => setEditingProductId(null)}
@@ -721,10 +816,12 @@ const Products: React.FC = () => {
             editingVariant={editingVariant}
             onSubmit={async (productId, input) => {
               await vm.createVariant(productId, input);
+              queryClient.invalidateQueries({ queryKey: ['product-variants', productId] });
               setVariantModalOpen(false);
             }}
             onUpdate={async (productId, variantId, input) => {
               await vm.updateVariant(productId, variantId, input);
+              queryClient.invalidateQueries({ queryKey: ['product-variants', productId] });
               setEditingVariant(null);
               setVariantModalOpen(false);
             }}
@@ -750,10 +847,12 @@ const Products: React.FC = () => {
             editingAttribute={editingAttribute}
             onSubmit={async (productId, key, value) => {
               await vm.createAttribute(productId, key, value);
+              queryClient.invalidateQueries({ queryKey: ['product-attributes', productId] });
               setAttributeModalOpen(false);
             }}
             onUpdate={async (productId, id, key, value) => {
               await vm.updateAttribute(productId, id, key, value);
+              queryClient.invalidateQueries({ queryKey: ['product-attributes', productId] });
               setEditingAttribute(null);
               setAttributeModalOpen(false);
             }}
@@ -771,10 +870,11 @@ const Products: React.FC = () => {
             products={vm.products}
             categories={vm.categories}
             isOwner={isOwner}
-            onSubmit={async (data) => {
-              await vm.createPromotion(data);
-              setPromoModalOpen(false);
-            }}
+onSubmit={async (data) => {
+                              await vm.createPromotion(data);
+                              promotionsPage.reset();
+                              setPromoModalOpen(false);
+                            }}
           />
         </Modal>
       )}

@@ -10,7 +10,7 @@ export interface Product {
   name: string;
   description: string;
   basePrice: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   categoryId: string;
   isActive: boolean;
 }
@@ -58,7 +58,7 @@ export interface CreateProductInput {
   name: string;
   description: string;
   basePrice: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   categoryId: string;
 }
 

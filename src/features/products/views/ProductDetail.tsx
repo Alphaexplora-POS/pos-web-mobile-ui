@@ -19,7 +19,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, attributes, onTo
             <span className={`text-xs px-2 py-1 rounded ${product.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
               {product.isActive ? 'Active' : 'Inactive'}
             </span>
-            <span className="text-sm font-medium text-ink-primary">Base Price: ${product.basePrice}</span>
+            <span className="text-sm font-medium text-ink-primary">Base Price: ₱{product.basePrice}</span>
           </div>
           <div className="flex items-center gap-2">
             {isOwner && (

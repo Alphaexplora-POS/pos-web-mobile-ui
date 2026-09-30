@@ -19,6 +19,8 @@ export interface Transaction {
   sessionId?: string;
   employeeId?: string;
   employeeName?: string;
+  orNumber?: string;
+  invoiceNumber?: string;
   items: TransactionItem[];
   subtotal: number;
   discountTotal: number;
@@ -84,6 +86,8 @@ export interface CreateSaleInput {
   employeeId: string;
   employeeName: string;
   customerName?: string;
+  orNumber?: string;
+  invoiceNumber?: string;
   items: PosItemLine[];
   paymentMethodId: string;
   paymentMethodName: string;

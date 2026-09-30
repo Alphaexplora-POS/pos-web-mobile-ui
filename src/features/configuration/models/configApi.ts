@@ -1,24 +1,45 @@
 import type { PaymentMethod, ReasonCode, ReasonCodeType } from './configTypes';
 import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
 const PAYMENT_METHODS_KEY = '/reference/payment-methods';
 const REASON_CODES_KEY = '/reference/reason-codes';
 
-const toReasonCode = (raw: {
+interface RawReasonCode {
   id: string;
   type: ReasonCodeType;
   label: string;
   isActive: boolean;
-}): ReasonCode => ({
+}
+
+const toReasonCode = (raw: RawReasonCode): ReasonCode => ({
   id: raw.id,
   name: raw.label,
   type: raw.type,
   isActive: raw.isActive,
 });
 
+export const fetchPaymentMethodsPage = async (page: number): Promise<ServerPage<PaymentMethod>> => {
+  const data = await apiRequest<{ paymentMethods: PaymentMethod[] }>(
+    `${PAYMENT_METHODS_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+  );
+  return toServerPage<PaymentMethod>(data, 'paymentMethods');
+};
+
+export const fetchReasonCodesPage = async (page: number): Promise<ServerPage<ReasonCode>> => {
+  const data = await apiRequest<{ reasonCodes: RawReasonCode[] }>(
+    `${REASON_CODES_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+  );
+  const reasonCodes = (data.reasonCodes ?? []).map(toReasonCode);
+  return toServerPage<ReasonCode>({ ...data, reasonCodes }, 'reasonCodes');
+};
+
 export const fetchPaymentMethods = async (): Promise<PaymentMethod[]> => {
-  const data = await apiRequest<{ paymentMethods: PaymentMethod[] }>(PAYMENT_METHODS_KEY, CACHE_OPTIONS);
+  const data = await apiRequest<{ paymentMethods: PaymentMethod[] }>(
+    `${PAYMENT_METHODS_KEY}?limit=100`,
+    CACHE_OPTIONS,
+  );
   return data.paymentMethods ?? [];
 };
 
@@ -49,10 +70,7 @@ export const updatePaymentMethod = async (id: string, name: string, type: string
 };
 
 export const fetchReasonCodes = async (): Promise<ReasonCode[]> => {
-  const data = await apiRequest<{ reasonCodes: { id: string; type: ReasonCodeType; label: string; isActive: boolean }[] }>(
-    REASON_CODES_KEY,
-    CACHE_OPTIONS,
-  );
+  const data = await apiRequest<{ reasonCodes: RawReasonCode[] }>(`${REASON_CODES_KEY}?limit=100`, CACHE_OPTIONS);
   return (data.reasonCodes ?? []).map(toReasonCode);
 };
 

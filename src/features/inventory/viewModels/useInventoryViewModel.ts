@@ -12,13 +12,13 @@ import type { ReasonCode } from '../../configuration/models/configTypes';
 import { fetchReasonCodes } from '../../configuration/models/configApi';
 import type { Employee } from '../../branches/models/branchTypes';
 import { fetchEmployees } from '../../branches/models/branchesApi';
-import { fetchAllVariants } from '../../products/models/productsApi';
+import { fetchProducts } from '../../products/models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
 export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string | null) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [combinedItems, setCombinedItems] = useState<InventoryItem[]>([]);
-  const [variants, setVariants] = useState<{ id: string; label: string }[]>([]);
+  const [products, setProducts] = useState<{ id: string; label: string }[]>([]);
   const [auditLogs, setAuditLogs] = useState<InventoryAuditLog[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -39,20 +39,14 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
   useEffect(() => {
     fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
     fetchEmployees().then(setEmployees).catch(() => setEmployees([]));
-    fetchAllVariants(managerBranchId)
-      .then((vs) =>
-        setVariants(
-          vs.map((v) => ({
-            id: v.id,
-            label: [v.sku, v.size, v.color].filter(Boolean).join(' · '),
-          })),
-        ),
-      )
-      .catch(() => setVariants([]));
-  }, [managerBranchId]);
+    fetchProducts()
+      .then((ps) => setProducts(ps.map((p) => ({ id: p.id, label: p.name }))))
+      .catch(() => setProducts([]));
+  }, []);
 
   const load = useCallback(
     async (branchId?: string) => {
+      setIsLoading(true);
       try {
         if (isOwner) {
           const combined = await fetchCombinedInventory();
@@ -121,7 +115,7 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
   return {
     items,
     combinedItems,
-    variants,
+    products,
     auditLogs,
     branches,
     selectedBranchId,

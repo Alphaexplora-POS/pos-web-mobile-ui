@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useBranchesViewModel } from '../viewModels/useBranchesViewModel';
 import BranchForm from './BranchForm';
 import EmployeeForm from './EmployeeForm';
-import type { EmployeeRole, Branch } from '../models/branchTypes';
+import type { EmployeeRole, Branch, Employee } from '../models/branchTypes';
 import PageLayout from '../../../shared/components/PageLayout';
 import { BranchesSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
@@ -12,8 +12,12 @@ import Modal from '../../../shared/components/Modal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import { usePagination } from '../../../shared/hooks/usePagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useUrlSection } from '../../../shared/hooks/useUrlSection';
+import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import ViewportTable from '../../../shared/components/ViewportTable';
 
 type BranchModalState = { mode: 'create' } | { mode: 'edit'; branch: Branch } | null;
 
@@ -28,12 +32,19 @@ const Branches: React.FC = () => {
   const vm = useBranchesViewModel();
   const { isOwner } = useRole();
   const { session } = useAuth();
-  const loading = useMinimumLoading(vm.isLoading);
-  const [activeSection, setActiveSection] = useState<'branches' | 'employees'>('branches');
+  const loading = vm.isLoading;
+  const [activeSection, setActiveSection] = useUrlSection<'branches' | 'employees'>(
+    'section',
+    isOwner ? 'branches' : 'employees',
+    (v) => (isOwner ? (v === 'employees' ? 'employees' : 'branches') : 'employees'),
+  );
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [branchModal, setBranchModal] = useState<BranchModalState>(null);
-  const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [employeeModal, setEmployeeModal] = useState<{ mode: 'create' } | { mode: 'edit'; employee: Employee } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+  const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all');
+  const [tableHeight, setTableHeight] = useState<number>(0);
+  const [rowHeight, setRowHeight] = useState<number>(0);
 
   const tenantBranches = session?.tenantId
     ? vm.branches.filter((b) => !b.tenantId || b.tenantId === session.tenantId)
@@ -52,6 +63,16 @@ const Branches: React.FC = () => {
     ? [branchManagerBranch]
     : [];
 
+  const visibleEmployees = isOwner
+    ? vm.employees
+    : vm.employees.filter((e) => e.branchId === branchManagerBranch?.id);
+
+  const filteredEmployees =
+    roleFilter === 'all' ? visibleEmployees : visibleEmployees.filter((e) => e.role === roleFilter);
+
+  const branchPagination = usePagination(visibleBranches);
+  const employeePagination = usePagination(filteredEmployees, useResponsivePageSize(tableHeight, rowHeight));
+
   const roleLabel: Record<EmployeeRole, string> = {
     branch_manager: 'Branch Manager',
     supervisor: 'Supervisor',
@@ -66,12 +87,12 @@ const Branches: React.FC = () => {
     staff: 'bg-surface-hover text-ink-secondary',
   };
 
-  if (loading) return <BranchesSkeleton />;
+  if (loading) return <BranchesSkeleton isOwner={isOwner} />;
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (
     <PageLayout
-      title="Branch and Employees"
+      title={isOwner ? 'Branch and Employees' : 'Employees'}
       actions={!isOwner ? <OwnerOnlyBadge label="Branch Manager view" /> : undefined}
     >
       {session && (
@@ -92,28 +113,30 @@ const Branches: React.FC = () => {
         </div>
       )}
 
-      <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
-        <button
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            activeSection === 'branches'
-              ? 'bg-brand text-white'
-              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
-          }`}
-          onClick={() => setActiveSection('branches')}
-        >
-          Branches
-        </button>
-        <button
-          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-            activeSection === 'employees'
-              ? 'bg-brand text-white'
-              : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
-          }`}
-          onClick={() => setActiveSection('employees')}
-        >
-          Employees
-        </button>
-      </div>
+      {isOwner && (
+        <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+          <button
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeSection === 'branches'
+                ? 'bg-brand text-white'
+                : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+            }`}
+            onClick={() => setActiveSection('branches')}
+          >
+            Branches
+          </button>
+          <button
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              activeSection === 'employees'
+                ? 'bg-brand text-white'
+                : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+            }`}
+            onClick={() => setActiveSection('employees')}
+          >
+            Employees
+          </button>
+        </div>
+      )}
 
       {activeSection === 'branches' ? (
         <div>
@@ -123,7 +146,7 @@ const Branches: React.FC = () => {
               Sign in with the account that owns them to see their employees.
             </p>
           )}
-          <div className="bg-white rounded-lg border border-line p-6 min-h-[26rem]">
+<div className="bg-white rounded-lg border border-line p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-ink-primary">Branches</h2>
               <div className="flex items-center gap-2">
@@ -148,11 +171,12 @@ const Branches: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="space-y-3">
-              {visibleBranches.length === 0 && (
+            <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 space-y-3">
+              {branchPagination.totalCount === 0 && (
                 <TableEmptyState message="No branches yet" />
               )}
-              {visibleBranches.map((b) => (
+              {branchPagination.pageItems.map((b) => (
                 <div
                   key={b.id}
                   className={`p-4 rounded-lg border transition-colors cursor-pointer min-h-24 flex flex-col justify-center ${
@@ -206,28 +230,53 @@ const Branches: React.FC = () => {
                 </div>
               ))}
             </div>
+            {branchPagination.totalCount > 0 && (
+              <Pagination
+                page={branchPagination.page}
+                totalPages={branchPagination.totalPages}
+                onPageChange={branchPagination.goToPage}
+                totalCount={branchPagination.totalCount}
+                pageStart={branchPagination.pageStart}
+                pageEnd={branchPagination.pageEnd}
+              />
+            )}
+            </ViewportTable>
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-line p-6 min-h-[26rem]">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
-            <div className="flex items-center gap-3">
+        <div className="bg-white rounded-lg border border-line p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-ink-primary">Employees</h2>
+              <span className="text-xs text-ink-muted">{filteredEmployees.length} shown · {vm.employees.length} in this workspace</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select
+                value={roleFilter}
+                onChange={(v) => setRoleFilter(v as EmployeeRole | 'all')}
+                options={[
+                  { value: 'all', label: 'All roles' },
+                  ...(['branch_manager', 'supervisor', 'cashier', 'staff'] as EmployeeRole[]).map(
+                    (r) => ({ value: r, label: roleLabel[r] }),
+                  ),
+                ]}
+                className="w-48 shrink-0"
+              />
               {isOwner && (
                 <button
                   className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark transition-colors"
-                  onClick={() => setEmployeeModalOpen(true)}
+                  onClick={() => setEmployeeModal({ mode: 'create' })}
                 >
                   Add Employee
                 </button>
               )}
-              <span className="text-xs text-ink-muted">{vm.employees.length} in this workspace</span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            {vm.employees.length === 0 ? (
-              <TableEmptyState message="No employees in this workspace yet" />
-            ) : (
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {filteredEmployees.length === 0 ? (
+                <TableEmptyState message={visibleEmployees.length === 0 ? 'No employees in this workspace yet' : 'No employees match this role'} />
+              ) : (
             <table className="w-full text-base">
               <thead>
                 <tr className="bg-canvas border-b border-line">
@@ -239,9 +288,7 @@ const Branches: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {vm.employees
-                  .filter((e) => (isOwner ? true : e.branchId === branchManagerBranch?.id))
-                  .map((e) => (
+                {employeePagination.pageItems.map((e) => (
                     <tr key={e.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
                       <td className="py-3.5 pl-4 font-medium text-ink-primary">{e.name}</td>
                       <td className="py-3.5">
@@ -256,22 +303,46 @@ const Branches: React.FC = () => {
                         </span>
                       </td>
                       {isOwner && (
-                        <td className="py-3.5 pr-4">
-                          <button
-                            className={`text-sm ${e.isActive ? 'text-error hover:text-error' : 'text-brand hover:text-brand-dark'}`}
-                            onClick={() =>
-                              setConfirmState({
-                                title: e.isActive ? 'Deactivate Employee' : 'Reactivate Employee',
-                                message: `${e.isActive ? 'Deactivate' : 'Reactivate'} employee "${e.name}"?`,
-                                confirmLabel: e.isActive ? 'Deactivate' : 'Reactivate',
-                                onConfirm: e.isActive
-                                  ? () => vm.deactivateEmployee(e.id)
-                                  : () => vm.activateEmployee(e.id),
-                              })
-                            }
-                          >
-                            {e.isActive ? 'Deactivate' : 'Reactivate'}
-                          </button>
+                        <td className="py-3.5 pr-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-line text-ink-primary hover:border-brand hover:bg-brand-light hover:text-brand transition-colors"
+                              onClick={() => setEmployeeModal({ mode: 'edit', employee: e })}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                                e.isActive
+                                  ? 'border-line text-error hover:border-error bg-white hover:bg-error hover:text-white'
+                                  : 'border-line text-ink-primary hover:border-brand hover:bg-brand-light hover:text-brand'
+                              }`}
+                              onClick={() =>
+                                setConfirmState({
+                                  title: e.isActive ? 'Deactivate Employee' : 'Reactivate Employee',
+                                  message: `${e.isActive ? 'Deactivate' : 'Reactivate'} employee "${e.name}"?`,
+                                  confirmLabel: e.isActive ? 'Deactivate' : 'Reactivate',
+                                  onConfirm: e.isActive
+                                    ? () => vm.deactivateEmployee(e.id)
+                                    : () => vm.activateEmployee(e.id),
+                                })
+                              }
+                            >
+                              {e.isActive ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                              )}
+                              {e.isActive ? 'Deactivate' : 'Reactivate'}
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -279,7 +350,18 @@ const Branches: React.FC = () => {
               </tbody>
             </table>
             )}
-          </div>
+            </div>
+            {employeePagination.totalCount > 0 && (
+              <Pagination
+                page={employeePagination.page}
+                totalPages={employeePagination.totalPages}
+                onPageChange={employeePagination.goToPage}
+                totalCount={employeePagination.totalCount}
+                pageStart={employeePagination.pageStart}
+                pageEnd={employeePagination.pageEnd}
+              />
+            )}
+            </ViewportTable>
         </div>
       )}
 
@@ -292,11 +374,11 @@ const Branches: React.FC = () => {
             key={branchModal.mode === 'edit' ? branchModal.branch.id : 'new'}
             isOwner={isOwner}
             initial={branchModal.mode === 'edit' ? branchModal.branch : undefined}
-            onSubmit={(data) => {
+            onSubmit={async (data) => {
               if (branchModal.mode === 'edit') {
-                vm.updateBranch(branchModal.branch.id, data);
+                await vm.updateBranch(branchModal.branch.id, data);
               } else {
-                vm.createBranch(data);
+                await vm.createBranch(data);
               }
               setBranchModal(null);
             }}
@@ -304,14 +386,23 @@ const Branches: React.FC = () => {
         </Modal>
       )}
 
-      {isOwner && employeeModalOpen && (
-        <Modal title="Add Employee" onClose={() => setEmployeeModalOpen(false)}>
+      {isOwner && employeeModal && (
+        <Modal
+          title={employeeModal.mode === 'edit' ? 'Edit Employee' : 'Add Employee'}
+          onClose={() => setEmployeeModal(null)}
+        >
           <EmployeeForm
+            key={employeeModal.mode === 'edit' ? employeeModal.employee.id : 'new'}
             branches={tenantBranches}
             isOwner={isOwner}
+            initial={employeeModal.mode === 'edit' ? employeeModal.employee : undefined}
             onSubmit={async (data) => {
-              await vm.createEmployee(data);
-              setEmployeeModalOpen(false);
+              if (employeeModal.mode === 'edit') {
+                await vm.updateEmployee(employeeModal.employee.id, data);
+              } else {
+                await vm.createEmployee(data);
+              }
+              setEmployeeModal(null);
             }}
           />
         </Modal>

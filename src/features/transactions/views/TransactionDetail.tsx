@@ -14,7 +14,21 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
           {new Date(transaction.timestamp).toLocaleString()}
         </span>
       </div>
-      <p className="text-sm text-ink-secondary mb-4">Branch: {transaction.branchName}</p>
+      <p className="text-sm text-ink-secondary mb-4">
+        Branch: {transaction.branchName}
+        {transaction.employeeName ? (
+          <>
+            {' · '}Cashier: <span className="font-medium text-ink-primary">{transaction.employeeName}</span>
+          </>
+        ) : null}
+        {transaction.orNumber || transaction.invoiceNumber ? (
+          <>
+            <br />
+            OR No.: <span className="font-medium text-ink-primary">{transaction.orNumber || '—'}</span>
+            {' · '}Invoice No.: <span className="font-medium text-ink-primary">{transaction.invoiceNumber || '—'}</span>
+          </>
+        ) : null}
+      </p>
       <div className="flex-1 overflow-x-auto">
         <table className="w-full text-base">
           <thead>

@@ -51,6 +51,7 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [catData, prodData, promoData] = await Promise.all([
         fetchCategories(),

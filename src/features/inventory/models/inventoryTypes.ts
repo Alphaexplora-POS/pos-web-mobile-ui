@@ -19,6 +19,10 @@ export interface InventoryAuditLog {
   branchName: string;
   action: string;
   quantityDelta: number;
+  reasonLabel: string;
+  notes: string | null;
+  performedBy: string;
+  performedByName: string;
   timestamp: string;
 }
 
@@ -26,7 +30,8 @@ export type InventoryAdjustAction = 'stock_in' | 'stock_out' | 'adjustment';
 
 export interface InventoryAdjustInput {
   branchId: string;
-  productVariantId: string;
+  productId: string;
+  productVariantId?: string;
   action: InventoryAdjustAction;
   quantity: number;
   unitCost?: number;

@@ -5,8 +5,7 @@ import { ICONS } from './icons';
 import type { IconType } from './icons';
 import { useRole } from '../hooks/useRole';
 import { useAuth } from '../../features/auth/hooks/useAuth';
-import { notifySessionExpired } from '../../features/auth/sessionExpiry';
-import { logout as logoutRequest } from '../../features/auth/models/authApi';
+
 import Modal from './Modal';
 import Spinner from './Spinner';
 import type { Role } from '../models/userTypes';
@@ -35,6 +34,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const visibleItems = ITEMS.filter((item) => item.roles.includes(role));
+  const branchesLabel = role === 'owner' ? 'Branches & Employees' : 'Employees';
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -62,11 +62,12 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm font-semibold shrink-0">
                 {session.firstName.charAt(0)}
-                {session.lastName.charAt(0)}
+                {role === 'owner' ? session.lastName.charAt(0) : ''}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-white font-medium truncate leading-tight">
-                  {session.firstName} {session.lastName}
+                  {session.firstName}
+                  {role === 'owner' ? ` ${session.lastName}` : ''}
                 </p>
                 <p className="text-white/60 truncate text-xs">{session.tenantName}</p>
               </div>
@@ -76,6 +77,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         <nav className="flex-1 py-4 overflow-y-auto">
           {visibleItems.map((item) => {
             const isActive = pathname === item.to;
+            const label = item.to === '/branches' ? branchesLabel : item.label;
             return (
               <Link
                 key={item.to}
@@ -87,7 +89,7 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                 }`}
               >
                 {ICONS[item.icon]}
-                <span>{item.label}</span>
+                <span>{label}</span>
               </Link>
             );
           })}
@@ -98,19 +100,6 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
             onClick={() => setConfirmLogout(true)}
           >
             Sign out
-          </button>
-          <button
-            className="w-full text-xs px-3 py-2 rounded border border-dashed border-white/20 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors"
-            onClick={async () => {
-              try {
-                await logoutRequest();
-              } catch {
-                /* token already invalid — that's the point of the simulation */
-              }
-              notifySessionExpired();
-            }}
-          >
-            Simulate session expiry
           </button>
         </div>
       </aside>

@@ -8,6 +8,7 @@ import {
   activateBranch,
   fetchEmployees,
   createEmployee,
+  updateEmployee,
   deactivateEmployee,
   activateEmployee,
 } from '../models/branchesApi';
@@ -20,6 +21,7 @@ export const useBranchesViewModel = () => {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [branchData, empData] = await Promise.all([fetchBranches(), fetchEmployees()]);
       setBranches(branchData);
@@ -65,6 +67,12 @@ export const useBranchesViewModel = () => {
     await load();
   };
 
+  const handleUpdateEmployee = async (id: string, input: CreateEmployeeInput) => {
+    await updateEmployee(id, input);
+    notifySuccess('Employee updated');
+    await load();
+  };
+
   const handleDeactivateEmployee = async (id: string) => {
     await deactivateEmployee(id);
     notifySuccess('Employee deactivated');
@@ -87,6 +95,7 @@ export const useBranchesViewModel = () => {
     deactivateBranch: handleDeactivateBranch,
     activateBranch: handleActivateBranch,
     createEmployee: handleCreateEmployee,
+    updateEmployee: handleUpdateEmployee,
     deactivateEmployee: handleDeactivateEmployee,
     activateEmployee: handleActivateEmployee,
   };

@@ -1,33 +1,7 @@
 import type { AnalyticsData, BranchComparison, SalesMetrics, TopProduct } from './analyticsTypes';
 import { apiRequest } from '../../../shared/models/apiClient';
-import { fetchBranches } from '../../../shared/models/branchesApi';
-
-const PH_TIME_ZONE = 'Asia/Manila';
-
-const toPHDate = (date: Date): string =>
-  new Intl.DateTimeFormat('en-CA', {
-    timeZone: PH_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date);
-
-const today = (): string => toPHDate(new Date());
-
-const monthStart = (): string => {
-  const [year, month] = today().split('-');
-  return `${year}-${month}-01`;
-};
 
 const num = (value: unknown): number => Number(value ?? 0) || 0;
-
-const pickNum = (row: SummaryRow | undefined, ...keys: (keyof SummaryRow)[]): number => {
-  if (!row) return 0;
-  for (const key of keys) {
-    if (row[key] !== undefined) return num(row[key]);
-  }
-  return 0;
-};
 
 const zeroMetrics = (): SalesMetrics => ({
   salesToday: 0,
@@ -36,139 +10,103 @@ const zeroMetrics = (): SalesMetrics => ({
   transactionCountMonthly: 0,
 });
 
-interface SummaryRow {
-  totalTransactions?: unknown;
-  grossSales?: unknown;
-  totalDiscounts?: unknown;
-  netSales?: unknown;
-  totalRefunded?: unknown;
-  total_transactions?: unknown;
-  gross_sales?: unknown;
-  total_discounts?: unknown;
-  net_sales?: unknown;
-  total_refunded?: unknown;
+interface OverviewBranchRow {
+  branch_id?: string;
+  branch_name?: string;
+  tx_today?: unknown;
+  gross_today?: unknown;
+  disc_today?: unknown;
+  net_today?: unknown;
+  refund_today?: unknown;
+  tx_range?: unknown;
+  gross_range?: unknown;
+  disc_range?: unknown;
+  net_range?: unknown;
+  refund_range?: unknown;
 }
 
-interface DailySummaryPayload {
-  daily_summary?: SummaryRow;
-  monthly_summary?: SummaryRow;
-}
-
-const toSummary = (row: SummaryRow | undefined) => ({
-  totalTransactions: pickNum(row, 'totalTransactions', 'total_transactions'),
-  grossSales: pickNum(row, 'grossSales', 'gross_sales'),
-  totalDiscounts: pickNum(row, 'totalDiscounts', 'total_discounts'),
-  netSales: pickNum(row, 'netSales', 'net_sales'),
-  totalRefunded: pickNum(row, 'totalRefunded', 'total_refunded'),
-});
-
-const fetchDailySummary = async (branchId: string) => {
-  const data = await apiRequest<DailySummaryPayload>(
-    `/analytics/daily-summary?branch_id=${encodeURIComponent(branchId)}&sale_date=${today()}`,
-  );
-  return toSummary(data.daily_summary);
-};
-
-const fetchMonthlySummary = async (branchId: string) => {
-  const data = await apiRequest<DailySummaryPayload>(
-    `/analytics/daily-summary?branch_id=${encodeURIComponent(branchId)}&date_from=${monthStart()}&date_to=${today()}`,
-  );
-  return toSummary(data.monthly_summary);
-};
-
-interface RankingItem {
+interface OverviewRankingItem {
   productName?: string;
   revenue?: unknown;
 }
 
-interface RankingPayload {
-  rankings?: RankingItem[];
-  branch_rankings?: { branch_id: string; products: RankingItem[] }[];
+interface OverviewBranchRanking {
+  branch_id?: string;
+  products?: OverviewRankingItem[];
 }
 
-const fetchBranchRanking = async (branchIds: string[]): Promise<TopProduct[]> => {
-  if (!branchIds.length) return [];
-  const params = new URLSearchParams({
-    branch_ids: branchIds.join(','),
-    period_type: 'monthly',
-    period: monthStart(),
-    limit: '10',
-  });
-  const data = await apiRequest<RankingPayload>(`/analytics/product-ranking?${params.toString()}`);
-  const items = Array.isArray(data.rankings)
-    ? data.rankings
-    : (data.branch_rankings ?? []).flatMap((entry) => entry.products);
+interface OverviewPayload {
+  branches?: OverviewBranchRow[];
+  branch_rankings?: OverviewBranchRanking[];
+}
 
-  const revenueByName = new Map<string, number>();
-  for (const item of items) {
+const ANALYTICS_CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
+
+const topFrom = (items: OverviewRankingItem[] | undefined, limit = 5): TopProduct[] => {
+  const byName = new Map<string, number>();
+  for (const item of items ?? []) {
     const name = item?.productName;
     if (!name) continue;
-    revenueByName.set(name, (revenueByName.get(name) ?? 0) + num(item.revenue));
+    byName.set(name, (byName.get(name) ?? 0) + num(item.revenue));
   }
-
-  return [...revenueByName.entries()]
+  return [...byName.entries()]
     .map(([productName, sales]) => ({ productName, sales }))
     .sort((a, b) => b.sales - a.sales)
-    .slice(0, 5);
+    .slice(0, limit);
 };
 
-export const fetchBranchTopProducts = async (branchId: string): Promise<TopProduct[]> => {
-  return fetchBranchRanking([branchId]);
+const toBranch = (row: OverviewBranchRow, rankings: OverviewBranchRanking[]): BranchComparison => {
+  const branchRanking = rankings.find((r) => r.branch_id === row.branch_id)?.products;
+  return {
+    branchId: row.branch_id ?? '',
+    branchName: row.branch_name ?? 'Branch',
+    salesToday: num(row.net_today),
+    salesMonthly: num(row.net_range),
+    transactionCountToday: num(row.tx_today),
+    transactionCountMonthly: num(row.tx_range),
+    topProducts: topFrom(branchRanking),
+  };
 };
 
-export const fetchCompanyAnalytics = async (): Promise<AnalyticsData> => {
-  const branches = (await fetchBranches()).filter((branch) => branch.isActive);
-  if (!branches.length) {
-    return { metrics: zeroMetrics(), topProducts: [], branchComparison: [] };
-  }
+export const fetchAnalyticsOverview = async (): Promise<AnalyticsData> => {
+  const data = await apiRequest<OverviewPayload>('/analytics/overview', ANALYTICS_CACHE_OPTIONS);
+  const branchRankings = data.branch_rankings ?? [];
+  const branchComparison = (data.branches ?? []).map((row) => toBranch(row, branchRankings));
 
-  const summaries = await Promise.all(
-    branches.map(async (branch) => {
-      const [daily, monthly] = await Promise.all([fetchDailySummary(branch.id), fetchMonthlySummary(branch.id)]);
-      return { branch, daily, monthly };
-    }),
-  );
-
-  const metrics = summaries.reduce<SalesMetrics>(
-    (acc, { daily, monthly }) => ({
-      salesToday: acc.salesToday + daily.netSales,
-      salesMonthly: acc.salesMonthly + monthly.netSales,
-      transactionCountToday: acc.transactionCountToday + daily.totalTransactions,
-      transactionCountMonthly: acc.transactionCountMonthly + monthly.totalTransactions,
+  const metrics = branchComparison.reduce<SalesMetrics>(
+    (acc, b) => ({
+      salesToday: acc.salesToday + b.salesToday,
+      salesMonthly: acc.salesMonthly + b.salesMonthly,
+      transactionCountToday: acc.transactionCountToday + (b.transactionCountToday ?? 0),
+      transactionCountMonthly: acc.transactionCountMonthly + (b.transactionCountMonthly ?? 0),
     }),
     zeroMetrics(),
   );
 
-  const branchComparison: BranchComparison[] = summaries.map(({ branch, daily, monthly }) => ({
-    branchId: branch.id,
-    branchName: branch.name,
-    salesToday: daily.netSales,
-    salesMonthly: monthly.netSales,
-  }));
+  const allItems = branchRankings.flatMap((r) => r.products ?? []);
 
-  const topProducts = await fetchBranchRanking(branches.map((branch) => branch.id));
+  return { metrics, topProducts: topFrom(allItems), branchComparison };
+};
 
-  return { metrics, topProducts, branchComparison };
+export const fetchCompanyAnalytics = async (): Promise<AnalyticsData> => {
+  return fetchAnalyticsOverview();
 };
 
 export const fetchBranchAnalytics = async (branchId: string): Promise<AnalyticsData> => {
-  const [daily, monthly, branches] = await Promise.all([
-    fetchDailySummary(branchId),
-    fetchMonthlySummary(branchId),
-    fetchBranches(),
-  ]);
-
-  const branchName = branches.find((branch) => branch.id === branchId)?.name;
-  const topProducts = await fetchBranchRanking([branchId]);
-
+  const overview = await fetchAnalyticsOverview();
+  const branch = (overview.branchComparison ?? []).find((b) => b.branchId === branchId);
+  if (!branch) {
+    return { metrics: zeroMetrics(), topProducts: [], branchComparison: [] };
+  }
   return {
-    branchName,
+    branchName: branch.branchName,
     metrics: {
-      salesToday: daily.netSales,
-      salesMonthly: monthly.netSales,
-      transactionCountToday: daily.totalTransactions,
-      transactionCountMonthly: monthly.totalTransactions,
+      salesToday: branch.salesToday,
+      salesMonthly: branch.salesMonthly,
+      transactionCountToday: branch.transactionCountToday ?? 0,
+      transactionCountMonthly: branch.transactionCountMonthly ?? 0,
     },
-    topProducts,
+    topProducts: branch.topProducts,
+    branchComparison: overview.branchComparison,
   };
 };

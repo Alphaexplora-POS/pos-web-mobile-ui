@@ -6,11 +6,17 @@ import { ConfigurationSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import Select from '../../../shared/components/Select';
 import Modal from '../../../shared/components/Modal';
+import LoadingButton from '../../../shared/components/LoadingButton';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
+import { useServerPagination } from '../../../shared/hooks/useServerPagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useUrlSection } from '../../../shared/hooks/useUrlSection';
+import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import ViewportTable from '../../../shared/components/ViewportTable';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
 import { paymentMethodSchema, reasonCodeSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { fetchPaymentMethodsPage, fetchReasonCodesPage } from '../models/configApi';
 
 type ReasonType = 'refund' | 'inventory';
 
@@ -49,8 +55,27 @@ const ActionButton: React.FC<{
 
 const Configuration: React.FC = () => {
   const vm = useConfigViewModel();
-  const loading = useMinimumLoading(vm.isLoading);
-  const [activeSection, setActiveSection] = useState<'payment' | 'reasons'>('payment');
+  const [tableHeight, setTableHeight] = useState<number>(0);
+  const [rowHeight, setRowHeight] = useState<number>(0);
+  const [activeSection, setActiveSection] = useUrlSection<'payment' | 'reasons'>(
+    'section',
+    'payment',
+    (v) => (v === 'reasons' ? 'reasons' : 'payment'),
+  );
+
+  const pageSize = useResponsivePageSize(tableHeight, rowHeight);
+  const paymentPage = useServerPagination(
+    (page) => fetchPaymentMethodsPage(page),
+    pageSize,
+    { deps: [], queryKey: ['payment-methods'] },
+  );
+  const reasonPage = useServerPagination(
+    (page) => fetchReasonCodesPage(page),
+    pageSize,
+    { deps: [], queryKey: ['reason-codes'] },
+  );
+
+  const loading = (paymentPage.loading || reasonPage.loading) && paymentPage.totalCount === 0 && reasonPage.totalCount === 0;
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [payName, setPayName] = useState('');
@@ -73,11 +98,17 @@ const Configuration: React.FC = () => {
     onConfirm: () => void | Promise<void>;
   } | null>(null);
 
-  if (loading) return <ConfigurationSkeleton />;
-  if (vm.error) return <ErrorState message={vm.error} />;
+  const [paySubmitting, setPaySubmitting] = useState(false);
+  const [editPaySubmitting, setEditPaySubmitting] = useState(false);
+  const [reasonSubmitting, setReasonSubmitting] = useState(false);
+  const [editReasonSubmitting, setEditReasonSubmitting] = useState(false);
 
-  const editingPayment = vm.paymentMethods.find((m) => m.id === editingPayId);
-  const editingReason = vm.reasonCodes.find((r) => r.id === editingReasonId);
+  if (loading) return <ConfigurationSkeleton />;
+  const loadError = vm.error ?? paymentPage.error ?? reasonPage.error;
+  if (loadError) return <ErrorState message={loadError} />;
+
+  const editingPayment = paymentPage.items.find((m) => m.id === editingPayId);
+  const editingReason = reasonPage.items.find((r) => r.id === editingReasonId);
 
   const openAddPayment = () => {
     setPayName('');
@@ -91,24 +122,36 @@ const Configuration: React.FC = () => {
     setReasonModalOpen(true);
   };
 
-  const submitPayment = () => {
+  const submitPayment = async () => {
     const check = paymentMethodSchema.safeParse({ name: payName, type: payType });
     if (!check.success) {
       toast.error(firstZodMessage(check.error));
       return;
     }
-    vm.createPaymentMethod(payName, payType);
-    setPaymentModalOpen(false);
+    setPaySubmitting(true);
+    try {
+      await vm.createPaymentMethod(payName, payType);
+      paymentPage.reset();
+      setPaymentModalOpen(false);
+    } finally {
+      setPaySubmitting(false);
+    }
   };
 
-  const submitReason = () => {
+  const submitReason = async () => {
     const check = reasonCodeSchema.safeParse({ label: reasonName, type: reasonType });
     if (!check.success) {
       toast.error(firstZodMessage(check.error));
       return;
     }
-    vm.createReasonCode(reasonName, reasonType);
-    setReasonModalOpen(false);
+    setReasonSubmitting(true);
+    try {
+      await vm.createReasonCode(reasonName, reasonType);
+      reasonPage.reset();
+      setReasonModalOpen(false);
+    } finally {
+      setReasonSubmitting(false);
+    }
   };
 
   return (
@@ -148,59 +191,72 @@ const Configuration: React.FC = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            {vm.paymentMethods.length === 0 ? (
-              <TableEmptyState message="No payment methods yet" />
-            ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="bg-canvas border-b border-line">
-                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
-                  <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vm.paymentMethods.map((m) => (
-                  <tr key={m.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{m.name}</td>
-                    <td className="py-3.5 text-ink-secondary">{m.type}</td>
-                    <td className="py-3.5">
-                      <StatusBadge isActive={m.isActive} />
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <ActionButton
-                          onClick={() => {
-                            setEditingPayId(m.id);
-                            setEditPayName(m.name);
-                            setEditPayType(m.type as PaymentMethodType);
-                          }}
-                        >
-                          Edit
-                        </ActionButton>
-                        <ActionButton
-                          variant="danger"
-                          onClick={() =>
-                            setConfirmState({
-                              title: m.isActive ? 'Deactivate Payment Method' : 'Reactivate Payment Method',
-                              message: `${m.isActive ? 'Deactivate' : 'Reactivate'} payment method "${m.name}"?`,
-                              confirmLabel: m.isActive ? 'Deactivate' : 'Reactivate',
-                              onConfirm: () => vm.togglePaymentMethod(m.id, !m.isActive),
-                            })
-                          }
-                        >
-                          {m.isActive ? 'Deactivate' : 'Reactivate'}
-                        </ActionButton>
-                      </div>
-                    </td>
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {paymentPage.items.length === 0 ? (
+                <TableEmptyState message="No payment methods yet" />
+              ) : (
+              <table className="w-full text-base">
+                <thead>
+                  <tr className="bg-canvas border-b border-line">
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                    <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paymentPage.items.map((m) => (
+                    <tr key={m.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{m.name}</td>
+                      <td className="py-3.5 text-ink-secondary">{m.type}</td>
+                      <td className="py-3.5">
+                        <StatusBadge isActive={m.isActive} />
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <ActionButton
+                            onClick={() => {
+                              setEditingPayId(m.id);
+                              setEditPayName(m.name);
+                              setEditPayType(m.type as PaymentMethodType);
+                            }}
+                          >
+                            Edit
+                          </ActionButton>
+                          <ActionButton
+                            variant="danger"
+                            onClick={() =>
+                              setConfirmState({
+                                title: m.isActive ? 'Deactivate Payment Method' : 'Reactivate Payment Method',
+                                message: `${m.isActive ? 'Deactivate' : 'Reactivate'} payment method "${m.name}"?`,
+                                confirmLabel: m.isActive ? 'Deactivate' : 'Reactivate',
+                                onConfirm: () =>
+                                  vm.togglePaymentMethod(m.id, !m.isActive).then(() => paymentPage.reset()),
+                              })
+                            }
+                          >
+                            {m.isActive ? 'Deactivate' : 'Reactivate'}
+                          </ActionButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+            {paymentPage.totalCount > 0 && (
+              <Pagination
+                page={paymentPage.page}
+                totalPages={paymentPage.totalPages}
+                onPageChange={paymentPage.goToPage}
+                totalCount={paymentPage.totalCount}
+                pageStart={paymentPage.pageStart}
+                pageEnd={paymentPage.pageEnd}
+              />
             )}
-          </div>
+          </ViewportTable>
         </div>
       )}
 
@@ -216,59 +272,71 @@ const Configuration: React.FC = () => {
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            {vm.reasonCodes.length === 0 ? (
-              <TableEmptyState message="No reason codes yet" />
-            ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="bg-canvas border-b border-line">
-                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
-                  <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vm.reasonCodes.map((r) => (
-                  <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
-                    <td className="py-3.5 pl-4 font-medium text-ink-primary">{r.name}</td>
-                    <td className="py-3.5 text-ink-secondary">{r.type}</td>
-                    <td className="py-3.5">
-                      <StatusBadge isActive={r.isActive} />
-                    </td>
-                    <td className="py-3.5 pr-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <ActionButton
-                          onClick={() => {
-                            setEditingReasonId(r.id);
-                            setEditReasonName(r.name);
-                            setEditReasonType(r.type);
-                          }}
-                        >
-                          Edit
-                        </ActionButton>
-                        <ActionButton
-                          variant="danger"
-                          onClick={() =>
-                            setConfirmState({
-                              title: r.isActive ? 'Deactivate Reason Code' : 'Reactivate Reason Code',
-                              message: `${r.isActive ? 'Deactivate' : 'Reactivate'} reason code "${r.name}"?`,
-                              confirmLabel: r.isActive ? 'Deactivate' : 'Reactivate',
-                              onConfirm: () => vm.toggleReasonCode(r.id, !r.isActive),
-                            })
-                          }
-                        >
-                          {r.isActive ? 'Deactivate' : 'Reactivate'}
-                        </ActionButton>
-                      </div>
-                    </td>
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {reasonPage.items.length === 0 ? (
+                <TableEmptyState message="No reason codes yet" />
+              ) : (
+              <table className="w-full text-base">
+                <thead>
+                  <tr className="bg-canvas border-b border-line">
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Type</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
+                    <th className="py-3 pr-4 text-right font-semibold text-ink-muted">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {reasonPage.items.map((r) => (
+                    <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{r.name}</td>
+                      <td className="py-3.5 text-ink-secondary">{r.type}</td>
+                      <td className="py-3.5">
+                        <StatusBadge isActive={r.isActive} />
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <ActionButton
+                            onClick={() => {
+                              setEditingReasonId(r.id);
+                              setEditReasonName(r.name);
+                              setEditReasonType(r.type);
+                            }}
+                          >
+                            Edit
+                          </ActionButton>
+                          <ActionButton
+                            variant="danger"
+                            onClick={() =>
+                              setConfirmState({
+                                title: r.isActive ? 'Deactivate Reason Code' : 'Reactivate Reason Code',
+                                message: `${r.isActive ? 'Deactivate' : 'Reactivate'} reason code "${r.name}"?`,
+                                confirmLabel: r.isActive ? 'Deactivate' : 'Reactivate',
+                                onConfirm: () => vm.toggleReasonCode(r.id, !r.isActive).then(() => reasonPage.reset()),
+                              })
+                            }
+                          >
+                            {r.isActive ? 'Deactivate' : 'Reactivate'}
+                          </ActionButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              )}
+            </div>
+            {reasonPage.totalCount > 0 && (
+              <Pagination
+                page={reasonPage.page}
+                totalPages={reasonPage.totalPages}
+                onPageChange={reasonPage.goToPage}
+                totalCount={reasonPage.totalCount}
+                pageStart={reasonPage.pageStart}
+                pageEnd={reasonPage.pageEnd}
+              />
             )}
-          </div>
+          </ViewportTable>
         </div>
       )}
 
@@ -309,12 +377,9 @@ const Configuration: React.FC = () => {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="text-sm px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
-              >
+              <LoadingButton loading={paySubmitting} loadingLabel="Adding…" className="text-sm px-4 py-2">
                 Add
-              </button>
+              </LoadingButton>
             </div>
           </form>
         </Modal>
@@ -324,15 +389,21 @@ const Configuration: React.FC = () => {
         <Modal title="Edit payment method" onClose={() => setEditingPayId(null)}>
           <form
             className="space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const check = paymentMethodSchema.safeParse({ name: editPayName, type: editPayType });
               if (!check.success) {
                 toast.error(firstZodMessage(check.error));
                 return;
               }
-              vm.updatePaymentMethod(editingPayment.id, editPayName, editPayType);
-              setEditingPayId(null);
+              setEditPaySubmitting(true);
+              try {
+                await vm.updatePaymentMethod(editingPayment.id, editPayName, editPayType);
+                paymentPage.reset();
+                setEditingPayId(null);
+              } finally {
+                setEditPaySubmitting(false);
+              }
             }}
           >
             <div>
@@ -362,12 +433,9 @@ const Configuration: React.FC = () => {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="text-sm px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
-              >
+              <LoadingButton loading={editPaySubmitting} loadingLabel="Saving…" className="text-sm px-4 py-2">
                 Save
-              </button>
+              </LoadingButton>
             </div>
           </form>
         </Modal>
@@ -410,12 +478,9 @@ const Configuration: React.FC = () => {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="text-sm px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
-              >
+              <LoadingButton loading={reasonSubmitting} loadingLabel="Adding…" className="text-sm px-4 py-2">
                 Add
-              </button>
+              </LoadingButton>
             </div>
           </form>
         </Modal>
@@ -425,15 +490,21 @@ const Configuration: React.FC = () => {
         <Modal title="Edit reason code" onClose={() => setEditingReasonId(null)}>
           <form
             className="space-y-4"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const check = reasonCodeSchema.safeParse({ label: editReasonName, type: editReasonType });
               if (!check.success) {
                 toast.error(firstZodMessage(check.error));
                 return;
               }
-              vm.updateReasonCode(editingReason.id, editReasonName, editReasonType);
-              setEditingReasonId(null);
+              setEditReasonSubmitting(true);
+              try {
+                await vm.updateReasonCode(editingReason.id, editReasonName, editReasonType);
+                reasonPage.reset();
+                setEditingReasonId(null);
+              } finally {
+                setEditReasonSubmitting(false);
+              }
             }}
           >
             <div>
@@ -463,12 +534,9 @@ const Configuration: React.FC = () => {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="text-sm px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
-              >
+              <LoadingButton loading={editReasonSubmitting} loadingLabel="Saving…" className="text-sm px-4 py-2">
                 Save
-              </button>
+              </LoadingButton>
             </div>
           </form>
         </Modal>

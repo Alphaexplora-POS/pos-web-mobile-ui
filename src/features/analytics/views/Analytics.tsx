@@ -7,74 +7,36 @@ import ErrorState from '../../../shared/components/ErrorState';
 import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
 import Select from '../../../shared/components/Select';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
-import { fetchBranches } from '../../../shared/models/branchesApi';
-import { fetchBranchAnalytics } from '../models/analyticsApi';
-import type { Branch } from '../../../shared/models/branchTypes';
 import type { TopProduct } from '../models/analyticsTypes';
 
 const Analytics: React.FC = () => {
   const { isOwner } = useRole();
   const { session } = useAuth();
   const [selectedBranch, setSelectedBranch] = useState<string>('');
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedTopProducts, setSelectedTopProducts] = useState<TopProduct[]>([]);
   const [branchSales, setBranchSales] = useState<{ today: number; monthly: number } | null>(null);
-  const [isBranchLoading, setIsBranchLoading] = useState(false);
-  const [branchError, setBranchError] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useAnalyticsViewModel(
-    isOwner,
-    session?.branchId ?? null,
-  );
-  const loading = useMinimumLoading(isLoading);
-
-  useEffect(() => {
-    if (!isOwner) return;
-    setBranches([]);
-    fetchBranches()
-      .then((all) => setBranches(all.filter((b) => b.isActive)))
-      .catch(() => {});
-  }, [isOwner]);
+  const { data, isLoading, error } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
 
   useEffect(() => {
     if (!isOwner) return;
     if (!selectedBranch) {
       setSelectedTopProducts(data?.topProducts ?? []);
+      setBranchSales(null);
       return;
     }
-    let active = true;
-    setIsBranchLoading(true);
-    setBranchError(null);
-    setBranchSales(null);
-    fetchBranchAnalytics(selectedBranch)
-      .then((analytics) => {
-        if (!active) return;
-        setSelectedTopProducts(analytics.topProducts);
-        setBranchSales({
-          today: analytics.metrics.salesToday,
-          monthly: analytics.metrics.salesMonthly,
-        });
-      })
-      .catch((err) => {
-        if (active) setBranchError(err instanceof Error ? err.message : 'Failed to load branch products');
-      })
-      .finally(() => {
-        if (active) setIsBranchLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [isOwner, selectedBranch, data?.topProducts]);
+    const entry = data?.branchComparison?.find((b) => b.branchId === selectedBranch);
+    setSelectedTopProducts(entry?.topProducts ?? []);
+    setBranchSales(entry ? { today: entry.salesToday, monthly: entry.salesMonthly } : null);
+  }, [isOwner, selectedBranch, data]);
 
   const branchOptions = [
     { value: '', label: 'All branches' },
-    ...branches.map((b) => ({ value: b.id, label: b.name })),
+    ...(data?.branchComparison ?? []).map((b) => ({ value: b.branchId, label: b.branchName })),
   ];
 
-  if (loading) return <AnalyticsSkeleton title={isOwner ? 'Centralized Analytics' : 'Branch Analytics'} owner={isOwner} />;
   if (error) return <ErrorState message={error} />;
-  if (!data) return null;
+  if (isLoading || !data) return <AnalyticsSkeleton title={isOwner ? 'Centralized Analytics' : 'Branch Analytics'} owner={isOwner} />;
 
   if (!isOwner) {
     return (
@@ -87,7 +49,7 @@ const Analytics: React.FC = () => {
           <div className="bg-white rounded-lg border border-line p-6">
             <h3 className="text-sm text-ink-muted">Sales Today</h3>
             <p className="text-3xl font-bold text-ink-primary mt-1">
-              ${data.metrics.salesToday.toFixed(2)}
+              ₱{data.metrics.salesToday.toFixed(2)}
             </p>
             <p className="text-sm text-ink-muted mt-1">
               {data.metrics.transactionCountToday} transactions
@@ -96,7 +58,7 @@ const Analytics: React.FC = () => {
           <div className="bg-white rounded-lg border border-line p-6">
             <h3 className="text-sm text-ink-muted">Sales Monthly</h3>
             <p className="text-3xl font-bold text-ink-primary mt-1">
-              ${data.metrics.salesMonthly.toFixed(2)}
+              ₱{data.metrics.salesMonthly.toFixed(2)}
             </p>
             <p className="text-sm text-ink-muted mt-1">
               {data.metrics.transactionCountMonthly} transactions
@@ -117,7 +79,7 @@ const Analytics: React.FC = () => {
         <div className="bg-white rounded-lg border border-line p-6">
           <h3 className="text-sm text-ink-muted">Sales Today</h3>
           <p className="text-3xl font-bold text-ink-primary mt-1">
-            ${data.metrics.salesToday.toFixed(2)}
+            ₱{data.metrics.salesToday.toFixed(2)}
           </p>
           <p className="text-sm text-ink-muted mt-1">
             {data.metrics.transactionCountToday} transactions
@@ -126,7 +88,7 @@ const Analytics: React.FC = () => {
         <div className="bg-white rounded-lg border border-line p-6">
           <h3 className="text-sm text-ink-muted">Sales Monthly</h3>
           <p className="text-3xl font-bold text-ink-primary mt-1">
-            ${data.metrics.salesMonthly.toFixed(2)}
+            ₱{data.metrics.salesMonthly.toFixed(2)}
           </p>
           <p className="text-sm text-ink-muted mt-1">
             {data.metrics.transactionCountMonthly} transactions
@@ -146,31 +108,18 @@ const Analytics: React.FC = () => {
                 placeholder="All branches"
               />
             </div>
-            {isBranchLoading &&
-              <div className="mt-3 space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between gap-4">
-                    <span className="skeleton h-3 w-2/5 rounded" />
-                    <span className="skeleton h-3 w-10 rounded" />
-                  </div>
-                ))}
-              </div>
-            }
-            {branchError && (
-              <span className="block mt-2 text-sm text-error">{branchError}</span>
-            )}
-            {selectedBranch && !isBranchLoading && branchSales && (
+            {selectedBranch && branchSales && (
               <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line p-4">
                 <div>
                   <p className="text-xs text-ink-muted">Branch Sales Today</p>
                   <p className="text-lg font-semibold text-ink-primary mt-1">
-                    ${branchSales.today.toFixed(2)}
+                    ₱{branchSales.today.toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-ink-muted">Branch Sales Monthly</p>
                   <p className="text-lg font-semibold text-ink-primary mt-1">
-                    ${branchSales.monthly.toFixed(2)}
+                    ₱{branchSales.monthly.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -203,13 +152,13 @@ const Analytics: React.FC = () => {
                     <div>
                       <p className="text-xs text-ink-muted">Today</p>
                       <p className="text-sm font-semibold text-ink-primary">
-                        ${b.salesToday.toFixed(2)}
+                        ₱{b.salesToday.toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-ink-muted">This Month</p>
                       <p className="text-sm font-semibold text-ink-primary">
-                        ${b.salesMonthly.toFixed(2)}
+                        ₱{b.salesMonthly.toFixed(2)}
                       </p>
                     </div>
                   </div>

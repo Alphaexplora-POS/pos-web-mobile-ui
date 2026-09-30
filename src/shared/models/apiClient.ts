@@ -48,21 +48,21 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'cache'> {
   cacheTtlMs?: number;
 }
 
-export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Promise<T> => {
-  const { cache: useCache = false, cacheTtlMs, ...rest } = init ?? {};
-  const cacheKey = useCache && (rest.method ?? 'GET') === 'GET' ? `GET ${path}` : null;
-  const cached = cacheKey ? getCache<T>(cacheKey) : undefined;
-  if (cached !== undefined) return cached;
+const RETRYABLE_503 = 503;
+const RETRY_COOLDOWN_MS = 2_000;
 
+class RetryableError extends Error {}
+
+const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
-    ...rest,
+    ...init,
     headers:
-      rest?.body instanceof FormData
-        ? rest?.headers
+      init?.body instanceof FormData
+        ? init?.headers
         : {
             'Content-Type': 'application/json',
-            ...rest?.headers,
+            ...init?.headers,
           },
   });
   const data = await res.json();
@@ -73,13 +73,33 @@ export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Pro
       notifySessionExpired();
       throw new Error(message);
     }
-    const method = rest?.method ?? 'GET';
+    const method = init?.method ?? 'GET';
+    if (res.status === RETRYABLE_503 && method === 'GET') {
+      throw new RetryableError(message);
+    }
     if (method !== 'GET') {
       toast.error(message);
     }
     throw new Error(message);
   }
-  const value = unwrapData<T>(data);
-  if (cacheKey !== null) setCache(cacheKey, value, cacheTtlMs);
-  return value;
+  return unwrapData<T>(data);
+};
+
+export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Promise<T> => {
+  const { cache: useCache = false, cacheTtlMs, ...rest } = init ?? {};
+  const cacheKey = useCache && (rest.method ?? 'GET') === 'GET' ? `GET ${path}` : null;
+  const cached = cacheKey ? getCache<T>(cacheKey) : undefined;
+  if (cached !== undefined) return cached;
+
+  try {
+    const value = await doFetch<T>(path, rest);
+    if (cacheKey !== null) setCache(cacheKey, value, cacheTtlMs);
+    return value;
+  } catch (err) {
+    if (!(err instanceof RetryableError)) throw err;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_COOLDOWN_MS));
+    const value = await doFetch<T>(path, rest);
+    if (cacheKey !== null) setCache(cacheKey, value, cacheTtlMs);
+    return value;
+  }
 };

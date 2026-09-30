@@ -9,13 +9,23 @@ import type {
   Promotion,
 } from './productTypes';
 import { apiRequest, invalidateCache, getCache } from '../../../shared/models/apiClient';
+import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
+const DETAIL_CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
 
 export const invalidateProductCaches = (): void => {
   invalidateCache('GET /catalog/products');
   invalidateCache('GET /catalog/categories');
   invalidateCache('GET /promotion/promotions');
+};
+
+export const invalidateVariantCache = (productId: string): void => {
+  invalidateCache(`GET /catalog/products/${productId}/variants`);
+};
+
+export const invalidateAttributeCache = (productId: string): void => {
+  invalidateCache(`GET /catalog/products/${productId}/attributes`);
 };
 
 interface RawProduct {
@@ -103,7 +113,7 @@ const toPromotion = (raw: Promotion & { applicableItems?: Promotion['applicableI
 
 export const getCachedCategories = (): Category[] => {
   const data = getCache<{ categories: { id: string; name: string; parentId: string | null; isActive: boolean }[] }>(
-    'GET /catalog/categories',
+    'GET /catalog/categories?limit=100',
   );
   return (data?.categories ?? []).map(toCategory);
 };
@@ -111,8 +121,16 @@ export const getCachedCategories = (): Category[] => {
 export const fetchCategories = async (): Promise<Category[]> => {
   const data = await apiRequest<{
     categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
-  }>('/catalog/categories', CACHE_OPTIONS);
+  }>('/catalog/categories?limit=100', CACHE_OPTIONS);
   return (data.categories ?? []).map(toCategory);
+};
+
+export const fetchCategoriesPage = async (page: number): Promise<ServerPage<Category>> => {
+  const data = await apiRequest<{
+    categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
+  }>(`/catalog/categories?page=${page}&limit=${SERVER_PAGE_SIZE}`);
+  const categories = (data.categories ?? []).map(toCategory);
+  return toServerPage<Category>({ ...data, categories }, 'categories');
 };
 
 export const createCategory = async (name: string, parentId: string | null): Promise<Category> => {
@@ -123,6 +141,7 @@ export const createCategory = async (name: string, parentId: string | null): Pro
       body: JSON.stringify({ name, parentId }),
     },
   );
+  invalidateProductCaches();
   return toCategory(data);
 };
 
@@ -134,6 +153,7 @@ export const updateCategory = async (id: string, name: string, parentId: string 
       body: JSON.stringify({ name, parentId }),
     },
   );
+  invalidateProductCaches();
   return toCategory(data);
 };
 
@@ -141,23 +161,27 @@ export const setCategoryActive = async (id: string, isActive: boolean): Promise<
   await apiRequest<unknown>(`/catalog/categories/${id}/${isActive ? 'activate' : 'deactivate'}`, {
     method: 'POST',
   });
+  invalidateProductCaches();
 };
 
 export const getCachedProducts = (): Product[] => {
-  const data = getCache<{ products: RawProduct[] }>('GET /catalog/products');
+  const data = getCache<{ products: RawProduct[] }>('GET /catalog/products?limit=100');
   return (data?.products ?? []).map(toProduct);
 };
 
 export const fetchProducts = async (branchId?: string | null): Promise<Product[]> => {
-  const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
-  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products${qs}`, CACHE_OPTIONS);
+  const params = new URLSearchParams({ limit: '100' });
+  if (branchId) params.set('branch_id', branchId);
+  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products?${params.toString()}`, CACHE_OPTIONS);
   return (data.products ?? []).map(toProduct);
 };
 
-export const fetchAllVariants = async (branchId?: string | null): Promise<ProductVariant[]> => {
-  const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : `?limit=100`;
-  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products${qs}`, CACHE_OPTIONS);
-  return (data.products ?? []).flatMap((p) => (p.variants ?? []).map(toVariant));
+export const fetchProductsPage = async (page: number, branchId?: string | null): Promise<ServerPage<Product>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+  if (branchId) params.set('branch_id', branchId);
+  const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products?${params.toString()}`);
+  const products = (data.products ?? []).map(toProduct);
+  return toServerPage<Product>({ ...data, products }, 'products');
 };
 
 export const createProduct = async (input: CreateProductInput): Promise<Product> => {
@@ -171,6 +195,7 @@ export const createProduct = async (input: CreateProductInput): Promise<Product>
       imageUrl: input.imageUrl,
     }),
   });
+  invalidateProductCaches();
   return toProduct(data);
 };
 
@@ -179,6 +204,7 @@ export const updateProduct = async (id: string, input: Partial<CreateProductInpu
     method: 'PATCH',
     body: JSON.stringify(input),
   });
+  invalidateProductCaches();
   return toProduct(data);
 };
 
@@ -187,6 +213,7 @@ export const setProductActive = async (id: string, isActive: boolean): Promise<v
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
+  invalidateProductCaches();
 };
 
 export const uploadProductImage = async (file: File): Promise<string> => {
@@ -200,7 +227,10 @@ export const uploadProductImage = async (file: File): Promise<string> => {
 };
 
 export const fetchVariants = async (productId: string): Promise<ProductVariant[]> => {
-  const data = await apiRequest<{ data: RawVariant[] }>(`/catalog/products/${productId}/variants`);
+  const data = await apiRequest<{ data: RawVariant[] }>(
+    `/catalog/products/${productId}/variants`,
+    DETAIL_CACHE_OPTIONS,
+  );
   return (Array.isArray(data) ? data : data.data ?? []).map(toVariant);
 };
 
@@ -216,6 +246,8 @@ export const createVariant = async (productId: string, input: CreateVariantInput
       costPrice: input.costPrice,
     }),
   });
+  invalidateProductCaches();
+  invalidateVariantCache(productId);
   return toVariant(data);
 };
 
@@ -224,6 +256,8 @@ export const updateVariant = async (productId: string, variantId: string, input:
     method: 'PATCH',
     body: JSON.stringify(input),
   });
+  invalidateProductCaches();
+  invalidateVariantCache(productId);
   return toVariant(data);
 };
 
@@ -232,10 +266,15 @@ export const setVariantActive = async (productId: string, variantId: string, isA
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
+  invalidateProductCaches();
+  invalidateVariantCache(productId);
 };
 
 export const fetchAttributes = async (productId: string): Promise<ProductAttribute[]> => {
-  const data = await apiRequest<{ data: RawAttribute[] }>(`/catalog/products/${productId}/attributes`);
+  const data = await apiRequest<{ data: RawAttribute[] }>(
+    `/catalog/products/${productId}/attributes`,
+    DETAIL_CACHE_OPTIONS,
+  );
   return (Array.isArray(data) ? data : data.data ?? []).map(toAttribute);
 };
 
@@ -244,6 +283,7 @@ export const createAttribute = async (productId: string, attributeKey: string, a
     method: 'POST',
     body: JSON.stringify({ attributeKey, attributeValue }),
   });
+  invalidateAttributeCache(productId);
   return toAttribute(data);
 };
 
@@ -252,17 +292,26 @@ export const updateAttribute = async (productId: string, id: string, attributeKe
     method: 'PATCH',
     body: JSON.stringify({ attributeKey, attributeValue }),
   });
+  invalidateAttributeCache(productId);
   return toAttribute(data);
 };
 
 export const getCachedPromotions = (): Promotion[] => {
-  const cached = getCache<{ promotions: Promotion[] }>('GET /promotion/promotions');
+  const cached = getCache<{ promotions: Promotion[] }>('GET /promotion/promotions?limit=100');
   return (cached?.promotions ?? []).map(toPromotion);
 };
 
 export const fetchPromotions = async (): Promise<Promotion[]> => {
-  const data = await apiRequest<{ promotions: Promotion[] }>('/promotion/promotions', CACHE_OPTIONS);
+  const data = await apiRequest<{ promotions: Promotion[] }>('/promotion/promotions?limit=100', CACHE_OPTIONS);
   return (data.promotions ?? []).map(toPromotion);
+};
+
+export const fetchPromotionsPage = async (page: number): Promise<ServerPage<Promotion>> => {
+  const data = await apiRequest<{ promotions: Promotion[] }>(
+    `/promotion/promotions?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+  );
+  const promotions = (data.promotions ?? []).map(toPromotion);
+  return toServerPage<Promotion>({ ...data, promotions }, 'promotions');
 };
 
 export const createPromotion = async (input: CreatePromoInput): Promise<Promotion> => {
@@ -276,6 +325,7 @@ export const createPromotion = async (input: CreatePromoInput): Promise<Promotio
       applicableItems: input.applicableItems,
     }),
   });
+  invalidateProductCaches();
   return {
     id: data.id,
     name: input.name,
@@ -299,4 +349,5 @@ export const setPromotionActive = async (id: string, isActive: boolean): Promise
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
+  invalidateProductCaches();
 };

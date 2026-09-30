@@ -64,47 +64,62 @@ const SkeletonSection: React.FC<{ action?: boolean; children?: React.ReactNode }
 
 
 
-export const ProductsSkeleton: React.FC = () => (
+export const ProductsSkeleton: React.FC<{ isOwner?: boolean }> = ({ isOwner = false }) => (
   <PageLayout title="Product Management">
     <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
       {['Products', 'Categories', 'Promotions'].map((t) => (
         <Skeleton key={t} className="h-8 w-24 rounded-md" />
       ))}
     </div>
-    <SkeletonSection action>
-      <SkeletonTable headers={['Name', 'Category', 'Price', 'Status']} rows={5} />
+    <SkeletonSection action={isOwner}>
+      <SkeletonTable
+        headers={
+          isOwner
+            ? ['Name', 'Category', 'Price', 'Variant', 'Attributes', 'Status', '', 'Summarize']
+            : ['Name', 'Category', 'Price', 'Variant', 'Attributes', 'Status', 'Summarize']
+        }
+        rows={5}
+      />
     </SkeletonSection>
   </PageLayout>
 );
 
-export const BranchesSkeleton: React.FC = () => (
-  <PageLayout title="Branch and Employees">
+export const BranchesSkeleton: React.FC<{ isOwner?: boolean }> = ({ isOwner = false }) => (
+  <PageLayout title={isOwner ? 'Branch and Employees' : 'Employees'}>
     <div className="mb-6 bg-white rounded-lg border border-line p-4 flex items-center gap-3">
       <Skeleton className="h-3 w-20 rounded" />
       <Skeleton className="h-3 w-40 rounded" />
     </div>
-    <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
-      {['Branches', 'Employees'].map((t) => (
-        <Skeleton key={t} className="h-8 w-24 rounded-md" />
-      ))}
-    </div>
-    <SkeletonSection action>
-      <div className="space-y-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-4 rounded-lg border border-line">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-32 rounded" />
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-14 rounded" />
-                <Skeleton className="h-7 w-14 rounded-md" />
-              </div>
-            </div>
-            <Skeleton className="h-3 w-2/3 mt-3 rounded" />
-            <Skeleton className="h-3 w-1/2 mt-2 rounded" />
-          </div>
+    {isOwner && (
+      <div className="mb-6 inline-flex items-center gap-1 rounded-lg border border-line bg-white p-1">
+        {['Branches', 'Employees'].map((t) => (
+          <Skeleton key={t} className="h-8 w-24 rounded-md" />
         ))}
       </div>
-    </SkeletonSection>
+    )}
+    {isOwner ? (
+      <SkeletonSection action>
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-4 rounded-lg border border-line">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-32 rounded" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-14 rounded" />
+                  <Skeleton className="h-7 w-14 rounded-md" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-2/3 mt-3 rounded" />
+              <Skeleton className="h-3 w-1/2 mt-2 rounded" />
+            </div>
+          ))}
+        </div>
+      </SkeletonSection>
+    ) : (
+      <SkeletonSection>
+        <SkeletonTable headers={['Name', 'Role', 'Branch', 'Status']} rows={5} />
+      </SkeletonSection>
+    )}
   </PageLayout>
 );
 
@@ -163,7 +178,7 @@ export const TransactionsSkeleton: React.FC = () => (
       ))}
     </div>
     <SkeletonSection>
-      <SkeletonTable headers={['Branch', 'Items', 'Payment', 'Date', 'Total']} rows={5} />
+      <SkeletonTable headers={['Branch', 'Cashier', 'Items', 'Payment', 'Date', 'Total']} rows={5} />
     </SkeletonSection>
   </PageLayout>
 );

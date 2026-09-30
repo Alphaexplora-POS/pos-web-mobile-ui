@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import Spinner from '../../../shared/components/Spinner';
 import type { Category, CreateProductInput, Product } from '../models/productTypes';
 import { productSchema, firstZodMessage } from '../../../shared/validation/schemas';
 import { uploadProductImage } from '../models/productsApi';
@@ -31,7 +32,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       setDescription(editingProduct.description);
       setBasePrice(String(editingProduct.basePrice));
       setCategoryId(editingProduct.categoryId);
-      setImageUrl(editingProduct.imageUrl);
+      setImageUrl(editingProduct.imageUrl ?? undefined);
     } else {
       setName('');
       setDescription('');
@@ -75,7 +76,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       description,
       basePrice: Number(basePrice),
       categoryId,
-      ...(imageUrl ? { imageUrl } : {}),
+      imageUrl: imageUrl ?? null,
     };
     setSubmitting(true);
     try {
@@ -112,7 +113,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
               <img src={imageUrl} alt="Preview" className="w-20 h-20 object-cover" />
             ) : (
               <div className="w-20 h-20 flex flex-col items-center justify-center text-ink-muted">
-                <span className="text-2xl leading-none">{uploading ? '…' : '+'}</span>
+                {uploading ? <Spinner /> : <span className="text-2xl leading-none">+</span>}
                 <span className="text-xs mt-1">{uploading ? 'Uploading' : 'Upload'}</span>
               </div>
             )}
@@ -120,10 +121,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
           <div className="flex flex-col gap-2">
             <button
               type="button"
-              className="text-sm px-4 py-1.5 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 text-sm px-4 py-1.5 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors disabled:opacity-50"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
             >
+              {uploading && <Spinner />}
               {uploading ? 'Uploading…' : imageUrl ? 'Change image' : 'Upload image'}
             </button>
             {imageUrl && (

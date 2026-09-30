@@ -1,5 +1,12 @@
 import type { InventoryAdjustInput, InventoryAuditLog, InventoryFilters, InventoryItem } from './inventoryTypes';
-import { apiRequest } from '../../../shared/models/apiClient';
+import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
+
+const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
+
+export const invalidateInventoryCache = (): void => {
+  invalidateCache('GET /inventory');
+};
 
 interface RawStockRow {
   id: string;
@@ -12,13 +19,15 @@ interface RawStockRow {
   branch_name?: string | null;
   size?: string | null;
   color?: string | null;
+  product_id?: string | null;
+  product_name?: string | null;
 }
 
 const toInventoryItem = (raw: RawStockRow): InventoryItem => ({
   id: raw.id,
-  productId: '',
+  productId: raw.product_id ?? '',
   productVariantId: raw.product_variant_id,
-  productName: raw.product_sku,
+  productName: raw.product_name ?? raw.product_sku,
   variantSku: raw.product_sku,
   branchId: raw.branch_id,
   branchName: raw.branch_name ?? '',
@@ -40,15 +49,21 @@ interface RawAuditLog {
   performed_by: string;
   performed_by_name: string;
   created_at: string;
+  branch_name?: string | null;
+  product_name?: string | null;
 }
 
 const toAuditLog = (raw: RawAuditLog): InventoryAuditLog => ({
   id: raw.id,
-  productName: raw.product_sku,
+  productName: raw.product_name ?? raw.product_sku,
   variantSku: raw.product_sku,
-  branchName: '',
+  branchName: raw.branch_name ?? '',
   action: raw.action === 'stock_in' ? 'Stock In' : raw.action === 'stock_out' ? 'Stock Out' : 'Stock Adjustment',
-  quantityDelta: raw.quantity_change,
+  quantityDelta: Math.abs(raw.quantity_change),
+  reasonLabel: raw.reason_label ?? '',
+  notes: raw.notes ?? null,
+  performedBy: raw.performed_by,
+  performedByName: raw.performed_by_name ?? '',
   timestamp: raw.created_at,
 });
 
@@ -59,6 +74,7 @@ export const adjustInventory = async (input: InventoryAdjustInput): Promise<Inve
       method: 'POST',
       body: JSON.stringify({
         branchId: input.branchId,
+        productId: input.productId,
         productVariantId: input.productVariantId,
         action: input.action,
         quantity: input.quantity,
@@ -69,6 +85,7 @@ export const adjustInventory = async (input: InventoryAdjustInput): Promise<Inve
       }),
     },
   );
+  invalidateCache('GET /inventory');
   return {
     id: data.auditLogId,
     productId: '',
@@ -83,20 +100,53 @@ export const adjustInventory = async (input: InventoryAdjustInput): Promise<Inve
 };
 
 export const fetchCombinedInventory = async (): Promise<InventoryItem[]> => {
-  const data = await apiRequest<{ inventory: RawStockRow[] }>('/inventory/?scope=global');
+  const data = await apiRequest<{ inventory: RawStockRow[] }>('/inventory/?scope=global&limit=100', CACHE_OPTIONS);
   return (data.inventory ?? []).map(toInventoryItem);
 };
 
+export const fetchInventoryPage = async (page: number, branchId?: string): Promise<ServerPage<InventoryItem>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+  if (branchId) {
+    params.set('branchId', branchId);
+  } else {
+    params.set('scope', 'global');
+  }
+  const data = await apiRequest<{ inventory: RawStockRow[] }>(`/inventory/?${params.toString()}`);
+  const inventory = (data.inventory ?? []).map(toInventoryItem);
+  return toServerPage<InventoryItem>({ ...data, inventory }, 'inventory');
+};
+
+export const fetchInventoryAuditLogsPage = async (
+  page: number,
+  filters?: InventoryFilters,
+): Promise<ServerPage<InventoryAuditLog>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+  if (filters?.branchId) params.set('branchId', filters.branchId);
+  if (filters?.productId) params.set('productVariantId', filters.productId);
+  const data = await apiRequest<{ auditLogs: RawAuditLog[] }>(
+    `/inventory/audit-logs?${params.toString()}`,
+  );
+  const auditLogs = (data.auditLogs ?? []).map(toAuditLog);
+  return toServerPage<InventoryAuditLog>({ ...data, auditLogs }, 'auditLogs');
+};
+
 export const fetchBranchInventory = async (branchId: string): Promise<InventoryItem[]> => {
-  const data = await apiRequest<{ inventory: RawStockRow[] }>(`/inventory/?branchId=${encodeURIComponent(branchId)}`);
+  const data = await apiRequest<{ inventory: RawStockRow[] }>(
+    `/inventory/?branchId=${encodeURIComponent(branchId)}&limit=100`,
+    CACHE_OPTIONS,
+  );
   return (data.inventory ?? []).map(toInventoryItem);
 };
 
 export const fetchInventoryAuditLogs = async (filters?: InventoryFilters): Promise<InventoryAuditLog[]> => {
   const params = new URLSearchParams();
+  params.set('limit', '100');
   if (filters?.branchId) params.set('branchId', filters.branchId);
   if (filters?.productId) params.set('productVariantId', filters.productId);
   const qs = params.toString();
-  const data = await apiRequest<{ auditLogs: RawAuditLog[] }>(`/inventory/audit-logs${qs ? `?${qs}` : ''}`);
+  const data = await apiRequest<{ auditLogs: RawAuditLog[] }>(
+    `/inventory/audit-logs${qs ? `?${qs}` : ''}`,
+    CACHE_OPTIONS,
+  );
   return (data.auditLogs ?? []).map(toAuditLog);
 };

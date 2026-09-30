@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import LoadingButton from '../../../shared/components/LoadingButton';
+import Spinner from '../../../shared/components/Spinner';
 import type { RefundStatus } from '../models/transactionTypes';
 import { useTransactionsViewModel } from '../viewModels/useTransactionsViewModel';
 import TransactionDetail from './TransactionDetail';
 import PageLayout from '../../../shared/components/PageLayout';
+import Modal from '../../../shared/components/Modal';
 import { TransactionsSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import { formatAmount } from '../../../shared/utils/formatCurrency';
@@ -12,7 +15,12 @@ import Select from '../../../shared/components/Select';
 import { useAuth } from '../../../features/auth/hooks/useAuth';
 import { useRole } from '../../../shared/hooks/useRole';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
-import { useMinimumLoading } from '../../../shared/hooks/useMinimumLoading';
+import { useServerPagination } from '../../../shared/hooks/useServerPagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useUrlSection } from '../../../shared/hooks/useUrlSection';
+import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import ViewportTable from '../../../shared/components/ViewportTable';
+import { fetchTransactionsPage, fetchRefundsPage } from '../models/transactionsApi';
 
 const statusChip: Record<RefundStatus, string> = {
   pending_approval: 'bg-warning/10 text-warning',
@@ -84,9 +92,9 @@ const NewRefundForm: React.FC<{
         </div>
       </div>
       {error && <p className="text-sm text-error">{error}</p>}
-      <button type="submit" disabled={submitting} className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark disabled:opacity-50 transition-colors">
-        {submitting ? 'Creating…' : 'Create Refund'}
-      </button>
+      <LoadingButton loading={submitting} loadingLabel="Creating…">
+        Create Refund
+      </LoadingButton>
     </form>
   );
 };
@@ -118,17 +126,19 @@ const RefundActions: React.FC<{
     return (
       <div className="flex items-center gap-2">
         <button
-          className="text-xs px-3 py-1 rounded-md bg-success-light text-success transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-md bg-success-light text-success transition-colors disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onApprove)}
         >
+          {busy && <Spinner />}
           Approve
         </button>
         <button
-          className="text-xs px-3 py-1 rounded-md bg-error/10 text-error transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-md bg-error/10 text-error transition-colors disabled:opacity-50"
           disabled={busy}
           onClick={() => run(onDeny)}
         >
+          {busy && <Spinner />}
           Deny
         </button>
         {error && <span className="text-xs text-error">{error}</span>}
@@ -146,13 +156,14 @@ const RefundActions: React.FC<{
           className="w-40"
         />
         <button
-          className="text-xs px-3 py-1 rounded bg-success-light text-success disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded bg-success-light text-success disabled:opacity-50"
           disabled={busy}
           onClick={() => {
             const method = paymentMethods.find((m) => m.id === paymentMethodId);
             run(() => onComplete(method?.id ?? '', method?.name ?? ''));
           }}
         >
+          {busy && <Spinner />}
           Complete
         </button>
         {error && <span className="text-xs text-error">{error}</span>}
@@ -165,10 +176,13 @@ const RefundActions: React.FC<{
 
 const Transactions: React.FC = () => {
   const vm = useTransactionsViewModel();
-  const loading = useMinimumLoading(vm.isLoading);
   const { session } = useAuth();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'history' | 'refunds'>('history');
+  const [activeTab, setActiveTab] = useUrlSection<'history' | 'refunds'>(
+    'tab',
+    'history',
+    (v) => (v === 'refunds' ? 'refunds' : 'history'),
+  );
   const { isOwner } = useRole();
   const [customDate, setCustomDate] = useState<Date | null>(null);
 
@@ -181,8 +195,33 @@ const Transactions: React.FC = () => {
     vm.setEndDate(`${yyyy}-${mm}-${dd}`);
   };
 
-  const selectedTx = vm.transactions.find((t) => t.id === selectedTxId);
+  const [tableHeight, setTableHeight] = useState<number>(0);
+  const [rowHeight, setRowHeight] = useState<number>(0);
+
+  const pageSize = useResponsivePageSize(tableHeight, rowHeight);
+  const txPage = useServerPagination(
+    (page) => fetchTransactionsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }),
+    pageSize,
+    {
+      deps: [vm.range, vm.startDate, vm.endDate],
+      queryKey: ['transactions', vm.range, vm.startDate, vm.endDate],
+      refetchInterval: 90_000,
+    },
+  );
+  const refundPage = useServerPagination(
+    (page) => fetchRefundsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }),
+    pageSize,
+    {
+      deps: [vm.range, vm.startDate, vm.endDate],
+      queryKey: ['refunds', vm.range, vm.startDate, vm.endDate],
+      refetchInterval: 90_000,
+    },
+  );
+
+  const selectedTx = txPage.items.find((t) => t.id === selectedTxId);
   const approvedByName = session ? `${session.firstName} ${session.lastName}`.trim() : 'Staff';
+
+  const loading = (txPage.loading || refundPage.loading) && txPage.totalCount === 0 && refundPage.totalCount === 0;
 
   if (loading) return <TransactionsSkeleton />;
   if (vm.error) return <ErrorState message={vm.error} />;
@@ -267,110 +306,152 @@ const Transactions: React.FC = () => {
             <h2 className="text-lg font-semibold text-ink-primary mb-4">
               Transactions
               <span className="ml-2 text-sm font-normal text-ink-muted">
-                {vm.transactions.length} found
+                {txPage.totalCount} found
               </span>
             </h2>
-            <div className="overflow-x-auto">
-              {vm.transactions.length === 0 ? (
-                <TableEmptyState message="No transactions in this period" />
-              ) : (
+            <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+              <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                {txPage.items.length === 0 ? (
+                  <TableEmptyState message="No transactions in this period" />
+                ) : (
+                <table className="w-full text-base">
+                  <thead>
+                    <tr className="bg-canvas border-b border-line">
+                      <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Branch</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">Cashier</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">OR No.</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">Invoice No.</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">Items</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">Payment</th>
+                      <th className="py-3 text-left font-semibold text-ink-muted">Date</th>
+                      <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txPage.items.map((t) => (
+                      <tr
+                        key={t.id}
+                        className={`border-b border-line last:border-0 cursor-pointer transition-colors ${
+                          selectedTxId === t.id ? 'bg-brand-light' : 'hover:bg-canvas'
+                        }`}
+                        onClick={() => setSelectedTxId(t.id)}
+                      >
+                        <td className="py-3.5 pl-4 font-medium text-ink-primary">{t.branchName}</td>
+                        <td className="py-3.5 text-ink-secondary">{t.employeeName || '—'}</td>
+                        <td className="py-3.5 text-ink-secondary">{t.orNumber || '—'}</td>
+                        <td className="py-3.5 text-ink-secondary">{t.invoiceNumber || '—'}</td>
+                        <td className="py-3.5 text-ink-secondary">{t.items.length} items</td>
+                        <td className="py-3.5 text-ink-secondary">{t.paymentMethod}</td>
+                        <td className="py-3.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
+                        <td className="py-3.5 pr-4 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                )}
+              </div>
+              {txPage.totalCount > 0 && (
+                <Pagination
+                  page={txPage.page}
+                  totalPages={txPage.totalPages}
+                  onPageChange={txPage.goToPage}
+                  totalCount={txPage.totalCount}
+                  pageStart={txPage.pageStart}
+                  pageEnd={txPage.pageEnd}
+                />
+              )}
+            </ViewportTable>
+          </div>
+
+          {selectedTx && (
+            <Modal title="Transaction Details" size="lg" onClose={() => setSelectedTxId(null)}>
+              <TransactionDetail transaction={selectedTx} />
+              {isOwner && (
+                <NewRefundForm
+                  transactionId={selectedTx.id}
+                  maxAmount={selectedTx.total}
+                  reasonCodes={refundReasonCodes}
+                  onSubmit={async (input) => {
+                    await vm.createRefund(input, selectedTx);
+                    txPage.reset();
+                    refundPage.reset();
+                  }}
+                />
+              )}
+            </Modal>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-line p-6">
+          <h2 className="text-lg font-semibold text-ink-primary mb-4">Refund History</h2>
+          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              {refundPage.items.length === 0 ? (
+                  <TableEmptyState message="No refunds in this period" />
+                ) : (
               <table className="w-full text-base">
                 <thead>
                   <tr className="bg-canvas border-b border-line">
-                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Branch</th>
-                    <th className="py-3 text-left font-semibold text-ink-muted">Items</th>
-                    <th className="py-3 text-left font-semibold text-ink-muted">Payment</th>
+                    <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Refund</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Transaction</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Amount</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Reason</th>
+                    <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
                     <th className="py-3 text-left font-semibold text-ink-muted">Date</th>
-                    <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Total</th>
+                    {isOwner && <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {vm.transactions.map((t) => (
-                    <tr
-                      key={t.id}
-                      className={`border-b border-line last:border-0 cursor-pointer transition-colors ${
-                        selectedTxId === t.id ? 'bg-brand-light' : 'hover:bg-canvas'
-                      }`}
-                      onClick={() => setSelectedTxId(t.id)}
-                    >
-                      <td className="py-3.5 pl-4 font-medium text-ink-primary">{t.branchName}</td>
-                      <td className="py-3.5 text-ink-secondary">{t.items.length} items</td>
-                      <td className="py-3.5 text-ink-secondary">{t.paymentMethod}</td>
-                      <td className="py-3.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
-                      <td className="py-3.5 pr-4 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
+                  {refundPage.items.map((r) => (
+                    <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors align-top">
+                      <td className="py-3.5 pl-4 font-mono text-sm">{r.id}</td>
+                      <td className="py-3.5 font-mono text-sm">{r.transactionId}</td>
+                      <td className="py-3.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
+                      <td className="py-3.5">{r.reasonCode}</td>
+                      <td className="py-3.5">
+                        <span className={`text-sm px-3 py-1 rounded ${statusChip[r.status]}`}>
+                          {r.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="py-3.5">{new Date(r.refundedAt).toLocaleString()}</td>
+                      {isOwner && (
+                        <td className="py-3.5 pr-4">
+                          <RefundActions
+                            status={r.status}
+                            paymentMethods={vm.paymentMethods}
+                            onApprove={async () => {
+                              await vm.approveRefund(r.id, approvedByName);
+                              refundPage.reset();
+                            }}
+                            onDeny={async () => {
+                              await vm.denyRefund(r.id, approvedByName);
+                              refundPage.reset();
+                            }}
+                            onComplete={async (a, b) => {
+                              await vm.completeRefund(r.id, a, b, r.amount);
+                              txPage.reset();
+                              refundPage.reset();
+                            }}
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
               )}
             </div>
-          </div>
-
-          {selectedTx && (
-            <div className="flex-1 bg-white rounded-lg border border-line p-6">
-              <div className="h-full flex flex-col">
-                <TransactionDetail transaction={selectedTx} />
-                {isOwner && (
-                  <NewRefundForm
-                    transactionId={selectedTx.id}
-                    maxAmount={selectedTx.total}
-                    reasonCodes={refundReasonCodes}
-                    onSubmit={vm.createRefund}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-line p-6">
-          <h2 className="text-lg font-semibold text-ink-primary mb-4">Refund History</h2>
-          <div className="overflow-x-auto">
-            {vm.refunds.length === 0 ? (
-                <TableEmptyState message="No refunds in this period" />
-              ) : (
-            <table className="w-full text-base">
-              <thead>
-                <tr className="bg-canvas border-b border-line">
-                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Refund</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Transaction</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Amount</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Reason</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Status</th>
-                  <th className="py-3 text-left font-semibold text-ink-muted">Date</th>
-                  {isOwner && <th className="py-3 pr-4 text-left font-semibold text-ink-muted">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {vm.refunds.map((r) => (
-                  <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors align-top">
-                    <td className="py-3.5 pl-4 font-mono text-sm">{r.id}</td>
-                    <td className="py-3.5 font-mono text-sm">{r.transactionId}</td>
-                    <td className="py-3.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
-                    <td className="py-3.5">{r.reasonCode}</td>
-                    <td className="py-3.5">
-                      <span className={`text-sm px-3 py-1 rounded ${statusChip[r.status]}`}>
-                        {r.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="py-3.5">{new Date(r.refundedAt).toLocaleString()}</td>
-                    {isOwner && (
-                      <td className="py-3.5 pr-4">
-                        <RefundActions
-                          status={r.status}
-                          paymentMethods={vm.paymentMethods}
-                          onApprove={() => vm.approveRefund(r.id, approvedByName)}
-                          onDeny={() => vm.denyRefund(r.id, approvedByName)}
-                          onComplete={(a, b) => vm.completeRefund(r.id, a, b, r.amount)}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {refundPage.totalCount > 0 && (
+              <Pagination
+                page={refundPage.page}
+                totalPages={refundPage.totalPages}
+                onPageChange={refundPage.goToPage}
+                totalCount={refundPage.totalCount}
+                pageStart={refundPage.pageStart}
+                pageEnd={refundPage.pageEnd}
+              />
             )}
-          </div>
+            </ViewportTable>
         </div>
       )}
     </PageLayout>

@@ -29,6 +29,7 @@ export const useTransactionsViewModel = () => {
   const filters: TransactionFilters = { range, startDate, endDate };
 
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [txData, branchData, refundData] = await Promise.all([
         fetchTransactions(filters),
@@ -66,8 +67,8 @@ export const useTransactionsViewModel = () => {
     }
   };
 
-  const submitRefund = (input: { transactionId: string; amount: number; reasonId: string }) => {
-    const tx = transactions.find((t) => t.id === input.transactionId);
+  const submitRefund = (input: { transactionId: string; amount: number; reasonId: string }, txOverride?: Transaction) => {
+    const tx = txOverride ?? transactions.find((t) => t.id === input.transactionId);
     if (!tx) {
       const error = new Error('Transaction not found');
       notifyError(error);

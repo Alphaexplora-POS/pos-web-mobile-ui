@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import LoadingButton from '../../../shared/components/LoadingButton';
 import type { Category, CreatePromoInput, Product, PromoType } from '../models/productTypes';
 
 interface PromoFormProps {
@@ -9,6 +10,7 @@ interface PromoFormProps {
 }
 
 const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, isOwner }) => {
+  const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
   const [promoType, setPromoType] = useState<PromoType>('percentage');
   const [percentOff, setPercentOff] = useState('');
@@ -30,32 +32,37 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
   return (
     <form
       className="space-y-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onSubmit({
-          name,
-          promoType,
-          config:
-            promoType === 'percentage'
-              ? { percentOff: Number(percentOff) }
-              : promoType === 'fixed'
-              ? { fixedAmountOff: Number(fixedAmountOff) }
-              : { bundleRule },
-          isStackable,
-          isActive: isOwner ? isActive : false,
-          startDate: isOwner && isActive && startDate ? startDate : undefined,
-          endDate: isOwner && isActive && endDate ? endDate : undefined,
-          applicableItems: [
-            ...(isOwner ? categoryIds.map((id) => ({ scope: 'category' as const, categoryId: id })) : []),
-            ...productIds.map((id) => ({ scope: 'product' as const, productId: id })),
-          ],
-        });
-        setName('');
-        setPercentOff('');
-        setFixedAmountOff('');
-        setBundleRule('');
-        setCategoryIds([]);
-        setProductIds([]);
+        setSubmitting(true);
+        try {
+          await onSubmit({
+            name,
+            promoType,
+            config:
+              promoType === 'percentage'
+                ? { percentOff: Number(percentOff) }
+                : promoType === 'fixed'
+                ? { fixedAmountOff: Number(fixedAmountOff) }
+                : { bundleRule },
+            isStackable,
+            isActive: isOwner ? isActive : false,
+            startDate: isOwner && isActive && startDate ? startDate : undefined,
+            endDate: isOwner && isActive && endDate ? endDate : undefined,
+            applicableItems: [
+              ...(isOwner ? categoryIds.map((id) => ({ scope: 'category' as const, categoryId: id })) : []),
+              ...productIds.map((id) => ({ scope: 'product' as const, productId: id })),
+            ],
+          });
+          setName('');
+          setPercentOff('');
+          setFixedAmountOff('');
+          setBundleRule('');
+          setCategoryIds([]);
+          setProductIds([]);
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       <div>
@@ -215,9 +222,9 @@ const PromoForm: React.FC<PromoFormProps> = ({ products, categories, onSubmit, i
         </div>
       )}
 
-      <button type="submit" className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark">
+      <LoadingButton loading={submitting} loadingLabel="Creating…">
         Create Promotion
-      </button>
+      </LoadingButton>
     </form>
   );
 };
