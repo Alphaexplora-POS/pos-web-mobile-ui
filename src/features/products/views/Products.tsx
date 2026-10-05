@@ -290,7 +290,7 @@ const Products: React.FC = () => {
           <p className="text-xs text-ink-muted mb-3">Extra product details like material or origin</p>
 {productPage.error && (
             <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
-              {productPage.error} — try refreshing.
+              {productPage.error}, try refreshing.
             </div>
           )}
           <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
@@ -492,7 +492,7 @@ const Products: React.FC = () => {
           </div>
           {categoriesPage.error && (
             <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
-              {categoriesPage.error} — try refreshing.
+              {categoriesPage.error}, try refreshing.
             </div>
           )}
           {categoriesPage.loading && categoriesPage.totalCount === 0 ? (
@@ -615,7 +615,7 @@ const Products: React.FC = () => {
           </div>
           {promotionsPage.error && (
             <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
-              {promotionsPage.error} — try switching tabs to refetch.
+              {promotionsPage.error}, try switching tabs to refetch.
             </div>
           )}
           {promotionsPage.loading ? (
@@ -627,7 +627,7 @@ const Products: React.FC = () => {
               message={
                 promoStatusTab === 'active'
                   ? 'No active promotions yet'
-                  : 'No inactive promotions — check the Active tab'
+                  : 'No inactive promotions, check the Active tab'
               }
             />
           ) : (
@@ -842,7 +842,7 @@ const Products: React.FC = () => {
 
       {isOwner && categoryModal && (
         <Modal
-          title={categoryModal.mode === 'edit' ? `Edit Category — ${categoryModal.category.name}` : 'Add Category'}
+          title={categoryModal.mode === 'edit' ? `Edit Category, ${categoryModal.category.name}` : 'Add Category'}
           onClose={() => setCategoryModal(null)}
         >
           <CategoryForm

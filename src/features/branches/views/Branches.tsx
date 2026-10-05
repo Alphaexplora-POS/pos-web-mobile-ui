@@ -100,7 +100,7 @@ const Branches: React.FC = () => {
           <span className="text-sm text-ink-secondary">Workspace:</span>
           <span className="text-sm font-semibold text-ink-primary">{session.tenantName || '—'}</span>
           <span className="text-xs text-ink-muted">
-            (employees are only shown for this workspace — id …{session.tenantId?.slice(-6) ?? ''})
+            (employees are only shown for this workspace, id …{session.tenantId?.slice(-6) ?? ''})
           </span>
         </div>
       )}

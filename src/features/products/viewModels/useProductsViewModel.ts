@@ -147,7 +147,7 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const handleCreateVariant = async (productId: string, input: CreateVariantInput) => {
     const branchId = managerBranchId ?? branches[0]?.id;
     if (!branchId) {
-      throw new Error('No branch available — select a branch first');
+      throw new Error('No branch available, select a branch first');
     }
     await createVariant(productId, { ...input, branchId });
     notifySuccess('Variant added');

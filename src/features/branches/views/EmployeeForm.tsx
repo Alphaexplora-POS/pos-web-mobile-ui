@@ -48,7 +48,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       return;
     }
     if (!isEditing && role === 'branch_manager' && password.length < 6) {
-      const message = 'Password too short — must be at least 6 characters';
+      const message = 'Password too short, must be at least 6 characters';
       setError(message);
       toast.error(message);
       return;
@@ -103,7 +103,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       {error && <p className="text-sm text-error">{error}</p>}
       {isEditing ? (
         <p className="text-sm text-ink-muted">
-          Editing employee — name and PIN can change. Role and branch are fixed.
+          Editing employee, name and PIN can change. Role and branch are fixed.
         </p>
       ) : (
         <div className="flex gap-4">
@@ -146,7 +146,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         <>
           <div>
             <label className="block text-sm text-ink-secondary">Email</label>
-            <p className="text-xs text-ink-muted mb-1">Account is active immediately — no invite email is sent.</p>
+            <p className="text-xs text-ink-muted mb-1">Account is active immediately, no invite email is sent.</p>
             <input
               type="email"
               value={email}
@@ -183,8 +183,8 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
                 )}
               </button>
             </div>
-            {email && password && password.length < 6 && (
-              <p className="text-xs text-error mt-1">Password too short — must be at least 6 characters.</p>
+            {password.length > 0 && password.length < 6 && (
+              <p className="text-xs text-error mt-1">Password too short, must be at least 6 characters.</p>
             )}
           </div>
         </>
