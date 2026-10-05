@@ -8,6 +8,7 @@ import { useTransactionsViewModel } from '../viewModels/useTransactionsViewModel
 import TransactionDetail from './TransactionDetail';
 import PageLayout from '../../../shared/components/PageLayout';
 import Modal from '../../../shared/components/Modal';
+import { sanitizeDecimal } from '../../../shared/utils/numeric';
 import { TransactionsSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
 import { formatAmount } from '../../../shared/utils/formatCurrency';
@@ -75,7 +76,7 @@ const NewRefundForm: React.FC<{
             max={maxAmount}
             step="0.01"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => setAmount(sanitizeDecimal(e.target.value))}
             required
             className="mt-1 w-full rounded-md border border-line px-3 py-2"
           />

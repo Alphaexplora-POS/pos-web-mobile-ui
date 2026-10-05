@@ -22,14 +22,14 @@ const toReasonCode = (raw: RawReasonCode): ReasonCode => ({
 
 export const fetchPaymentMethodsPage = async (page: number): Promise<ServerPage<PaymentMethod>> => {
   const data = await apiRequest<{ paymentMethods: PaymentMethod[] }>(
-    `${PAYMENT_METHODS_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+    `${PAYMENT_METHODS_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`,
   );
   return toServerPage<PaymentMethod>(data, 'paymentMethods');
 };
 
 export const fetchReasonCodesPage = async (page: number): Promise<ServerPage<ReasonCode>> => {
   const data = await apiRequest<{ reasonCodes: RawReasonCode[] }>(
-    `${REASON_CODES_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+    `${REASON_CODES_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`,
   );
   const reasonCodes = (data.reasonCodes ?? []).map(toReasonCode);
   return toServerPage<ReasonCode>({ ...data, reasonCodes }, 'reasonCodes');

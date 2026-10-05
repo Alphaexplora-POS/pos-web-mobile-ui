@@ -128,7 +128,7 @@ export const fetchCategories = async (): Promise<Category[]> => {
 export const fetchCategoriesPage = async (page: number): Promise<ServerPage<Category>> => {
   const data = await apiRequest<{
     categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
-  }>(`/catalog/categories?page=${page}&limit=${SERVER_PAGE_SIZE}`);
+  }>(`/catalog/categories?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`);
   const categories = (data.categories ?? []).map(toCategory);
   return toServerPage<Category>({ ...data, categories }, 'categories');
 };
@@ -177,7 +177,7 @@ export const fetchProducts = async (branchId?: string | null): Promise<Product[]
 };
 
 export const fetchProductsPage = async (page: number, branchId?: string | null): Promise<ServerPage<Product>> => {
-  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE), sortDirection: 'asc' });
   if (branchId) params.set('branch_id', branchId);
   const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products?${params.toString()}`);
   const products = (data.products ?? []).map(toProduct);
@@ -306,9 +306,10 @@ export const fetchPromotions = async (): Promise<Promotion[]> => {
   return (data.promotions ?? []).map(toPromotion);
 };
 
-export const fetchPromotionsPage = async (page: number): Promise<ServerPage<Promotion>> => {
+export const fetchPromotionsPage = async (page: number, isActive?: boolean): Promise<ServerPage<Promotion>> => {
+  const query = isActive === undefined ? '' : `&is_active=${isActive}`;
   const data = await apiRequest<{ promotions: Promotion[] }>(
-    `/promotion/promotions?page=${page}&limit=${SERVER_PAGE_SIZE}`,
+    `/promotion/promotions?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc${query}`,
   );
   const promotions = (data.promotions ?? []).map(toPromotion);
   return toServerPage<Promotion>({ ...data, promotions }, 'promotions');
@@ -342,6 +343,23 @@ export const createPromotion = async (input: CreatePromoInput): Promise<Promotio
       categoryId: item.categoryId,
     })),
   };
+};
+
+export const updatePromotion = async (id: string, input: CreatePromoInput): Promise<void> => {
+  await apiRequest<unknown>(`/promotion/promotions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      name: input.name,
+      promoType: input.promoType,
+      config: input.config,
+      isStackable: input.isStackable,
+      isActive: input.isActive,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      applicableItems: input.applicableItems,
+    }),
+  });
+  invalidateProductCaches();
 };
 
 export const setPromotionActive = async (id: string, isActive: boolean): Promise<void> => {

@@ -6,7 +6,7 @@ import ProductForm from './ProductForm';
 import PromoForm from './PromoForm';
 import VariantForm from './VariantForm';
 import AttributeForm from './AttributeForm';
-import type { Category, ProductAttribute, ProductVariant } from '../models/productTypes';
+import type { Category, ProductAttribute, ProductVariant, Promotion } from '../models/productTypes';
 import {
   fetchAttributes,
   fetchCategoriesPage,
@@ -48,6 +48,13 @@ const Products: React.FC = () => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [addingProduct, setAddingProduct] = useState(false);
   const [promoModalOpen, setPromoModalOpen] = useState(false);
+  const [promoStep, setPromoStep] = useState(1);
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
+  const [promoStatusTab, setPromoStatusTab] = useUrlSection<'active' | 'inactive'>(
+    'status',
+    'active',
+    (v) => (v === 'active' || v === 'inactive' ? v : null),
+  );
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [attributeModalOpen, setAttributeModalOpen] = useState(false);
   const [variantViewProductId, setVariantViewProductId] = useState<string | null>(null);
@@ -67,14 +74,21 @@ const Products: React.FC = () => {
   const productPage = useServerPagination(
     (page) => fetchProductsPage(page, session?.branchId ?? null),
     pageSize,
-    { deps: [session?.branchId ?? ''], queryKey: ['products', session?.branchId ?? ''] },
+    {
+      deps: [session?.branchId ?? ''],
+      queryKey: ['products', session?.branchId ?? ''],
+      refetchInterval: 90_000,
+    },
   );
   const categoriesPage = useServerPagination((page) => fetchCategoriesPage(page), pageSize, {
     queryKey: ['categories'],
+    refetchInterval: 90_000,
   });
-  const promotionsPage = useServerPagination((page) => fetchPromotionsPage(page), pageSize, {
-    queryKey: ['promotions'],
-  });
+  const promotionsPage = useServerPagination(
+    (page) => fetchPromotionsPage(page, promoStatusTab === 'active'),
+    pageSize,
+    { deps: [promoStatusTab], queryKey: ['promotions', promoStatusTab], refetchInterval: 90_000 },
+  );
 
   const variantQuery = useQuery<ProductVariant[]>({
     queryKey: ['product-variants', variantViewProductId ?? ''],
@@ -274,8 +288,13 @@ const Products: React.FC = () => {
             )}
           </div>
           <p className="text-xs text-ink-muted mb-3">Extra product details like material or origin</p>
+{productPage.error && (
+            <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+              {productPage.error} — try refreshing.
+            </div>
+          )}
           <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
             {attributeQuery.isLoading ? (
               <SkeletonTable
                 headers={isOwner ? ['Attribute', 'Value', 'Actions'] : ['Attribute', 'Value']}
@@ -471,41 +490,56 @@ const Products: React.FC = () => {
               </button>
             )}
           </div>
+          {categoriesPage.error && (
+            <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+              {categoriesPage.error} — try refreshing.
+            </div>
+          )}
           {categoriesPage.loading && categoriesPage.totalCount === 0 ? (
             <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
-              <SkeletonTable headers={['Name', 'Status', 'Actions']} rows={4} />
+              <SkeletonTable headers={['Name', 'Parent', 'Status', 'Actions']} rows={4} />
             </ViewportTable>
           ) : categoriesPage.totalCount === 0 ? (
             <TableEmptyState message="No categories yet" />
           ) : (
             <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-canvas border-b border-line">
+                  <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                  <th className="py-2 text-left font-semibold text-ink-muted">Parent</th>
+                  <th className="py-2 text-left font-semibold text-ink-muted">Status</th>
+                  {isOwner && <th className="py-2 pr-4 text-left font-semibold text-ink-muted">Actions</th>}
+                </tr>
+              </thead>
+              <tbody>
               {categoriesPage.items.map((c) => {
                 const parent = vm.categories.find((p) => p.id === c.parentId);
                 return (
-                  <div key={c.id} className="flex items-center justify-between rounded-lg border border-line p-4 transition-colors hover:border-line-strong hover:bg-canvas">
-                    <div>
-                      <p className="text-base font-medium text-ink-primary">{c.name}</p>
+                  <tr key={c.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                    <td className="py-3 pl-4 font-medium text-ink-primary">{c.name}</td>
+                    <td className="py-3 text-sm text-ink-muted">
                       {parent ? (
-                        <p className="text-sm text-ink-muted">
-                          Child of <span className="font-medium text-ink-secondary">{parent.name}</span>
-                        </p>
+                        <>Child of <span className="font-medium text-ink-secondary">{parent.name}</span></>
                       ) : (
-                        <p className="text-sm text-ink-muted">Top-level</p>
+                        'Top-level'
                       )}
-                    </div>
-                    <div className="flex items-center gap-2">
+                    </td>
+                    <td className="py-3">
                       <span
-                        className={`text-sm px-3 py-1 rounded ${
+                        className={`text-xs px-3 py-1.5 rounded ${
                           c.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'
                         }`}
                       >
                         {c.isActive ? 'Active' : 'Inactive'}
                       </span>
-                      {isOwner && (
-                        <>
+                    </td>
+                    {isOwner && (
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2">
                           <button
-                            className="text-sm px-4 py-1.5 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors"
+                            className="text-sm px-3 py-1.5 rounded bg-brand-light text-brand hover:bg-brand hover:text-white transition-colors"
                             onClick={() => setCategoryModal({ mode: 'edit', category: c })}
                           >
                             Edit
@@ -529,12 +563,14 @@ const Products: React.FC = () => {
                           >
                             {c.isActive ? 'Deactivate' : 'Activate'}
                           </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
                 );
               })}
+              </tbody>
+            </table>
             </div>
             {categoriesPage.totalCount > 0 && (
               <Pagination
@@ -557,68 +593,122 @@ const Products: React.FC = () => {
             <h2 className="text-lg font-semibold text-ink-primary">Promotions</h2>
             <button
               className="bg-brand text-white px-4 py-2 rounded-md hover:bg-brand-dark transition-colors"
-              onClick={() => setPromoModalOpen(true)}
+              onClick={() => { setEditingPromo(null); setPromoStep(1); setPromoModalOpen(true); }}
             >
               Add Promotion
             </button>
           </div>
-          {promotionsPage.loading && promotionsPage.totalCount === 0 ? (
+          <div className="mb-4 inline-flex items-center gap-1 rounded-lg border border-line bg-canvas p-1">
+            {(['active', 'inactive'] as const).map((tab) => (
+              <button
+                key={tab}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-colors ${
+                  promoStatusTab === tab
+                    ? 'bg-brand text-white'
+                    : 'text-ink-secondary hover:text-ink-primary hover:bg-surface-hover'
+                }`}
+                onClick={() => setPromoStatusTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          {promotionsPage.error && (
+            <div className="mb-3 rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+              {promotionsPage.error} — try switching tabs to refetch.
+            </div>
+          )}
+          {promotionsPage.loading ? (
             <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
-              <SkeletonTable headers={['Name', 'Details', 'Status']} rows={4} />
+              <SkeletonTable headers={['Name', 'Details', 'Applicability', 'Status', 'Actions']} rows={4} />
             </ViewportTable>
           ) : promotionsPage.totalCount === 0 ? (
-            <TableEmptyState message="No promotions yet" />
+            <TableEmptyState
+              message={
+                promoStatusTab === 'active'
+                  ? 'No active promotions yet'
+                  : 'No inactive promotions — check the Active tab'
+              }
+            />
           ) : (
           <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
-          <div className="flex-1 space-y-3">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-canvas border-b border-line">
+                <th className="py-3 pl-4 text-left font-semibold text-ink-muted">Name</th>
+                <th className="py-2 text-left font-semibold text-ink-muted">Details</th>
+                <th className="py-2 text-left font-semibold text-ink-muted">Applicability</th>
+                <th className="py-2 text-left font-semibold text-ink-muted">Status</th>
+                <th className="py-2 pr-4 text-left font-semibold text-ink-muted">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
             {promotionsPage.items.map((promo) => (
-              <div key={promo.id} className="rounded-lg border border-line p-4 flex items-center justify-between transition-colors hover:border-line-strong hover:bg-canvas">
-                <div>
-                  <h3 className="text-base font-semibold text-ink-primary">{promo.name}</h3>
-                  <p className="text-sm text-ink-muted">
-                    {promo.promoType === 'percentage'
-                      ? `${promo.config.percentOff}% off`
-                      : promo.promoType === 'fixed'
-                      ? `₱${promo.config.fixedAmountOff} off`
-                      : promo.config.bundleRule}
-                    {promo.isStackable ? ' · Stackable' : ''}
-                  </p>
-                  <p className="text-sm text-ink-muted">
-                    {promo.applicableItems.length > 0
-                      ? `${promo.applicableItems.filter((i) => i.scope === 'product').length} product(s), ${promo.applicableItems.filter((i) => i.scope === 'category').length} category(s)`
-                      : 'Applies to everything'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {isOwner && (
-                    <button
-                      className={`text-sm px-3 py-1.5 rounded ${promo.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
-                      onClick={() =>
-                        setConfirmState({
-                          title: promo.isActive ? 'Deactivate Promotion' : 'Activate Promotion',
-                          message: `${promo.isActive ? 'Deactivate' : 'Activate'} promotion "${promo.name}"?`,
-                          confirmLabel: promo.isActive ? 'Deactivate' : 'Activate',
-                          onConfirm: async () => {
-                            await vm.setPromotionActive(promo.id, !promo.isActive);
-                            promotionsPage.reset();
-                            setConfirmState(null);
-                          },
-                        })
-                      }
-                    >
-                      {promo.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  )}
-                  <span
-                    className={`text-sm px-3 py-1 rounded ${
-                      promo.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'
-                    }`}
+              <tr key={promo.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors">
+                <td className="py-3 pl-4 font-medium text-ink-primary">{promo.name}</td>
+                <td className="py-3 text-sm text-ink-muted">
+                  {promo.promoType === 'percentage'
+                    ? `${promo.config.percentOff}% off`
+                    : promo.promoType === 'fixed'
+                    ? `₱${promo.config.fixedAmountOff} off`
+                    : String(promo.config.bundleRule ?? '')}
+                  {promo.isStackable ? ' · Stackable' : ''}
+                </td>
+                <td className="py-3 text-sm text-ink-muted">
+                  {promo.applicableItems.length > 0
+                    ? `${promo.applicableItems.filter((i) => i.scope === 'product').length} product(s), ${promo.applicableItems.filter((i) => i.scope === 'category').length} category(s)`
+                    : 'Applies to everything'}
+                </td>
+                <td className="py-3">
+                  <button
+                    type="button"
+                    disabled={!isOwner}
+                    title={isOwner ? (promo.isActive ? 'Deactivate' : 'Activate') : undefined}
+                    onClick={() =>
+                      setConfirmState({
+                        title: promo.isActive ? 'Deactivate Promotion' : 'Activate Promotion',
+                        message: `${promo.isActive ? 'Deactivate' : 'Activate'} promotion "${promo.name}"?`,
+                        confirmLabel: promo.isActive ? 'Deactivate' : 'Activate',
+                        onConfirm: async () => {
+                          await vm.setPromotionActive(promo.id, !promo.isActive);
+                          promotionsPage.reset();
+                          setConfirmState(null);
+                        },
+                      })
+                    }
+                    className={`text-sm px-3 py-1.5 rounded ${
+                      promo.endDate && new Date(promo.endDate).getTime() < Date.now()
+                        ? 'bg-warning/10 text-warning'
+                        : promo.isActive
+                          ? 'bg-success-light text-success'
+                          : 'bg-surface-hover text-ink-muted'
+                    } ${isOwner ? 'cursor-pointer hover:ring-1 ring-inset ring-current' : 'cursor-default'}`}
                   >
-                    {promo.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
+                    {promo.endDate && new Date(promo.endDate).getTime() < Date.now()
+                      ? 'Expired'
+                      : promo.isActive
+                        ? 'Active'
+                        : 'Inactive'}
+                  </button>
+                </td>
+                <td className="py-3 pr-4">
+                  <button
+                    type="button"
+                    className="text-sm px-3 py-1.5 rounded bg-brand-light text-brand hover:bg-brand hover:text-white transition-colors"
+                    onClick={() => {
+                      setEditingPromo(promo);
+                      setPromoStep(1);
+                      setPromoModalOpen(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
             ))}
+            </tbody>
+          </table>
           </div>
           {promotionsPage.totalCount > 0 && (
             <Pagination
@@ -865,16 +955,30 @@ const Products: React.FC = () => {
       )}
 
       {promoModalOpen && (
-        <Modal title="Add Promotion" onClose={() => setPromoModalOpen(false)}>
+        <Modal
+          title={editingPromo ? 'Edit Promotion' : 'Add Promotion'}
+          size={promoStep === 1 ? 'md' : '2xl'}
+          fit={promoStep === 2}
+          animate={promoStep === 1}
+          onClose={() => setPromoModalOpen(false)}
+        >
           <PromoForm
             products={vm.products}
             categories={vm.categories}
             isOwner={isOwner}
-onSubmit={async (data) => {
-                              await vm.createPromotion(data);
-                              promotionsPage.reset();
-                              setPromoModalOpen(false);
-                            }}
+            initial={editingPromo ?? undefined}
+            branchId={session?.branchId ?? null}
+            onStepChange={setPromoStep}
+            onSubmit={async (data) => {
+              if (editingPromo) {
+                await vm.updatePromotion(editingPromo.id, data);
+              } else {
+                await vm.createPromotion(data);
+              }
+              promotionsPage.reset();
+              setEditingPromo(null);
+              setPromoModalOpen(false);
+            }}
           />
         </Modal>
       )}

@@ -32,6 +32,7 @@ import {
   fetchPromotions,
   getCachedPromotions,
   createPromotion,
+  updatePromotion,
   setPromotionActive,
   invalidateProductCaches,
 } from '../models/productsApi';
@@ -184,6 +185,13 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
     void load();
   };
 
+  const handleUpdatePromotion = async (id: string, input: CreatePromoInput) => {
+    await updatePromotion(id, input);
+    notifySuccess('Promotion updated');
+    invalidateProductCaches();
+    void load();
+  };
+
   const handleSetPromotionActive = async (id: string, isActive: boolean) => {
     await setPromotionActive(id, isActive);
     notifySuccess(isActive ? 'Promotion activated' : 'Promotion deactivated');
@@ -214,6 +222,7 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
     createAttribute: handleCreateAttribute,
     updateAttribute: handleUpdateAttribute,
     createPromotion: handleCreatePromotion,
+    updatePromotion: handleUpdatePromotion,
     setPromotionActive: handleSetPromotionActive,
   };
 };

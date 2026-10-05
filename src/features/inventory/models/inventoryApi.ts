@@ -120,7 +120,11 @@ export const fetchInventoryAuditLogsPage = async (
   page: number,
   filters?: InventoryFilters,
 ): Promise<ServerPage<InventoryAuditLog>> => {
-  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(SERVER_PAGE_SIZE),
+    sortDirection: 'asc',
+  });
   if (filters?.branchId) params.set('branchId', filters.branchId);
   if (filters?.productId) params.set('productVariantId', filters.productId);
   const data = await apiRequest<{ auditLogs: RawAuditLog[] }>(

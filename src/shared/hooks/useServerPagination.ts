@@ -61,7 +61,10 @@ export const useServerPagination = <T,>(
     const prev = prevDepsRef.current;
     const changed = prev.length !== deps.length || deps.some((v, i) => !Object.is(v, prev[i]));
     prevDepsRef.current = deps;
-    if (changed) setOffset(0);
+    if (changed) {
+      lastChunkData.current = null;
+      setOffset(0);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import type { CreateVariantInput, Product, ProductVariant } from '../models/productTypes';
 import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import { sanitizeDecimal } from '../../../shared/utils/numeric';
 
 interface VariantFormProps {
   products: Product[];
@@ -112,7 +113,7 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
               min="0"
               step="0.01"
               value={costPrice}
-              onChange={(e) => setCostPrice(e.target.value)}
+              onChange={(e) => setCostPrice(sanitizeDecimal(e.target.value))}
               className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
             />
           </div>
@@ -124,7 +125,7 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
               min="0"
               step="0.01"
               value={priceOverride}
-              onChange={(e) => setPriceOverride(e.target.value)}
+              onChange={(e) => setPriceOverride(sanitizeDecimal(e.target.value))}
               className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
             />
           </div>

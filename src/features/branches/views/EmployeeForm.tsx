@@ -4,6 +4,7 @@ import Select from '../../../shared/components/Select';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import type { Branch, EmployeeRole } from '../models/branchTypes';
 import { employeeSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { sanitizeInteger } from '../../../shared/utils/numeric';
 
 interface EmployeeFormProps {
   branches: Branch[];
@@ -179,7 +180,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         <label className="block text-sm text-ink-secondary">Set PIN</label>
         <input
           value={pin}
-          onChange={(e) => setPin(e.target.value)}
+          onChange={(e) => setPin(sanitizeInteger(e.target.value).slice(0, 4))}
           maxLength={4}
           inputMode="numeric"
           required

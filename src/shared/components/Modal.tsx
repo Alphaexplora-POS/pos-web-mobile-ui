@@ -9,10 +9,12 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   animate?: boolean;
-  size?: 'md' | 'sm' | 'lg';
+  size?: 'md' | 'sm' | 'lg' | 'xl' | '2xl';
+  expanded?: boolean;
+  fit?: boolean;
 }
 
-const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true, size = 'md' }) => {
+const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true, size = 'md', expanded = false, fit = false }) => {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -43,8 +45,18 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
         transition={{ duration: 0.25, ease: 'easeOut' }}
       />
       <motion.div
-        className={`relative bg-white rounded-lg shadow-xl w-full flex flex-col max-h-[90vh] ${
-          size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : 'max-w-lg'
+        className={`relative bg-white rounded-lg shadow-xl w-full flex flex-col max-h-[90vh] ${fit ? 'h-[80vh]' : ''} ${
+          size === 'sm'
+            ? 'max-w-sm'
+            : size === 'lg'
+              ? expanded
+                ? 'max-w-4xl'
+                : 'max-w-2xl'
+              : size === 'xl'
+                ? 'max-w-5xl'
+                : size === '2xl'
+                  ? 'max-w-6xl'
+                  : 'max-w-lg'
         }`}
         initial={animate ? { y: -24 } : false}
         animate={{ y: 0 }}
@@ -60,7 +72,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
             ×
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">{children}</div>
+        <div className={`p-6 ${fit ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto'}`}>{children}</div>
       </motion.div>
     </div>
   );

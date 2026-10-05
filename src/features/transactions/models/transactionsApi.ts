@@ -164,6 +164,7 @@ export const fetchTransactionsPage = async (
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
   params.set('limit', String(SERVER_PAGE_SIZE));
+  params.set('sortDirection', 'asc');
   const data = await apiRequest<{ transactions: RawTransaction[] }>(
     `/transaction/sales?${params.toString()}`,
   );
@@ -196,6 +197,7 @@ export const fetchRefundsPage = async (
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
   params.set('limit', String(SERVER_PAGE_SIZE));
+  params.set('sortDirection', 'asc');
   const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
   const refunds = (data.refunds ?? []).map(toRefund);
   return toServerPage<Refund>({ ...data, refunds }, 'refunds');

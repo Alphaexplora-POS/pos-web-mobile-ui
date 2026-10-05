@@ -10,6 +10,7 @@ import Modal from '../../../shared/components/Modal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
+import { sanitizeInteger } from '../../../shared/utils/numeric';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useServerPagination } from '../../../shared/hooks/useServerPagination';
 import Pagination from '../../../shared/components/Pagination';
@@ -183,7 +184,7 @@ const AdjustStockForm: React.FC<{
             min="0"
             step="1"
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => setQuantity(sanitizeInteger(e.target.value))}
             required
             className="mt-1 w-full rounded-md border border-line px-3 py-2"
           />
