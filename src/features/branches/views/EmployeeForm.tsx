@@ -47,6 +47,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       toast.error(message);
       return;
     }
+    if (!isEditing && role === 'branch_manager' && password.length < 6) {
+      const message = 'Password too short — must be at least 6 characters';
+      setError(message);
+      toast.error(message);
+      return;
+    }
     const check = employeeSchema.safeParse({
       name,
       role,
@@ -177,6 +183,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
                 )}
               </button>
             </div>
+            {email && password && password.length < 6 && (
+              <p className="text-xs text-error mt-1">Password too short — must be at least 6 characters.</p>
+            )}
           </div>
         </>
       )}
