@@ -46,8 +46,8 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
                 <td className="py-3.5 pl-4">{item.productName}</td>
                 <td className="py-3.5">{item.variantSku}</td>
                 <td className="py-3.5">{item.quantity}</td>
-                <td className="py-3.5">${formatAmount(item.unitPrice)}</td>
-                <td className="py-3.5 pr-4">${formatAmount(item.discount)}</td>
+                <td className="py-3.5">{formatAmount(item.unitPrice)}</td>
+                <td className="py-3.5 pr-4">{formatAmount(item.discount)}</td>
               </tr>
             ))}
           </tbody>
@@ -56,11 +56,11 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
       <div className="mt-4 border-t border-line pt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
         <div>
           <p className="text-ink-muted">Subtotal</p>
-          <p className="font-medium text-ink-primary">${formatAmount(transaction.subtotal)}</p>
+          <p className="font-medium text-ink-primary">{formatAmount(transaction.subtotal)}</p>
         </div>
         <div>
           <p className="text-ink-muted">Discounts</p>
-          <p className="font-medium text-ink-primary">-${formatAmount(transaction.discountTotal)}</p>
+          <p className="font-medium text-ink-primary">-{formatAmount(transaction.discountTotal)}</p>
         </div>
         <div>
           <p className="text-ink-muted">Payment</p>
@@ -68,7 +68,7 @@ const TransactionDetail: React.FC<TransactionDetailProps> = ({ transaction }) =>
         </div>
         <div>
           <p className="text-ink-muted">Total</p>
-          <p className="font-semibold text-ink-primary">${formatAmount(transaction.total)}</p>
+          <p className="font-semibold text-ink-primary">{formatAmount(transaction.total)}</p>
         </div>
       </div>
     </div>

@@ -20,6 +20,7 @@ import type { Role } from './shared/models/userTypes';
 
 const Login = lazy(() => import('./features/auth/views/Login'));
 const Register = lazy(() => import('./features/auth/views/Register'));
+const PendingApprovals = lazy(() => import('./features/superadmin/views/PendingApprovals'));
 const Branches = lazy(() => import('./features/branches/views/Branches'));
 const Products = lazy(() => import('./features/products/views/Products'));
 const GlobalInventory = lazy(() => import('./features/inventory/views/GlobalInventory'));
@@ -29,6 +30,11 @@ const Configuration = lazy(() => import('./features/configuration/views/Configur
 import NotFound from './shared/components/NotFound';
 
 const ALL_ROLES: Role[] = ['owner', 'branch_manager'];
+
+const HomeRedirect: React.FC = () => {
+  const { session } = useAuth();
+  return <Navigate to={session?.role === 'superadmin' ? '/super-admin/pending' : '/analytics'} replace />;
+};
 
 const WithSkeleton: React.FC<{ fallback: ReactNode; children: ReactNode }> = ({ fallback, children }) => (
   <Suspense fallback={fallback}>{children}</Suspense>
@@ -144,7 +150,17 @@ const App: React.FC = () => {
               </ProtectedLayout>
             }
           />
-          <Route path="/" element={<Navigate to="/analytics" replace />} />
+          <Route
+            path="/super-admin/pending"
+            element={
+              <ProtectedLayout roles={['superadmin']}>
+                <Suspense fallback={null}>
+                  <PendingApprovals />
+                </Suspense>
+              </ProtectedLayout>
+            }
+          />
+          <Route path="/" element={<HomeRedirect />} />
           <Route
             path="*"
             element={

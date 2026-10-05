@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import { sanitizeDecimal, sanitizeInteger } from '../../../shared/utils/numeric';
 import { useInfiniteLoadMore } from '../../../shared/hooks/useInfiniteLoadMore';
@@ -48,11 +49,50 @@ const PromoForm: React.FC<PromoFormProps> = ({
     return map;
   });
   const [bundleQuery, setBundleQuery] = useState('');
-  const [categoryIds, setCategoryIds] = useState<string[]>(
-    (initial?.applicableItems ?? [])
-      .filter((i) => i.scope === 'category' && i.categoryId)
-      .map((i) => i.categoryId!),
+  const parentCategories = useMemo(() => categories.filter((c) => c.parentId === null), [categories]);
+  const childrenOf = useCallback(
+    (parentId: string) => categories.filter((c) => c.parentId === parentId),
+    [categories],
   );
+
+  const buildInitialSelection = () => {
+    const ids = (initial?.applicableItems ?? [])
+      .filter((i) => i.scope === 'category' && i.categoryId)
+      .map((i) => i.categoryId!);
+    const parentSet = new Set(parentCategories.map((c) => c.id));
+    const parents: string[] = [];
+    const children: Record<string, string[]> = {};
+    for (const id of ids) {
+      const cat = categories.find((c) => c.id === id);
+      if (!cat) continue;
+      if (cat.parentId === null) {
+        if (!parents.includes(id)) parents.push(id);
+      } else if (parentSet.has(cat.parentId)) {
+        if (!parents.includes(cat.parentId)) parents.push(cat.parentId);
+        if (!(children[cat.parentId] ?? []).includes(id)) {
+          children[cat.parentId] = [...(children[cat.parentId] ?? []), id];
+        }
+      } else if (!parents.includes(id)) {
+        parents.push(id);
+      }
+    }
+    return { parents, children };
+  };
+
+  const [selectedParents, setSelectedParents] = useState<string[]>(() => buildInitialSelection().parents);
+  const [selectedChildren, setSelectedChildren] = useState<Record<string, string[]>>(() => buildInitialSelection().children);
+
+  const coveredCategoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const parentId of selectedParents) {
+      ids.add(parentId);
+      const picked = selectedChildren[parentId];
+      const children = childrenOf(parentId);
+      if (picked === undefined) children.forEach((c) => ids.add(c.id));
+      else picked.forEach((id) => ids.add(id));
+    }
+    return ids;
+  }, [selectedParents, selectedChildren, childrenOf]);
   const [productIds, setProductIds] = useState<string[]>(
     (initial?.applicableItems ?? [])
       .filter((i) => i.scope === 'product' && i.productId)
@@ -98,23 +138,57 @@ const PromoForm: React.FC<PromoFormProps> = ({
     }
   }, [branchId, hasMore]);
 
-  const applyCategoryIds = (next: string[]) => {
-    setCategoryIds(next);
-    setProductIds((pids) =>
-      pids.filter((pid) => {
-        const product = products.find((p) => p.id === pid);
-        return product ? next.includes(product.categoryId) : false;
-      }),
-    );
+  const toggleCategory = (id: string) => {
+    const isSel = selectedParents.includes(id);
+    if (isSel) {
+      setSelectedParents(selectedParents.filter((x) => x !== id));
+      setSelectedChildren((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setSelectedParents([...selectedParents, id]);
+    }
   };
 
-  const toggleCategory = (id: string) =>
-    applyCategoryIds(categoryIds.includes(id) ? categoryIds.filter((x) => x !== id) : [...categoryIds, id]);
+  const toggleChild = (parentId: string, childId: string) => {
+    setSelectedChildren((prev) => {
+      const current = prev[parentId];
+      if (current === undefined) {
+        const rest = childrenOf(parentId)
+          .map((c) => c.id)
+          .filter((id) => id !== childId);
+        return { ...prev, [parentId]: rest };
+      }
+      const has = current.includes(childId);
+      const next = has ? current.filter((x) => x !== childId) : [...current, childId];
+      return { ...prev, [parentId]: next };
+    });
+  };
 
   const toggleAllCategories = (ids: string[]) => {
-    const allSelected = ids.length > 0 && categoryIds.filter((id) => ids.includes(id)).length === ids.length;
-    applyCategoryIds(allSelected ? categoryIds.filter((id) => !ids.includes(id)) : [...new Set([...categoryIds, ...ids])]);
+    const allSelected = ids.length > 0 && selectedParents.filter((id) => ids.includes(id)).length === ids.length;
+    if (allSelected) {
+      setSelectedParents(selectedParents.filter((id) => !ids.includes(id)));
+      setSelectedChildren((prev) => {
+        const next = { ...prev };
+        for (const id of ids) delete next[id];
+        return next;
+      });
+    } else {
+      setSelectedParents((prev) => [...new Set([...prev, ...ids])]);
+    }
   };
+
+  useEffect(() => {
+    setProductIds((prev) =>
+      prev.filter((pid) => {
+        const product = products.find((p) => p.id === pid);
+        return product ? coveredCategoryIds.has(product.categoryId) : true;
+      }),
+    );
+  }, [coveredCategoryIds, products]);
 
   const toggleProduct = (id: string) =>
     setProductIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -130,8 +204,10 @@ const PromoForm: React.FC<PromoFormProps> = ({
     onStepChange?.(next);
   };
 
-  const applicableCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(categoryQuery.trim().toLowerCase()),
+  const matchingParents = parentCategories.filter(
+    (parent) =>
+      parent.name.toLowerCase().includes(categoryQuery.trim().toLowerCase()) ||
+      childrenOf(parent.id).some((c) => c.name.toLowerCase().includes(categoryQuery.trim().toLowerCase())),
   );
   const orderedCatalog = useMemo(
     () => [...catalog].sort((a, b) => a.name.localeCompare(b.name)),
@@ -139,7 +215,7 @@ const PromoForm: React.FC<PromoFormProps> = ({
   );
 
   const applicableProducts = orderedCatalog
-    .filter((p) => categoryIds.includes(p.categoryId))
+    .filter((p) => coveredCategoryIds.has(p.categoryId))
     .filter((p) => p.name.toLowerCase().includes(productQuery.trim().toLowerCase()));
 
   const bundleFilteredProducts = orderedCatalog.filter((p) =>
@@ -158,6 +234,15 @@ const PromoForm: React.FC<PromoFormProps> = ({
   const bundleRuleLabel = bundleItems.length > 0
     ? `${bundleItems.map(({ productId, quantity }) => `${quantity}× ${catalog.find((p) => p.id === productId)?.name ?? 'Product'}`).join(', ')}${bundlePrice ? ` for ₱${bundlePrice}` : ''}`
     : '';
+
+  const todayStr = (() => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  })();
+  const startInPast = !!startDate && startDate < todayStr;
+  const startAfterEnd = !!startDate && !!endDate && startDate > endDate;
 
   const handleNext = () => {
     const nextErrors: { name?: string; value?: string; bundleProducts?: string } = {};
@@ -182,7 +267,7 @@ const PromoForm: React.FC<PromoFormProps> = ({
     ...(name ? [name.trim()] : []),
     promoTypeLabel,
     ...(promoValueLabel ? [promoValueLabel] : []),
-    ...(isOwner ? [`${categoryIds.length} categories`] : ['All products']),
+    ...(coveredCategoryIds.size > 0 ? [`${coveredCategoryIds.size} categories`] : []),
     `${productIds.length} products`,
   ];
 
@@ -191,6 +276,14 @@ const PromoForm: React.FC<PromoFormProps> = ({
       className={step === 1 ? 'space-y-4' : 'flex-1 min-h-0 flex flex-col gap-4'}
       onSubmit={async (e) => {
         e.preventDefault();
+        if (startDate && startDate < todayStr) {
+          toast.error('Start date cannot be in the past');
+          return;
+        }
+        if (startDate && endDate && startDate > endDate) {
+          toast.error('Start date cannot be after end date');
+          return;
+        }
         setSubmitting(true);
         try {
           await onSubmit({
@@ -203,11 +296,11 @@ const PromoForm: React.FC<PromoFormProps> = ({
                 ? { fixedAmountOff: Number(fixedAmountOff) }
                 : { bundleRule: bundleRuleLabel, bundlePrice: Number(bundlePrice), bundleItems },
             isStackable,
-            isActive: isOwner ? isActive : false,
-            startDate: isOwner && isActive && startDate ? startDate : undefined,
-            endDate: isOwner && isActive && endDate ? endDate : undefined,
+            isActive: isOwner ? isActive : initial?.isActive ?? false,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined,
             applicableItems: [
-              ...(isOwner ? categoryIds.map((id) => ({ scope: 'category' as const, categoryId: id })) : []),
+              ...[...coveredCategoryIds].map((id) => ({ scope: 'category' as const, categoryId: id })),
               ...productIds.map((id) => ({ scope: 'product' as const, productId: id })),
             ],
           });
@@ -217,7 +310,8 @@ const PromoForm: React.FC<PromoFormProps> = ({
           setBundlePrice('');
           setBundleQuantities({});
           setBundleQuery('');
-          setCategoryIds([]);
+          setSelectedParents([]);
+          setSelectedChildren({});
           setProductIds([]);
           setCategoryQuery('');
           setProductQuery('');
@@ -428,27 +522,31 @@ value={fixedAmountOff}
           </div>
         )}
 
-        {isActive && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-ink-secondary">Start Date (optional)</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 w-full rounded border border-line px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-ink-secondary">End Date (optional)</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 w-full rounded border border-line px-3 py-2"
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-ink-secondary">Start Date (optional)</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+            />
           </div>
+          <div>
+            <label className="block text-sm text-ink-secondary">End Date (optional)</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+            />
+          </div>
+        </div>
+        {startInPast && (
+          <p className="text-sm text-error">Start date cannot be in the past.</p>
+        )}
+        {startAfterEnd && (
+          <p className="text-sm text-error">Start date cannot be after end date.</p>
         )}
 
         <button
@@ -462,73 +560,102 @@ value={fixedAmountOff}
       ) : (
         <>
           <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Step 2 of 2 · Applicability</p>
-          {!isOwner ? (
-            <p className="text-xs text-ink-muted leading-relaxed">
-              This promotion applies to all products in the branch.
-            </p>
-          ) : (
-            <div className="flex flex-1 min-h-0 gap-6">
-              <div className="w-64 shrink-0 flex flex-col min-h-0 gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-semibold text-ink-primary">Categories</span>
-                  <span className="text-xs text-ink-muted">{categoryIds.length} selected</span>
-                </div>
-                <input
-                  value={categoryQuery}
-                  onChange={(e) => setCategoryQuery(e.target.value)}
-                  placeholder="Search categories…"
-                  className="w-full rounded border border-line px-3 py-1.5 text-sm"
-                />
-                {applicableCategories.length === 0 ? (
-                  <p className="text-xs text-ink-muted py-1">No categories match your search</p>
-                ) : (
-                  <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                    <div className="flex flex-wrap gap-2">
-                    {applicableCategories.map((c) => {
-                      const selected = categoryIds.includes(c.id);
-                      return (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => toggleCategory(c.id)}
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                            selected
-                              ? 'bg-brand text-white border-brand'
-                              : 'border-line bg-white text-ink-secondary hover:border-brand hover:text-ink-primary'
-                          }`}
-                        >
-                          {selected && (
-                            <svg
-                              className="h-3.5 w-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                          {c.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  </div>
-                )}
-                {applicableCategories.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-brand hover:underline self-start"
-                    onClick={() => toggleAllCategories(applicableCategories.map((c) => c.id))}
-                  >
-                    {applicableCategories.every((c) => categoryIds.includes(c.id)) ? 'Deselect all' : 'Select all'}
-                  </button>
-                )}
+          <div className="flex flex-1 min-h-0 gap-6">
+            <div className="w-72 shrink-0 flex flex-col min-h-0 gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-ink-primary">Categories</span>
+                <span className="text-xs text-ink-muted">{coveredCategoryIds.size} selected</span>
               </div>
+              <input
+                value={categoryQuery}
+                onChange={(e) => setCategoryQuery(e.target.value)}
+                placeholder="Search categories…"
+                className="w-full rounded border border-line px-3 py-1.5 text-sm"
+              />
+              {matchingParents.length === 0 ? (
+                <p className="text-xs text-ink-muted py-1">No categories match your search</p>
+              ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto pr-1 space-y-2">
+                  {matchingParents.map((parent) => {
+                    const children = childrenOf(parent.id);
+                    const isSel = selectedParents.includes(parent.id);
+                    const picked = selectedChildren[parent.id];
+                    const parentNameMatch = parent.name.toLowerCase().includes(categoryQuery.trim().toLowerCase());
+                    return (
+                      <div key={parent.id} className={`rounded-lg border p-2.5 ${isSel ? 'border-brand/40 bg-brand-light/40' : 'border-line'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                            <input type="checkbox" checked={isSel} onChange={() => toggleCategory(parent.id)} />
+                            <span className={isSel ? 'font-medium text-ink-primary' : 'text-ink-secondary'}>{parent.name}</span>
+                          </label>
+                          {isSel && (
+                            <span className="text-xs text-ink-muted shrink-0">
+                              {picked === undefined ? `${children.length} subcategories` : `${picked.length}/${children.length} subcategories`}
+                            </span>
+                          )}
+                        </div>
+                        {isSel && children.length > 0 && (
+                          <div className="mt-2 pl-5 flex flex-wrap items-center gap-1.5">
+                            {children.map((child) => {
+                              const selectedChild = picked === undefined || picked.includes(child.id);
+                              const hidden = categoryQuery.trim() !== '' && !parentNameMatch && !child.name.toLowerCase().includes(categoryQuery.trim().toLowerCase());
+                              if (hidden) return null;
+                              return (
+                                <button
+                                  key={child.id}
+                                  type="button"
+                                  onClick={() => toggleChild(parent.id, child.id)}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                                    selectedChild
+                                      ? 'bg-brand text-white border-brand'
+                                      : 'border-line bg-white text-ink-secondary hover:border-brand hover:text-ink-primary'
+                                  }`}
+                                >
+                                  {selectedChild && (
+                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                  <span>{child.name}</span>
+                                </button>
+                              );
+                            })}
+                            {picked !== undefined && (
+                              <button
+                                type="button"
+                                className="text-[11px] font-medium text-brand hover:underline self-center"
+                                onClick={() =>
+                                  setSelectedChildren((prev) => {
+                                    const next = { ...prev };
+                                    delete next[parent.id];
+                                    return next;
+                                  })
+                                }
+                              >
+                                All subcategories
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {parentCategories.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-brand hover:underline self-start"
+                  onClick={() => toggleAllCategories(parentCategories.map((c) => c.id))}
+                >
+                  {selectedParents.length === parentCategories.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+            </div>
               <div className="flex-1 min-w-0 flex flex-col min-h-0 border-l border-line pl-6">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span className="text-sm font-semibold text-ink-primary">Products</span>
-                  {categoryIds.length > 0 && applicableProducts.length > 0 && (
+                  {coveredCategoryIds.size > 0 && applicableProducts.length > 0 && (
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs text-ink-muted">{productIds.length} selected</span>
                       <button
@@ -541,7 +668,7 @@ value={fixedAmountOff}
                     </div>
                   )}
                 </div>
-                {categoryIds.length === 0 ? (
+                {coveredCategoryIds.size === 0 ? (
                   <div className="flex-1 min-h-0 rounded-lg border border-dashed border-line flex flex-col items-center justify-center px-4 text-center text-xs text-ink-muted">
                     <p className="font-medium text-ink-secondary">No categories picked yet</p>
                     <p className="mt-1">Pick categories on the left to show their products here.</p>
@@ -557,7 +684,7 @@ value={fixedAmountOff}
                     <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-line p-3">
                       {applicableProducts.length === 0 ? (
                         <p className="px-4 py-4 text-xs text-ink-muted text-center">
-                          {catalog.filter((p) => categoryIds.includes(p.categoryId)).length === 0
+                          {catalog.filter((p) => coveredCategoryIds.has(p.categoryId)).length === 0
                             ? 'No products in the selected categories'
                             : 'No products match your search'}
                         </p>
@@ -634,7 +761,6 @@ value={fixedAmountOff}
                 )}
               </div>
             </div>
-          )}
           <div className="border-t border-line" />
           <div className="flex items-center justify-between gap-3 pt-3">
             <div className="flex flex-wrap items-center gap-1.5 min-w-0">

@@ -41,13 +41,17 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isEditing && role === 'branch_manager' && (!email || !password)) {
+      const message = 'Email and password are required for a Branch Manager';
+      setError(message);
+      toast.error(message);
+      return;
+    }
     const check = employeeSchema.safeParse({
       name,
       role,
       branchId,
       pin,
-      email: isEditing ? undefined : role === 'branch_manager' ? email : undefined,
-      password: isEditing ? undefined : role === 'branch_manager' ? password : undefined,
     });
     if (!check.success) {
       const message = firstZodMessage(check.error);
@@ -132,7 +136,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
           <p className="text-xs text-ink-muted mt-1">Branch is permanent and cannot be changed.</p>
         )}
       </div>
-      {role === 'branch_manager' && (
+      {!isEditing && role === 'branch_manager' && (
         <>
           <div>
             <label className="block text-sm text-ink-secondary">Email</label>

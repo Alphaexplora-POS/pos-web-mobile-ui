@@ -2,20 +2,18 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { AuthSession, LoginInput, RegisterInput } from '../models/authTypes';
 import { fetchMe, loginWithEmail, logout as logoutRequest, registerTenantOwner } from '../models/authApi';
-import { markSignedIn, clearSignedIn, hasBeenSignedIn, notifySessionExpired } from '../sessionExpiry';
+import { markSignedIn, clearSignedIn, notifySessionExpired } from '../sessionExpiry';
 import { prefetchAppData } from '../../../shared/models/prefetch';
 
 interface AuthContextValue {
   session: AuthSession | null;
   isLoading: boolean;
   login: (input: LoginInput) => Promise<AuthSession>;
-  register: (input: RegisterInput) => Promise<AuthSession>;
+  register: (input: RegisterInput) => Promise<{ email: string }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -27,21 +25,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [session]);
 
   useEffect(() => {
-    const onPageHide = () => {
-      const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-      if (nav?.type === 'reload') return;
-      if (!sessionRef.current || !hasBeenSignedIn()) return;
-      try {
-        navigator.sendBeacon(`${API_BASE}/identity/auth/logout`);
-      } catch {
-        /* best-effort revoke on tab close */
-      }
-    };
-    window.addEventListener('pagehide', onPageHide);
-    return () => window.removeEventListener('pagehide', onPageHide);
-  }, []);
-
-  useEffect(() => {
     fetchMe()
       .then((stored) => setSession(stored ?? null))
       .finally(() => setIsLoading(false));
@@ -49,7 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     if (!session) return;
-    prefetchAppData();
+    if (session.role !== 'superadmin') prefetchAppData();
     const check = async () => {
       const me = await fetchMe();
       if (me === null) {
@@ -67,12 +50,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return next;
   };
 
-  const handleRegister = async (input: RegisterInput): Promise<AuthSession> => {
-    const next = await registerTenantOwner(input);
-    setSession(next);
-    markSignedIn();
-    return next;
-  };
+const handleRegister = async (input: RegisterInput): Promise<{ email: string }> =>
+  registerTenantOwner(input);
 
   const handleLogout = async (): Promise<void> => {
     clearSignedIn();

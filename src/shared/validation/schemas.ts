@@ -18,23 +18,17 @@ export const firstZodMessage = (error: ZodError): string => {
 export const branchSchema = z.object({
   name: z.string().min(2, 'Branch name must be at least 2 characters').max(255, 'Branch name is too long'),
   address: z.string().max(500, 'Address is too long'),
-  contactNumber: z.string().max(50, 'Contact number is too long'),
+  contactNumber: z.string().regex(/^\d{11}$/, 'Contact number must be exactly 11 digits'),
 });
 
-export const employeeSchema = z
-  .object({
-    name: z.string().min(1, 'Please enter an employee name'),
-    role: z.enum(['branch_manager', 'supervisor', 'cashier', 'staff']),
-branchId: z.string({ error: 'Please provide a valid branch' }).min(1, 'Please provide a valid branch'),
-    pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
-    email: z.string().optional(),
-    password: z.string().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.role === 'branch_manager' && (!value.email || !value.password)) {
-      ctx.addIssue({ code: 'custom', path: ['email'], message: 'Email and password are required for a Branch Manager' });
-    }
-  });
+export const employeeSchema = z.object({
+  name: z.string().min(1, 'Please enter an employee name'),
+  role: z.enum(['branch_manager', 'supervisor', 'cashier', 'staff']),
+  branchId: z.string({ error: 'Please provide a valid branch' }).min(1, 'Please provide a valid branch'),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be exactly 4 digits'),
+  email: z.string().optional(),
+  password: z.string().optional(),
+});
 
 export const categorySchema = z.object({
   name: z.string().min(1, 'Please enter a category name').max(200, 'Category name is too long'),

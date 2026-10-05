@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import type { Branch } from '../models/branchTypes';
 import { branchSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { sanitizeInteger } from '../../../shared/utils/numeric';
 
 interface BranchFormProps {
   onSubmit: (data: { name: string; address: string; contact: string }) => void | Promise<void>;
@@ -65,10 +66,14 @@ const BranchForm: React.FC<BranchFormProps> = ({ onSubmit, initial, isOwner }) =
         <label className="block text-sm text-ink-secondary">Contact</label>
         <input
           value={contact}
-          onChange={(e) => setContact(e.target.value)}
+          onChange={(e) => setContact(sanitizeInteger(e.target.value).slice(0, 11))}
+          inputMode="numeric"
+          maxLength={11}
+          placeholder="e.g. 09171234567"
           required
           className="mt-1 w-full rounded border border-line px-3 py-2"
         />
+        <p className="text-xs text-ink-muted mt-1">Exactly 11 digits.</p>
       </div>
       <LoadingButton loading={submitting} loadingLabel={initial ? 'Saving…' : 'Creating…'}>
         {initial ? 'Save Branch' : 'Create Branch'}

@@ -56,28 +56,17 @@ interface MePayload {
   tenantName: string;
 }
 
-export const registerTenantOwner = async (input: RegisterInput): Promise<AuthSession> => {
-  const signup = await postJson<{ userId: string; accessToken: string }>('/identity/auth/signup', {
+export const registerTenantOwner = async (input: RegisterInput): Promise<{ email: string }> => {
+  await postJson<{ userId: string; accessToken: string }>('/identity/auth/signup', {
     firstName: input.firstName,
     lastName: input.lastName,
     email: input.email,
     password: input.password,
-  });
-
-  const tenant = await postJson<{ id: string; name: string }>('/identity/tenants', {
-    name: input.businessName,
+    businessName: input.businessName,
     businessType: input.businessType,
   });
 
-  const profile = await postJson<Profile>('/identity/profiles', {
-    tenantId: tenant.id,
-    email: input.email,
-    firstName: input.firstName,
-    lastName: input.lastName,
-    role: 'owner',
-  });
-
-  return buildSession({ profile, tenantName: tenant.name, accessToken: signup.accessToken });
+  return { email: input.email };
 };
 
 export const loginWithEmail = async (input: LoginInput): Promise<AuthSession> => {

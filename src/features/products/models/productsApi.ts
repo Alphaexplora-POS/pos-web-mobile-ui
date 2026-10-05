@@ -323,6 +323,8 @@ export const createPromotion = async (input: CreatePromoInput): Promise<Promotio
       promoType: input.promoType,
       config: input.config,
       isStackable: input.isStackable,
+      startDate: input.startDate,
+      endDate: input.endDate,
       applicableItems: input.applicableItems,
     }),
   });

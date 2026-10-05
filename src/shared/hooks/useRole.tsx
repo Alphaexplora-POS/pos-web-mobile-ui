@@ -6,6 +6,7 @@ import type { Role } from '../models/userTypes';
 interface RoleContextValue {
   role: Role;
   isOwner: boolean;
+  isSuperAdmin: boolean;
 }
 
 const RoleContext = createContext<RoleContextValue | null>(null);
@@ -15,7 +16,9 @@ export const RoleProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const role: Role = session ? session.role : 'owner';
 
   return (
-    <RoleContext.Provider value={{ role, isOwner: role === 'owner' }}>
+    <RoleContext.Provider
+      value={{ role, isOwner: role === 'owner', isSuperAdmin: role === 'superadmin' }}
+    >
       {children}
     </RoleContext.Provider>
   );

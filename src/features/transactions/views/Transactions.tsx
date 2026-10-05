@@ -344,7 +344,7 @@ const Transactions: React.FC = () => {
                         <td className="py-3.5 text-ink-secondary">{t.items.length} items</td>
                         <td className="py-3.5 text-ink-secondary">{t.paymentMethod}</td>
                         <td className="py-3.5 text-ink-secondary">{new Date(t.timestamp).toLocaleString()}</td>
-                        <td className="py-3.5 pr-4 font-semibold text-ink-primary">${formatAmount(t.total)}</td>
+                        <td className="py-3.5 pr-4 font-semibold text-ink-primary">{formatAmount(t.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -407,7 +407,7 @@ const Transactions: React.FC = () => {
                     <tr key={r.id} className="border-b border-line last:border-0 hover:bg-canvas transition-colors align-top">
                       <td className="py-3.5 pl-4 font-mono text-sm">{r.id}</td>
                       <td className="py-3.5 font-mono text-sm">{r.transactionId}</td>
-                      <td className="py-3.5 font-semibold text-ink-primary">${formatAmount(r.amount)}</td>
+                      <td className="py-3.5 font-semibold text-ink-primary">{formatAmount(r.amount)}</td>
                       <td className="py-3.5">{r.reasonCode}</td>
                       <td className="py-3.5">
                         <span className={`text-sm px-3 py-1 rounded ${statusChip[r.status]}`}>

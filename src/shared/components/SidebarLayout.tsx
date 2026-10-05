@@ -24,6 +24,7 @@ const ITEMS: SidebarItem[] = [
   { to: '/inventory', label: 'Global Inventory', icon: 'inventory', roles: ['owner', 'branch_manager'] },
   { to: '/transactions', label: 'Transaction History', icon: 'transactions', roles: ['owner', 'branch_manager'] },
   { to: '/configuration', label: 'Settings', icon: 'config', roles: ['owner', 'branch_manager'] },
+  { to: '/super-admin/pending', label: 'Pending Approvals', icon: 'branches', roles: ['superadmin'] },
 ];
 
 const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -52,24 +53,26 @@ const SidebarLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
             <h1 className="text-lg font-bold tracking-tight">Alpha POS</h1>
             <span
               className={`text-xs px-2 py-1 rounded ${
-                role === 'owner' ? 'bg-brand text-white' : 'bg-white/10 text-white'
+                role === 'owner' || role === 'superadmin' ? 'bg-brand text-white' : 'bg-white/10 text-white'
               }`}
             >
-              {role === 'owner' ? 'Owner' : 'Branch Manager'}
+              {role === 'owner' ? 'Owner' : role === 'superadmin' ? 'Super Admin' : 'Branch Manager'}
             </span>
           </div>
           {session && (
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm font-semibold shrink-0">
                 {session.firstName.charAt(0)}
-                {role === 'owner' ? session.lastName.charAt(0) : ''}
+                {role === 'owner' || role === 'superadmin' ? session.lastName.charAt(0) : ''}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-white font-medium truncate leading-tight">
                   {session.firstName}
-                  {role === 'owner' ? ` ${session.lastName}` : ''}
+                  {role === 'owner' || role === 'superadmin' ? ` ${session.lastName}` : ''}
                 </p>
-                <p className="text-white/60 truncate text-xs">{session.tenantName}</p>
+                <p className="text-white/60 truncate text-xs">
+                  {role === 'superadmin' ? 'System Owner' : session.tenantName}
+                </p>
               </div>
             </div>
           )}

@@ -5,6 +5,7 @@ export interface InventoryItem {
   productId: string;
   productVariantId: string;
   productName: string;
+  variantLabel: string;
   variantSku: string;
   branchId: string;
   branchName: string;

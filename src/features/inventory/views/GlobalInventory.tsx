@@ -45,6 +45,7 @@ const AdjustStockForm: React.FC<{
     }
   }, [isOwner, branchId, branches]);
   const [productId, setProductId] = useState('');
+  const [productVariantId, setProductVariantId] = useState('');
   const [action, setAction] = useState<InventoryAdjustAction>('stock_in');
   const [quantity, setQuantity] = useState('');
   const [reasonId, setReasonId] = useState('');
@@ -66,11 +67,44 @@ const AdjustStockForm: React.FC<{
 
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
 
+  interface ProductOption {
+    key: string;
+    label: string;
+    productId: string;
+    productVariantId: string | null;
+  }
+
+  const productOptions = useMemo<ProductOption[]>(() => {
+    const seenVariants = new Set<string>();
+    const seenProducts = new Set<string>();
+    const variants: ProductOption[] = [];
+    items.forEach((i) => {
+      if (i.productVariantId && !seenVariants.has(i.productVariantId)) {
+        seenVariants.add(i.productVariantId);
+        seenProducts.add(i.productId);
+        variants.push({
+          key: i.productVariantId,
+          productId: i.productId,
+          productVariantId: i.productVariantId,
+          label: i.variantLabel ? `${i.productName} · ${i.variantLabel}` : i.productName,
+        });
+      }
+    });
+    const plain: ProductOption[] = products
+      .filter((p) => !seenProducts.has(p.id))
+      .map((p) => ({ key: `p:${p.id}`, productId: p.id, productVariantId: null, label: p.label }));
+    return [...variants, ...plain];
+  }, [items, products]);
+
   const branchQuantity = new Map<string, number>();
   items
-    .filter((i) => i.branchId === branchId && i.productId)
-    .forEach((i) => branchQuantity.set(i.productId, (branchQuantity.get(i.productId) ?? 0) + i.quantity));
-  const selectedQuantity = productId ? (branchQuantity.get(productId) ?? 0) : null;
+    .filter((i) => i.branchId === branchId)
+    .forEach((i) => {
+      const key = i.productVariantId || i.productId;
+      branchQuantity.set(key, (branchQuantity.get(key) ?? 0) + i.quantity);
+    });
+  const selectedKey = productId ? productVariantId || productId : '';
+  const selectedQuantity = selectedKey ? (branchQuantity.get(selectedKey) ?? 0) : null;
 
   const fail = (msg: string) => {
     setError(msg);
@@ -112,6 +146,7 @@ const AdjustStockForm: React.FC<{
       await onAdjust({
         branchId,
         productId,
+        productVariantId: productVariantId || undefined,
         action,
         quantity: Number(quantity),
         reasonId,
@@ -119,6 +154,7 @@ const AdjustStockForm: React.FC<{
         performedBy,
       });
       setProductId('');
+      setProductVariantId('');
       setQuantity('');
       setReasonId('');
       setNotes('');
@@ -151,16 +187,20 @@ const AdjustStockForm: React.FC<{
         <div>
           <label className="block text-sm text-ink-secondary">Product</label>
           <Select
-            value={productId}
-            onChange={(v) => setProductId(v)}
-            options={products.map((p) => {
-              const qty = branchQuantity.get(p.id);
+            value={productVariantId || (productId ? `p:${productId}` : '')}
+            onChange={(v) => {
+              const opt = productOptions.find((o) => o.key === v);
+              setProductVariantId(opt?.productVariantId ?? '');
+              setProductId(opt?.productId ?? '');
+            }}
+            options={productOptions.map((opt) => {
+              const qty = branchQuantity.get(opt.productVariantId || opt.productId);
               return {
-                value: p.id,
-                label: qty === undefined ? `${p.label} · no stock yet` : `${p.label} · (${qty})`,
+                value: opt.key,
+                label: qty === undefined ? `${opt.label} · no stock yet` : `${opt.label} · (${qty})`,
               };
             })}
-            placeholder={branchId ? 'Select product' : 'Select branch first'}
+            placeholder={branchId ? 'Select product / variant' : 'Select branch first'}
             className="mt-1 w-full"
           />
         </div>
