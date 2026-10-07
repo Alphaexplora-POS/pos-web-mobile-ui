@@ -67,14 +67,14 @@ const Configuration: React.FC = () => {
 
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const paymentPage = useServerPagination(
-    (page) => fetchPaymentMethodsPage(page),
+    (page) => fetchPaymentMethodsPage(page, pageSize),
     pageSize,
-    { deps: [], queryKey: ['payment-methods'] },
+    { fetchSize: pageSize, deps: [pageSize], queryKey: ['payment-methods', String(pageSize)] },
   );
   const reasonPage = useServerPagination(
-    (page) => fetchReasonCodesPage(page),
+    (page) => fetchReasonCodesPage(page, pageSize),
     pageSize,
-    { deps: [], queryKey: ['reason-codes'] },
+    { fetchSize: pageSize, deps: [pageSize], queryKey: ['reason-codes', String(pageSize)] },
   );
 
   const loading = (paymentPage.loading || reasonPage.loading) && paymentPage.totalCount === 0 && reasonPage.totalCount === 0;

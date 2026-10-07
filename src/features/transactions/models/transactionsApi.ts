@@ -177,13 +177,14 @@ export const fetchTransactions = async (filters: TransactionFilters): Promise<Tr
 export const fetchTransactionsPage = async (
   page: number,
   filters: TransactionFilters,
+  limit: number = SERVER_PAGE_SIZE,
 ): Promise<ServerPage<Transaction>> => {
   const { dateFrom, dateTo } = buildDateRange(filters);
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
-  params.set('limit', String(SERVER_PAGE_SIZE));
+  params.set('limit', String(limit));
   params.set('sortDirection', 'desc');
   const data = await apiRequest<{ transactions: RawTransaction[] }>(
     `/transaction/sales?${params.toString()}`,
@@ -210,13 +211,14 @@ export const fetchRefunds = async (filters: TransactionFilters): Promise<Refund[
 export const fetchRefundsPage = async (
   page: number,
   filters: TransactionFilters,
+  limit: number = SERVER_PAGE_SIZE,
 ): Promise<ServerPage<Refund>> => {
   const { dateFrom, dateTo } = buildDateRange(filters);
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
-  params.set('limit', String(SERVER_PAGE_SIZE));
+  params.set('limit', String(limit));
   params.set('sortDirection', 'desc');
   const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
   const refunds = (data.refunds ?? []).map(toRefund);

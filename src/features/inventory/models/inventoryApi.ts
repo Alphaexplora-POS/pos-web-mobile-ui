@@ -106,8 +106,12 @@ export const fetchCombinedInventory = async (): Promise<InventoryItem[]> => {
   return (data.inventory ?? []).map(toInventoryItem);
 };
 
-export const fetchInventoryPage = async (page: number, branchId?: string): Promise<ServerPage<InventoryItem>> => {
-  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE) });
+export const fetchInventoryPage = async (
+  page: number,
+  branchId?: string,
+  limit: number = SERVER_PAGE_SIZE,
+): Promise<ServerPage<InventoryItem>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (branchId) {
     params.set('branchId', branchId);
   } else {
@@ -121,10 +125,11 @@ export const fetchInventoryPage = async (page: number, branchId?: string): Promi
 export const fetchInventoryAuditLogsPage = async (
   page: number,
   filters?: InventoryFilters,
+  limit: number = SERVER_PAGE_SIZE,
 ): Promise<ServerPage<InventoryAuditLog>> => {
   const params = new URLSearchParams({
     page: String(page),
-    limit: String(SERVER_PAGE_SIZE),
+    limit: String(limit),
     sortDirection: 'asc',
   });
   if (filters?.branchId) params.set('branchId', filters.branchId);

@@ -20,16 +20,16 @@ const toReasonCode = (raw: RawReasonCode): ReasonCode => ({
   isActive: raw.isActive,
 });
 
-export const fetchPaymentMethodsPage = async (page: number): Promise<ServerPage<PaymentMethod>> => {
+export const fetchPaymentMethodsPage = async (page: number, limit: number = SERVER_PAGE_SIZE): Promise<ServerPage<PaymentMethod>> => {
   const data = await apiRequest<{ paymentMethods: PaymentMethod[] }>(
-    `${PAYMENT_METHODS_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`,
+    `${PAYMENT_METHODS_KEY}?page=${page}&limit=${limit}&sortDirection=asc`,
   );
   return toServerPage<PaymentMethod>(data, 'paymentMethods');
 };
 
-export const fetchReasonCodesPage = async (page: number): Promise<ServerPage<ReasonCode>> => {
+export const fetchReasonCodesPage = async (page: number, limit: number = SERVER_PAGE_SIZE): Promise<ServerPage<ReasonCode>> => {
   const data = await apiRequest<{ reasonCodes: RawReasonCode[] }>(
-    `${REASON_CODES_KEY}?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`,
+    `${REASON_CODES_KEY}?page=${page}&limit=${limit}&sortDirection=asc`,
   );
   const reasonCodes = (data.reasonCodes ?? []).map(toReasonCode);
   return toServerPage<ReasonCode>({ ...data, reasonCodes }, 'reasonCodes');

@@ -16,9 +16,10 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export const fetchOwnersPage = async (
   status: ApprovalStatus,
   page: number,
+  limit: number = SERVER_PAGE_SIZE,
 ): Promise<ServerPage<PendingOwner>> => {
   const data = await apiRequest<{ items: PendingOwner[] }>(
-    `/identity/profiles?status=${status}&role=owner&sortField=createdAt&sortDirection=asc&page=${page}&limit=${SERVER_PAGE_SIZE}`,
+    `/identity/profiles?status=${status}&role=owner&sortField=createdAt&sortDirection=asc&page=${page}&limit=${limit}`,
   );
   return toServerPage<PendingOwner>(data, 'items');
 };

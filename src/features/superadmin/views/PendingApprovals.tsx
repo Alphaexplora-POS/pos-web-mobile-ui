@@ -71,9 +71,13 @@ const PendingApprovals: React.FC = () => {
 
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const page = useServerPagination(
-    (p) => fetchOwnersPage(activeTab, p),
+    (p) => fetchOwnersPage(activeTab, p, pageSize),
     pageSize,
-    { deps: [activeTab], queryKey: ['owner-approvals', activeTab] },
+    {
+      fetchSize: pageSize,
+      deps: [activeTab, pageSize],
+      queryKey: ['owner-approvals', activeTab, String(pageSize)],
+    },
   );
 
   const handleApprove = async () => {

@@ -272,16 +272,21 @@ const [adjustModalOpen, setAdjustModalOpen] = useState(false);
 
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const stockPage = useServerPagination(
-    (page) => fetchInventoryPage(page, vm.selectedBranchId ?? undefined),
-    pageSize,
-    { deps: [vm.selectedBranchId ?? ''], queryKey: ['inventory-stock', vm.selectedBranchId ?? ''] },
-  );
-  const auditPage = useServerPagination(
-    (page) => fetchInventoryAuditLogsPage(page, vm.selectedBranchId ? { branchId: vm.selectedBranchId } : undefined),
+    (page) => fetchInventoryPage(page, vm.selectedBranchId ?? undefined, pageSize),
     pageSize,
     {
-      deps: [vm.selectedBranchId ?? ''],
-      queryKey: ['inventory-audit', vm.selectedBranchId ?? ''],
+      fetchSize: pageSize,
+      deps: [vm.selectedBranchId ?? '', pageSize],
+      queryKey: ['inventory-stock', vm.selectedBranchId ?? '', String(pageSize)],
+    },
+  );
+  const auditPage = useServerPagination(
+    (page) => fetchInventoryAuditLogsPage(page, vm.selectedBranchId ? { branchId: vm.selectedBranchId } : undefined, pageSize),
+    pageSize,
+    {
+      fetchSize: pageSize,
+      deps: [vm.selectedBranchId ?? '', pageSize],
+      queryKey: ['inventory-audit', vm.selectedBranchId ?? '', String(pageSize)],
       refetchInterval: 90_000,
     },
   );

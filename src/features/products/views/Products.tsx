@@ -72,22 +72,30 @@ const Products: React.FC = () => {
   const [rowHeight, setRowHeight] = useState<number>(0);
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const productPage = useServerPagination(
-    (page) => fetchProductsPage(page, session?.branchId ?? null),
+    (page) => fetchProductsPage(page, session?.branchId ?? null, pageSize),
     pageSize,
     {
-      deps: [session?.branchId ?? ''],
-      queryKey: ['products', session?.branchId ?? ''],
+      fetchSize: pageSize,
+      deps: [session?.branchId ?? '', pageSize],
+      queryKey: ['products', session?.branchId ?? '', String(pageSize)],
       refetchInterval: 90_000,
     },
   );
-  const categoriesPage = useServerPagination((page) => fetchCategoriesPage(page), pageSize, {
-    queryKey: ['categories'],
+  const categoriesPage = useServerPagination((page) => fetchCategoriesPage(page, pageSize), pageSize, {
+    fetchSize: pageSize,
+    deps: [pageSize],
+    queryKey: ['categories', String(pageSize)],
     refetchInterval: 90_000,
   });
   const promotionsPage = useServerPagination(
-    (page) => fetchPromotionsPage(page, promoStatusTab === 'active'),
+    (page) => fetchPromotionsPage(page, promoStatusTab === 'active', pageSize),
     pageSize,
-    { deps: [promoStatusTab], queryKey: ['promotions', promoStatusTab], refetchInterval: 90_000 },
+    {
+      fetchSize: pageSize,
+      deps: [promoStatusTab, pageSize],
+      queryKey: ['promotions', promoStatusTab, String(pageSize)],
+      refetchInterval: 90_000,
+    },
   );
 
   const variantQuery = useQuery<ProductVariant[]>({

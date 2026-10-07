@@ -201,20 +201,22 @@ const Transactions: React.FC = () => {
 
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const txPage = useServerPagination(
-    (page) => fetchTransactionsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }),
+    (page) => fetchTransactionsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }, pageSize),
     pageSize,
     {
-      deps: [vm.range, vm.startDate, vm.endDate],
-      queryKey: ['transactions', vm.range, vm.startDate, vm.endDate],
+      fetchSize: pageSize,
+      deps: [vm.range, vm.startDate, vm.endDate, pageSize],
+      queryKey: ['transactions', vm.range, vm.startDate, vm.endDate, String(pageSize)],
       refetchInterval: 90_000,
     },
   );
   const refundPage = useServerPagination(
-    (page) => fetchRefundsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }),
+    (page) => fetchRefundsPage(page, { range: vm.range, startDate: vm.startDate, endDate: vm.endDate }, pageSize),
     pageSize,
     {
-      deps: [vm.range, vm.startDate, vm.endDate],
-      queryKey: ['refunds', vm.range, vm.startDate, vm.endDate],
+      fetchSize: pageSize,
+      deps: [vm.range, vm.startDate, vm.endDate, pageSize],
+      queryKey: ['refunds', vm.range, vm.startDate, vm.endDate, String(pageSize)],
       refetchInterval: 90_000,
     },
   );

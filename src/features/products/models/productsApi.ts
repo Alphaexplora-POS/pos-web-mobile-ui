@@ -125,10 +125,10 @@ export const fetchCategories = async (): Promise<Category[]> => {
   return (data.categories ?? []).map(toCategory);
 };
 
-export const fetchCategoriesPage = async (page: number): Promise<ServerPage<Category>> => {
+export const fetchCategoriesPage = async (page: number, limit: number = SERVER_PAGE_SIZE): Promise<ServerPage<Category>> => {
   const data = await apiRequest<{
     categories: { id: string; name: string; parentId: string | null; isActive: boolean }[];
-  }>(`/catalog/categories?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc`);
+  }>(`/catalog/categories?page=${page}&limit=${limit}&sortDirection=asc`);
   const categories = (data.categories ?? []).map(toCategory);
   return toServerPage<Category>({ ...data, categories }, 'categories');
 };
@@ -176,8 +176,12 @@ export const fetchProducts = async (branchId?: string | null): Promise<Product[]
   return (data.products ?? []).map(toProduct);
 };
 
-export const fetchProductsPage = async (page: number, branchId?: string | null): Promise<ServerPage<Product>> => {
-  const params = new URLSearchParams({ page: String(page), limit: String(SERVER_PAGE_SIZE), sortDirection: 'asc' });
+export const fetchProductsPage = async (
+  page: number,
+  branchId?: string | null,
+  limit: number = SERVER_PAGE_SIZE,
+): Promise<ServerPage<Product>> => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), sortDirection: 'asc' });
   if (branchId) params.set('branch_id', branchId);
   const data = await apiRequest<{ products: RawProduct[] }>(`/catalog/products?${params.toString()}`);
   const products = (data.products ?? []).map(toProduct);
@@ -306,10 +310,14 @@ export const fetchPromotions = async (): Promise<Promotion[]> => {
   return (data.promotions ?? []).map(toPromotion);
 };
 
-export const fetchPromotionsPage = async (page: number, isActive?: boolean): Promise<ServerPage<Promotion>> => {
+export const fetchPromotionsPage = async (
+  page: number,
+  isActive?: boolean,
+  limit: number = SERVER_PAGE_SIZE,
+): Promise<ServerPage<Promotion>> => {
   const query = isActive === undefined ? '' : `&is_active=${isActive}`;
   const data = await apiRequest<{ promotions: Promotion[] }>(
-    `/promotion/promotions?page=${page}&limit=${SERVER_PAGE_SIZE}&sortDirection=asc${query}`,
+    `/promotion/promotions?page=${page}&limit=${limit}&sortDirection=asc${query}`,
   );
   const promotions = (data.promotions ?? []).map(toPromotion);
   return toServerPage<Promotion>({ ...data, promotions }, 'promotions');
