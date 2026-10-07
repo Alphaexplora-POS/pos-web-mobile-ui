@@ -53,6 +53,16 @@ const RETRY_COOLDOWN_MS = 2_000;
 
 class RetryableError extends Error {}
 
+const parseAsJson = async (res: Response): Promise<unknown> => {
+  const text = await res.text();
+  if (!text.trim()) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+};
+
 const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -65,10 +75,15 @@ const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
             ...init?.headers,
           },
   });
-  const data = await res.json();
+  const data = await parseAsJson(res);
   if (!res.ok) {
-    const payload = data as ApiErrorResponse;
-    const message = payload.message ?? 'Request failed';
+    const payload = data as ApiErrorResponse | undefined;
+    const message =
+      typeof payload?.message === 'string' && payload.message
+        ? payload.message
+        : typeof data === 'string' && data
+          ? data
+          : 'Request failed';
     if (res.status === 401) {
       notifySessionExpired();
       throw new Error(message);
@@ -82,7 +97,7 @@ const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
     }
     throw new Error(message);
   }
-  return unwrapData<T>(data);
+  return unwrapData<T>(data ?? {});
 };
 
 export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Promise<T> => {

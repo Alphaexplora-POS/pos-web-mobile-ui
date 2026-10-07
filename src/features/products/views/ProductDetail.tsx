@@ -31,7 +31,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ product, attributes, onTo
               </button>
             )}
             <button
-              className={`text-sm px-3 py-1 rounded-md ${product.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
+              className={`text-sm px-3 py-1 rounded-md ${product.isActive ? 'bg-error text-white hover:opacity-90' : 'bg-success text-white hover:opacity-90'}`}
               onClick={() => onToggleProduct(!product.isActive)}
             >
               {product.isActive ? 'Deactivate' : 'Activate'}

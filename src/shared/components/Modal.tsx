@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 
 export const CLOSE_ALL_MODALS_EVENT = 'pos:close-all-modals';
@@ -30,7 +31,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -74,7 +75,8 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children, animate = true,
         </div>
         <div className={`p-6 ${fit ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'overflow-y-auto'}`}>{children}</div>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

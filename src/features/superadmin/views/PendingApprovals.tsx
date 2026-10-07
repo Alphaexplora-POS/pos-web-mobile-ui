@@ -11,6 +11,8 @@ import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSi
 import { useServerPagination } from '../../../shared/hooks/useServerPagination';
 import {
   approveOwner,
+  activateOwner,
+  deactivateOwner,
   fetchOwnersPage,
   rejectOwner,
   type ApprovalStatus,
@@ -64,6 +66,8 @@ const PendingApprovals: React.FC = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [approveTarget, setApproveTarget] = useState<{ id: string; name: string } | null>(null);
   const [rejectTarget, setRejectTarget] = useState<{ id: string; name: string } | null>(null);
+  const [activateTarget, setActivateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; name: string } | null>(null);
 
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
   const page = useServerPagination(
@@ -99,6 +103,36 @@ const PendingApprovals: React.FC = () => {
     } finally {
       setBusyId(null);
       setRejectTarget(null);
+    }
+  };
+
+  const handleActivate = async () => {
+    if (!activateTarget) return;
+    setBusyId(activateTarget.id);
+    try {
+      await activateOwner(activateTarget.id);
+      toast.success('Registration activated.');
+      page.reset();
+    } catch {
+      // apiRequest already surfaces errors for non-GET calls
+    } finally {
+      setBusyId(null);
+      setActivateTarget(null);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setBusyId(deactivateTarget.id);
+    try {
+      await deactivateOwner(deactivateTarget.id);
+      toast.success('Registration deactivated.');
+      page.reset();
+    } catch {
+      // apiRequest already surfaces errors for non-GET calls
+    } finally {
+      setBusyId(null);
+      setDeactivateTarget(null);
     }
   };
 
@@ -186,7 +220,38 @@ const PendingApprovals: React.FC = () => {
                               Reject
                             </ActionButton>
                           </div>
-                        ) : null}
+                        ) : activeTab === 'approved' ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <ActionButton
+                              variant="danger"
+                              disabled={busyId === owner.id}
+                              onClick={() =>
+                                setDeactivateTarget({ id: owner.id, name: `${owner.firstName} ${owner.lastName}` })
+                              }
+                            >
+                              Deactivate
+                            </ActionButton>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-2">
+                            <ActionButton
+                              disabled={busyId === owner.id}
+                              onClick={() =>
+                                setApproveTarget({ id: owner.id, name: `${owner.firstName} ${owner.lastName}` })
+                              }
+                            >
+                              Approve
+                            </ActionButton>
+                            <ActionButton
+                              disabled={busyId === owner.id}
+                              onClick={() =>
+                                setActivateTarget({ id: owner.id, name: `${owner.firstName} ${owner.lastName}` })
+                              }
+                            >
+                              Activate
+                            </ActionButton>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -224,6 +289,26 @@ const PendingApprovals: React.FC = () => {
           confirmLabel="Reject"
           onConfirm={handleReject}
           onClose={() => setRejectTarget(null)}
+        />
+      )}
+
+      {activateTarget && (
+        <ConfirmModal
+          title="Activate registration"
+          message={`Activate "${activateTarget.name}"? They will be able to sign in again.`}
+          confirmLabel="Activate"
+          onConfirm={handleActivate}
+          onClose={() => setActivateTarget(null)}
+        />
+      )}
+
+      {deactivateTarget && (
+        <ConfirmModal
+          title="Deactivate registration"
+          message={`Deactivate "${deactivateTarget.name}"? They will no longer be able to sign in.`}
+          confirmLabel="Deactivate"
+          onConfirm={handleDeactivate}
+          onClose={() => setDeactivateTarget(null)}
         />
       )}
     </PageLayout>

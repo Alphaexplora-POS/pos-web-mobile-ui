@@ -38,15 +38,17 @@ const StatusBadge: React.FC<{ isActive: boolean }> = ({ isActive }) => (
 const ActionButton: React.FC<{
   children: React.ReactNode;
   onClick: () => void;
-  variant?: 'neutral' | 'danger';
+  variant?: 'neutral' | 'danger' | 'success';
 }> = ({ children, onClick, variant = 'neutral' }) => (
   <button
     type="button"
     onClick={onClick}
     className={`text-sm px-4 py-1.5 rounded-md border border-line transition-colors ${
       variant === 'danger'
-        ? 'text-error hover:bg-error/5'
-        : 'text-ink-secondary hover:bg-canvas'
+        ? 'border-error bg-error text-white hover:opacity-90'
+        : variant === 'success'
+          ? 'border-success bg-success text-white hover:opacity-90'
+          : 'text-ink-secondary hover:bg-canvas'
     }`}
   >
     {children}
@@ -225,7 +227,7 @@ const Configuration: React.FC = () => {
                             Edit
                           </ActionButton>
                           <ActionButton
-                            variant="danger"
+                            variant={m.isActive ? 'danger' : 'success'}
                             onClick={() =>
                               setConfirmState({
                                 title: m.isActive ? 'Deactivate Payment Method' : 'Reactivate Payment Method',
@@ -306,7 +308,7 @@ const Configuration: React.FC = () => {
                             Edit
                           </ActionButton>
                           <ActionButton
-                            variant="danger"
+                            variant={r.isActive ? 'danger' : 'success'}
                             onClick={() =>
                               setConfirmState({
                                 title: r.isActive ? 'Deactivate Reason Code' : 'Reactivate Reason Code',

@@ -28,6 +28,7 @@ interface RawPayment {
 interface RawTransaction {
   id: string;
   branchId: string;
+  branchName?: string | null;
   clientId: string;
   sessionId: string;
   employeeId: string;
@@ -79,7 +80,7 @@ const toTransactionItem = (raw: RawTransactionItem): Transaction['items'][number
 const toTransaction = (raw: RawTransaction): Transaction => ({
   id: raw.id,
   branchId: raw.branchId,
-  branchName: '',
+  branchName: raw.branchName ?? '',
   clientId: raw.clientId,
   sessionId: raw.sessionId,
   employeeId: raw.employeeId,
@@ -114,30 +115,49 @@ const toSession = (raw: RawSession): PosSession => ({
   status: raw.status === 'closed' ? 'closed' : 'open',
 });
 
-const localDayStart = (d: Date): string => {
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  return start.toISOString();
+const BUSINESS_HOURS_AHEAD = 8; // Asia/Manila (UTC+8, no DST) - matches BusinessZone on the POS app
+
+/** Wall-clock "now" in the business zone, carried on a fake UTC date. */
+const businessNow = (): Date => new Date(Date.now() + BUSINESS_HOURS_AHEAD * 3_600_000);
+
+/** Business-day start/end as true UTC instants, independent of the browser's timezone. */
+const businessDayBounds = (d: Date): { start: Date; end: Date } => {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const shift = -BUSINESS_HOURS_AHEAD * 3_600_000;
+  return {
+    start: new Date(Date.UTC(y, m, day) + shift),
+    end: new Date(Date.UTC(y, m, day, 23, 59, 59, 999) + shift),
+  };
 };
 
-const localDayEnd = (d: Date): string => {
-  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-  return end.toISOString();
+const dayBoundsFromString = (date: string): { start: Date; end: Date } => {
+  const [y, m, d] = date.split('-').map(Number);
+  return businessDayBounds(new Date(Date.UTC(y, m - 1, d)));
 };
 
 const buildDateRange = (filters: TransactionFilters): { dateFrom?: string; dateTo?: string } => {
-  const now = new Date();
-  if (filters.range === 'today') return { dateFrom: localDayStart(now), dateTo: localDayEnd(now) };
+  const now = businessNow();
+  if (filters.range === 'today') {
+    const b = businessDayBounds(now);
+    return { dateFrom: b.start.toISOString(), dateTo: b.end.toISOString() };
+  }
   if (filters.range === 'week') {
-    const from = new Date(now);
-    from.setDate(now.getDate() - 6);
-    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
+    const week = new Date(now);
+    week.setUTCDate(week.getUTCDate() - 6);
+    const from = businessDayBounds(week);
+    const to = businessDayBounds(now);
+    return { dateFrom: from.start.toISOString(), dateTo: to.end.toISOString() };
   }
   if (filters.range === 'month') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const from = businessDayBounds(monthStart);
+    const to = businessDayBounds(now);
+    return { dateFrom: from.start.toISOString(), dateTo: to.end.toISOString() };
   }
-  const from = filters.startDate ? localDayStart(new Date(`${filters.startDate}T00:00:00`)) : undefined;
-  const to = filters.endDate ? localDayEnd(new Date(`${filters.endDate}T00:00:00`)) : undefined;
+  const from = filters.startDate ? dayBoundsFromString(filters.startDate).start.toISOString() : undefined;
+  const to = filters.endDate ? dayBoundsFromString(filters.endDate).end.toISOString() : undefined;
   return { dateFrom: from, dateTo: to };
 };
 
@@ -164,7 +184,7 @@ export const fetchTransactionsPage = async (
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
   params.set('limit', String(SERVER_PAGE_SIZE));
-  params.set('sortDirection', 'asc');
+  params.set('sortDirection', 'desc');
   const data = await apiRequest<{ transactions: RawTransaction[] }>(
     `/transaction/sales?${params.toString()}`,
   );
@@ -197,7 +217,7 @@ export const fetchRefundsPage = async (
   if (dateTo) params.set('date_to', dateTo);
   params.set('page', String(page));
   params.set('limit', String(SERVER_PAGE_SIZE));
-  params.set('sortDirection', 'asc');
+  params.set('sortDirection', 'desc');
   const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
   const refunds = (data.refunds ?? []).map(toRefund);
   return toServerPage<Refund>({ ...data, refunds }, 'refunds');

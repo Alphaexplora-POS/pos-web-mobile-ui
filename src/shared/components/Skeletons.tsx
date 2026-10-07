@@ -106,7 +106,8 @@ export const BranchesSkeleton: React.FC<{ isOwner?: boolean }> = ({ isOwner = fa
                 <Skeleton className="h-4 w-32 rounded" />
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-5 w-14 rounded" />
-                  <Skeleton className="h-7 w-14 rounded-md" />
+                  <Skeleton className="h-6 w-11 rounded-md" />
+                  <Skeleton className="h-6 w-14 rounded-md" />
                 </div>
               </div>
               <Skeleton className="h-3 w-2/3 mt-3 rounded" />

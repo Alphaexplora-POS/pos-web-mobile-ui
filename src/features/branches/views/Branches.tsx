@@ -6,7 +6,6 @@ import type { EmployeeRole, Branch, Employee } from '../models/branchTypes';
 import PageLayout from '../../../shared/components/PageLayout';
 import { BranchesSkeleton } from '../../../shared/components/Skeletons';
 import ErrorState from '../../../shared/components/ErrorState';
-import OwnerOnlyBadge from '../../../shared/components/OwnerOnlyBadge';
 import Select from '../../../shared/components/Select';
 import Modal from '../../../shared/components/Modal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
@@ -16,7 +15,7 @@ import ConfirmModal from '../../../shared/components/ConfirmModal';
 import { usePagination } from '../../../shared/hooks/usePagination';
 import Pagination from '../../../shared/components/Pagination';
 import { useUrlSection } from '../../../shared/hooks/useUrlSection';
-import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
+import { useResponsivePageSize, useResponsiveCardPageSize } from '../../../shared/hooks/useResponsivePageSize';
 import ViewportTable from '../../../shared/components/ViewportTable';
 
 type BranchModalState = { mode: 'create' } | { mode: 'edit'; branch: Branch } | null;
@@ -70,7 +69,8 @@ const Branches: React.FC = () => {
   const filteredEmployees =
     roleFilter === 'all' ? visibleEmployees : visibleEmployees.filter((e) => e.role === roleFilter);
 
-  const branchPagination = usePagination(visibleBranches);
+  const branchPageSize = useResponsiveCardPageSize(tableHeight);
+  const branchPagination = usePagination(visibleBranches, branchPageSize);
   const employeePagination = usePagination(filteredEmployees, useResponsivePageSize(tableHeight, rowHeight));
 
   const roleLabel: Record<EmployeeRole, string> = {
@@ -91,16 +91,13 @@ const Branches: React.FC = () => {
   if (vm.error) return <ErrorState message={vm.error} />;
 
   return (
-    <PageLayout
-      title={isOwner ? 'Branch and Employees' : 'Employees'}
-      actions={!isOwner ? <OwnerOnlyBadge label="Branch Manager view" /> : undefined}
-    >
+    <PageLayout title={isOwner ? 'Branch and Employees' : 'Employees'}>
       {session && (
         <div className="mb-6 bg-white rounded-lg border border-line p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm text-ink-secondary">Workspace:</span>
           <span className="text-sm font-semibold text-ink-primary">{session.tenantName || '—'}</span>
           <span className="text-xs text-ink-muted">
-            (employees are only shown for this workspace, id …{session.tenantId?.slice(-6) ?? ''})
+            Employees are scoped to this workspace only
           </span>
         </div>
       )}
@@ -205,28 +202,30 @@ const Branches: React.FC = () => {
                           Edit
                         </button>
                       )}
+                      {isOwner && (
+                        <button
+                          className={`text-xs px-2.5 py-1 rounded-md text-white transition-colors ${
+                            b.isActive ? 'bg-error hover:opacity-90' : 'bg-success hover:opacity-90'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmState({
+                              title: b.isActive ? 'Deactivate Branch' : 'Reactivate Branch',
+                              message: `${b.isActive ? 'Deactivate' : 'Reactivate'} branch "${b.name}"?`,
+                              confirmLabel: b.isActive ? 'Deactivate' : 'Reactivate',
+                              onConfirm: b.isActive
+                                ? () => vm.deactivateBranch(b.id)
+                                : () => vm.activateBranch(b.id),
+                            });
+                          }}
+                        >
+                          {b.isActive ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="text-sm text-ink-secondary mt-1">{b.address}</p>
                   <p className="text-sm text-ink-muted">{b.contact}</p>
-                  {isOwner && (
-                    <button
-                      className={`mt-3 text-sm ${b.isActive ? 'text-error hover:text-error' : 'text-brand hover:text-brand-dark'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmState({
-                          title: b.isActive ? 'Deactivate Branch' : 'Reactivate Branch',
-                          message: `${b.isActive ? 'Deactivate' : 'Reactivate'} branch "${b.name}"?`,
-                          confirmLabel: b.isActive ? 'Deactivate' : 'Reactivate',
-                          onConfirm: b.isActive
-                            ? () => vm.deactivateBranch(b.id)
-                            : () => vm.activateBranch(b.id),
-                        });
-                      }}
-                    >
-                      {b.isActive ? 'Deactivate' : 'Reactivate'}
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
@@ -315,10 +314,10 @@ const Branches: React.FC = () => {
                               Edit
                             </button>
                             <button
-                              className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                              className={`text-xs px-2.5 py-1 rounded-md text-white transition-colors ${
                                 e.isActive
-                                  ? 'border-line text-error hover:border-error bg-white hover:bg-error hover:text-white'
-                                  : 'border-line text-ink-primary hover:border-brand hover:bg-brand-light hover:text-brand'
+                                  ? 'bg-error hover:opacity-90'
+                                  : 'bg-success hover:opacity-90'
                               }`}
                               onClick={() =>
                                 setConfirmState({
@@ -331,15 +330,6 @@ const Branches: React.FC = () => {
                                 })
                               }
                             >
-                              {e.isActive ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                              )}
                               {e.isActive ? 'Deactivate' : 'Reactivate'}
                             </button>
                           </div>

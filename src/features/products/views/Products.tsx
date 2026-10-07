@@ -225,7 +225,7 @@ const Products: React.FC = () => {
                           Edit
                         </button>
                         <button
-                          className={`text-sm px-3 py-1 rounded ${v.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'}`}
+                          className={`text-sm px-3 py-1 rounded ${v.isActive ? 'bg-error text-white hover:opacity-90' : 'bg-success text-white hover:opacity-90'}`}
                           onClick={() =>
                             setConfirmState({
                               title: v.isActive ? 'Deactivate Variant' : 'Activate Variant',
@@ -546,7 +546,7 @@ const Products: React.FC = () => {
                           </button>
                           <button
                             className={`text-sm px-3 py-1.5 rounded ${
-                              c.isActive ? 'bg-error/10 text-error' : 'bg-success-light text-success'
+                              c.isActive ? 'bg-error text-white hover:opacity-90' : 'bg-success text-white hover:opacity-90'
                             }`}
                             onClick={() =>
                               setConfirmState({
