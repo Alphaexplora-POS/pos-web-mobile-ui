@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
+import LoadingButton from '../../../shared/components/LoadingButton';
 import type { Category } from '../models/productTypes';
 import { categorySchema, firstZodMessage } from '../../../shared/validation/schemas';
 
 interface CategoryFormProps {
   categories: Category[];
-  onSubmit: (name: string, parentId: string | null) => void;
-  onUpdate: (id: string, name: string, parentId: string | null) => void;
+  onSubmit: (name: string, parentId: string | null) => void | Promise<void>;
+  onUpdate: (id: string, name: string, parentId: string | null) => void | Promise<void>;
   editingCategory: Category | null;
   onCancelEdit: () => void;
 }
@@ -22,6 +23,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState('');
   const [categoryType, setCategoryType] = useState<'parent' | 'child'>('parent');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingCategory) {
@@ -36,7 +38,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     }
   }, [editingCategory]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const check = categorySchema.safeParse({ name });
     if (!check.success) {
@@ -48,14 +50,19 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
       return;
     }
     const resolvedParentId = categoryType === 'parent' ? null : parentId;
-    if (editingCategory) {
-      onUpdate(editingCategory.id, name, resolvedParentId);
-    } else {
-      onSubmit(name, resolvedParentId);
+    setSubmitting(true);
+    try {
+      if (editingCategory) {
+        await onUpdate(editingCategory.id, name, resolvedParentId);
+      } else {
+        await onSubmit(name, resolvedParentId);
+      }
+      setName('');
+      setParentId('');
+      setCategoryType('parent');
+    } finally {
+      setSubmitting(false);
     }
-    setName('');
-    setParentId('');
-    setCategoryType('parent');
   };
 
   const parentOptions = categories
@@ -110,12 +117,9 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
         </div>
       )}
       <div className="flex gap-2">
-        <button
-          type="submit"
-          className="bg-brand text-white px-4 py-2 rounded hover:bg-brand-dark"
-        >
+        <LoadingButton loading={submitting} loadingLabel={editingCategory ? 'Saving…' : 'Creating…'}>
           {editingCategory ? 'Save Changes' : 'Create Category'}
-        </button>
+        </LoadingButton>
         {editingCategory && (
           <button
             type="button"

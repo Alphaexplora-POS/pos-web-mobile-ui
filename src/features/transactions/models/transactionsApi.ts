@@ -1,5 +1,14 @@
 import type { CreateRefundInput, CreateSaleInput, PosSession, Refund, RefundStatus, SessionSummary, Transaction, TransactionFilters } from './transactionTypes';
-import { apiRequest } from '../../../shared/models/apiClient';
+import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
+
+const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
+
+export const invalidateTransactionsCache = (): void => {
+  invalidateCache('GET /transaction/sales');
+  invalidateCache('GET /refund/refunds');
+  invalidateCache('GET /identity/sessions');
+};
 
 interface RawTransactionItem {
   id: string;
@@ -19,10 +28,13 @@ interface RawPayment {
 interface RawTransaction {
   id: string;
   branchId: string;
+  branchName?: string | null;
   clientId: string;
   sessionId: string;
   employeeId: string;
   employeeName: string;
+  orNumber?: string | null;
+  invoiceNumber?: string | null;
   subtotal: string | number;
   totalDiscount: string | number;
   totalAmount: string | number;
@@ -68,11 +80,13 @@ const toTransactionItem = (raw: RawTransactionItem): Transaction['items'][number
 const toTransaction = (raw: RawTransaction): Transaction => ({
   id: raw.id,
   branchId: raw.branchId,
-  branchName: '',
+  branchName: raw.branchName ?? '',
   clientId: raw.clientId,
   sessionId: raw.sessionId,
   employeeId: raw.employeeId,
   employeeName: raw.employeeName,
+  orNumber: raw.orNumber ?? undefined,
+  invoiceNumber: raw.invoiceNumber ?? undefined,
   items: (raw.items ?? []).map(toTransactionItem),
   subtotal: num(raw.subtotal),
   discountTotal: num(raw.totalDiscount),
@@ -101,30 +115,49 @@ const toSession = (raw: RawSession): PosSession => ({
   status: raw.status === 'closed' ? 'closed' : 'open',
 });
 
-const localDayStart = (d: Date): string => {
-  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  return start.toISOString();
+const BUSINESS_HOURS_AHEAD = 8; // Asia/Manila (UTC+8, no DST) - matches BusinessZone on the POS app
+
+/** Wall-clock "now" in the business zone, carried on a fake UTC date. */
+const businessNow = (): Date => new Date(Date.now() + BUSINESS_HOURS_AHEAD * 3_600_000);
+
+/** Business-day start/end as true UTC instants, independent of the browser's timezone. */
+const businessDayBounds = (d: Date): { start: Date; end: Date } => {
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const day = d.getUTCDate();
+  const shift = -BUSINESS_HOURS_AHEAD * 3_600_000;
+  return {
+    start: new Date(Date.UTC(y, m, day) + shift),
+    end: new Date(Date.UTC(y, m, day, 23, 59, 59, 999) + shift),
+  };
 };
 
-const localDayEnd = (d: Date): string => {
-  const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-  return end.toISOString();
+const dayBoundsFromString = (date: string): { start: Date; end: Date } => {
+  const [y, m, d] = date.split('-').map(Number);
+  return businessDayBounds(new Date(Date.UTC(y, m - 1, d)));
 };
 
 const buildDateRange = (filters: TransactionFilters): { dateFrom?: string; dateTo?: string } => {
-  const now = new Date();
-  if (filters.range === 'today') return { dateFrom: localDayStart(now), dateTo: localDayEnd(now) };
+  const now = businessNow();
+  if (filters.range === 'today') {
+    const b = businessDayBounds(now);
+    return { dateFrom: b.start.toISOString(), dateTo: b.end.toISOString() };
+  }
   if (filters.range === 'week') {
-    const from = new Date(now);
-    from.setDate(now.getDate() - 6);
-    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
+    const week = new Date(now);
+    week.setUTCDate(week.getUTCDate() - 6);
+    const from = businessDayBounds(week);
+    const to = businessDayBounds(now);
+    return { dateFrom: from.start.toISOString(), dateTo: to.end.toISOString() };
   }
   if (filters.range === 'month') {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { dateFrom: localDayStart(from), dateTo: localDayEnd(now) };
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const from = businessDayBounds(monthStart);
+    const to = businessDayBounds(now);
+    return { dateFrom: from.start.toISOString(), dateTo: to.end.toISOString() };
   }
-  const from = filters.startDate ? localDayStart(new Date(`${filters.startDate}T00:00:00`)) : undefined;
-  const to = filters.endDate ? localDayEnd(new Date(`${filters.endDate}T00:00:00`)) : undefined;
+  const from = filters.startDate ? dayBoundsFromString(filters.startDate).start.toISOString() : undefined;
+  const to = filters.endDate ? dayBoundsFromString(filters.endDate).end.toISOString() : undefined;
   return { dateFrom: from, dateTo: to };
 };
 
@@ -133,9 +166,31 @@ export const fetchTransactions = async (filters: TransactionFilters): Promise<Tr
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
-  params.set('limit', '200');
-  const data = await apiRequest<{ transactions: RawTransaction[] }>(`/transaction/sales?${params.toString()}`);
+  params.set('limit', '100');
+  const data = await apiRequest<{ transactions: RawTransaction[] }>(
+    `/transaction/sales?${params.toString()}`,
+    CACHE_OPTIONS,
+  );
   return (data.transactions ?? []).map(toTransaction);
+};
+
+export const fetchTransactionsPage = async (
+  page: number,
+  filters: TransactionFilters,
+  limit: number = SERVER_PAGE_SIZE,
+): Promise<ServerPage<Transaction>> => {
+  const { dateFrom, dateTo } = buildDateRange(filters);
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  params.set('sortDirection', 'desc');
+  const data = await apiRequest<{ transactions: RawTransaction[] }>(
+    `/transaction/sales?${params.toString()}`,
+  );
+  const transactions = (data.transactions ?? []).map(toTransaction);
+  return toServerPage<Transaction>({ ...data, transactions }, 'transactions');
 };
 
 export const fetchTransactionById = async (id: string): Promise<Transaction> => {
@@ -148,9 +203,26 @@ export const fetchRefunds = async (filters: TransactionFilters): Promise<Refund[
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
-  params.set('limit', '200');
-  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
+  params.set('limit', '100');
+  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`, CACHE_OPTIONS);
   return (data.refunds ?? []).map(toRefund);
+};
+
+export const fetchRefundsPage = async (
+  page: number,
+  filters: TransactionFilters,
+  limit: number = SERVER_PAGE_SIZE,
+): Promise<ServerPage<Refund>> => {
+  const { dateFrom, dateTo } = buildDateRange(filters);
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  params.set('sortDirection', 'desc');
+  const data = await apiRequest<{ refunds: RawRefund[] }>(`/refund/refunds?${params.toString()}`);
+  const refunds = (data.refunds ?? []).map(toRefund);
+  return toServerPage<Refund>({ ...data, refunds }, 'refunds');
 };
 
 export const createRefund = async (input: CreateRefundInput): Promise<Refund> => {
@@ -174,6 +246,7 @@ export const createRefund = async (input: CreateRefundInput): Promise<Refund> =>
       items: input.refundItems ?? [],
     }),
   });
+  invalidateTransactionsCache();
   return {
     id: data.id,
     transactionId: input.transactionId,
@@ -189,6 +262,7 @@ export const approveRefund = async (id: string, approvedBy: string, approvedByNa
     method: 'PATCH',
     body: JSON.stringify({ approvedBy, approvedByName }),
   });
+  invalidateTransactionsCache();
 };
 
 export const denyRefund = async (id: string, approvedBy: string, approvedByName: string): Promise<void> => {
@@ -196,6 +270,7 @@ export const denyRefund = async (id: string, approvedBy: string, approvedByName:
     method: 'PATCH',
     body: JSON.stringify({ approvedBy, approvedByName }),
   });
+  invalidateTransactionsCache();
 };
 
 export const completeRefund = async (id: string, paymentMethodId: string, paymentMethodName: string, amount: number): Promise<void> => {
@@ -203,6 +278,7 @@ export const completeRefund = async (id: string, paymentMethodId: string, paymen
     method: 'PATCH',
     body: JSON.stringify({ paymentMethodId, paymentMethodName, amount }),
   });
+  invalidateTransactionsCache();
 };
 
 export const createSale = async (input: CreateSaleInput): Promise<Transaction> => {
@@ -233,6 +309,7 @@ export const createSale = async (input: CreateSaleInput): Promise<Transaction> =
       payments: [{ paymentMethodId: input.paymentMethodId, paymentMethodName: input.paymentMethodName, amount: totalAmount }],
     }),
   });
+  invalidateTransactionsCache();
   return toTransaction(data);
 };
 
@@ -241,19 +318,21 @@ export const openSession = async (branchId: string, employeeId: string): Promise
     method: 'POST',
     body: JSON.stringify({ branchId, employeeId }),
   });
+  invalidateCache('GET /identity/sessions');
   return toSession(data);
 };
 
 export const closeSession = async (id: string): Promise<PosSession> => {
   const data = await apiRequest<RawSession>(`/identity/sessions/${id}/close`, { method: 'PATCH' });
+  invalidateCache('GET /identity/sessions');
   return toSession(data);
 };
 
 export const fetchSessions = async (): Promise<PosSession[]> => {
-  const data = await apiRequest<RawSession[]>('/identity/sessions/active');
+  const data = await apiRequest<RawSession[]>('/identity/sessions/active', CACHE_OPTIONS);
   return (Array.isArray(data) ? data : []).map(toSession);
 };
 
 export const fetchSessionSummary = async (id: string): Promise<SessionSummary> => {
-  return apiRequest<SessionSummary>(`/identity/sessions/${id}/summary`);
+  return apiRequest<SessionSummary>(`/identity/sessions/${id}/summary`, CACHE_OPTIONS);
 };

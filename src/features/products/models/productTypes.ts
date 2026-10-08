@@ -10,7 +10,7 @@ export interface Product {
   name: string;
   description: string;
   basePrice: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   categoryId: string;
   isActive: boolean;
 }
@@ -46,7 +46,7 @@ export interface Promotion {
   id: string;
   name: string;
   promoType: PromoType;
-  config: Record<string, string | number | boolean>;
+  config: Record<string, unknown>;
   isStackable: boolean;
   isActive: boolean;
   startDate?: string;
@@ -58,7 +58,7 @@ export interface CreateProductInput {
   name: string;
   description: string;
   basePrice: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   categoryId: string;
 }
 
@@ -74,7 +74,7 @@ export interface CreateVariantInput {
 export interface CreatePromoInput {
   name: string;
   promoType: PromoType;
-  config: Record<string, string | number | boolean>;
+  config: Record<string, unknown>;
   isStackable: boolean;
   isActive: boolean;
   startDate?: string;

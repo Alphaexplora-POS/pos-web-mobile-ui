@@ -16,6 +16,10 @@ export default {
         error: '#EF4444',
         info: '#3B82F6',
       },
+      minHeight: {
+        table: '18rem',
+        'table-lg': '21rem',
+      },
     },
   },
   plugins: [],

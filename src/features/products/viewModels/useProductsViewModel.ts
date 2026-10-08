@@ -13,10 +13,12 @@ import type {
 } from '../models/productTypes';
 import {
   fetchCategories,
+  getCachedCategories,
   createCategory,
   updateCategory,
   setCategoryActive,
   fetchProducts,
+  getCachedProducts,
   createProduct,
   updateProduct,
   setProductActive,
@@ -28,26 +30,33 @@ import {
   createAttribute,
   updateAttribute,
   fetchPromotions,
+  getCachedPromotions,
   createPromotion,
+  updatePromotion,
   setPromotionActive,
+  invalidateProductCaches,
 } from '../models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
-export const useProductsViewModel = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
+export const useProductsViewModel = (managerBranchId?: string | null) => {
+  const [categories, setCategories] = useState<Category[]>(getCachedCategories);
+  const [products, setProducts] = useState<Product[]>(getCachedProducts);
+  const [promotions, setPromotions] = useState<Promotion[]>(getCachedPromotions);
   const [variants, setVariants] = useState<Record<string, ProductVariant[]>>({});
   const [attributes, setAttributes] = useState<Record<string, ProductAttribute[]>>({});
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(
+    () => getCachedCategories().length === 0 || getCachedProducts().length === 0 || getCachedPromotions().length === 0,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       const [catData, prodData, promoData] = await Promise.all([
         fetchCategories(),
-        fetchProducts(),
+        fetchProducts(managerBranchId),
         fetchPromotions(),
       ]);
       setCategories(catData);
@@ -58,7 +67,7 @@ export const useProductsViewModel = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [managerBranchId]);
 
   useEffect(() => {
     load();
@@ -78,91 +87,116 @@ export const useProductsViewModel = () => {
   }, [loadBranches]);
 
   const loadProductDetails = useCallback(async (productId: string) => {
-    const [v, a] = await Promise.all([
+    setDetailsLoading((prev) => ({ ...prev, [productId]: true }));
+    const [v, a] = await Promise.allSettled([
       fetchVariants(productId),
       fetchAttributes(productId),
     ]);
-    setVariants((prev) => ({ ...prev, [productId]: v }));
-    setAttributes((prev) => ({ ...prev, [productId]: a }));
+    if (v.status === 'fulfilled') {
+      setVariants((prev) => ({ ...prev, [productId]: v.value }));
+    }
+    if (a.status === 'fulfilled') {
+      setAttributes((prev) => ({ ...prev, [productId]: a.value }));
+    }
+    setDetailsLoading((prev) => ({ ...prev, [productId]: false }));
   }, []);
 
   const handleCreateCategory = async (name: string, parentId: string | null) => {
     await createCategory(name, parentId);
     notifySuccess('Category created');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   const handleUpdateCategory = async (id: string, name: string, parentId: string | null) => {
     await updateCategory(id, name, parentId);
     notifySuccess('Category updated');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   const handleSetCategoryActive = async (id: string, isActive: boolean) => {
     await setCategoryActive(id, isActive);
     notifySuccess(isActive ? 'Category activated' : 'Category deactivated');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   const handleCreateProduct = async (input: CreateProductInput) => {
     const product = await createProduct(input);
     notifySuccess('Product created');
-    await load();
+    invalidateProductCaches();
+    void load();
     return product;
   };
 
   const handleUpdateProduct = async (id: string, input: Partial<CreateProductInput>) => {
     await updateProduct(id, input);
     notifySuccess('Product updated');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   const handleSetProductActive = async (id: string, isActive: boolean) => {
     await setProductActive(id, isActive);
     notifySuccess(isActive ? 'Product activated' : 'Product deactivated');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   const handleCreateVariant = async (productId: string, input: CreateVariantInput) => {
-    await createVariant(productId, input);
+    const branchId = managerBranchId ?? branches[0]?.id;
+    if (!branchId) {
+      throw new Error('No branch available, select a branch first');
+    }
+    await createVariant(productId, { ...input, branchId });
     notifySuccess('Variant added');
-    await loadProductDetails(productId);
+    void loadProductDetails(productId);
   };
 
   const handleUpdateVariant = async (productId: string, variantId: string, input: Partial<CreateVariantInput>) => {
     await updateVariant(productId, variantId, input);
     notifySuccess('Variant updated');
-    await loadProductDetails(productId);
+    void loadProductDetails(productId);
   };
 
   const handleSetVariantActive = async (productId: string, variantId: string, isActive: boolean) => {
     await setVariantActive(productId, variantId, isActive);
     notifySuccess(isActive ? 'Variant activated' : 'Variant deactivated');
-    await loadProductDetails(productId);
+    void loadProductDetails(productId);
   };
 
   const handleCreateAttribute = async (productId: string, attributeKey: string, attributeValue: string) => {
     await createAttribute(productId, attributeKey, attributeValue);
     notifySuccess('Attribute added');
-    await loadProductDetails(productId);
+    void loadProductDetails(productId);
   };
 
   const handleUpdateAttribute = async (productId: string, id: string, attributeKey: string, attributeValue: string) => {
     await updateAttribute(productId, id, attributeKey, attributeValue);
     notifySuccess('Attribute updated');
-    await loadProductDetails(productId);
+    void loadProductDetails(productId);
   };
 
   const handleCreatePromotion = async (input: CreatePromoInput) => {
     await createPromotion(input);
     notifySuccess('Promotion created');
-    await load();
+    invalidateProductCaches();
+    void load();
+  };
+
+  const handleUpdatePromotion = async (id: string, input: CreatePromoInput) => {
+    await updatePromotion(id, input);
+    notifySuccess('Promotion updated');
+    invalidateProductCaches();
+    void load();
   };
 
   const handleSetPromotionActive = async (id: string, isActive: boolean) => {
     await setPromotionActive(id, isActive);
     notifySuccess(isActive ? 'Promotion activated' : 'Promotion deactivated');
-    await load();
+    invalidateProductCaches();
+    void load();
   };
 
   return {
@@ -173,6 +207,7 @@ export const useProductsViewModel = () => {
     attributes,
     branches,
     isLoading,
+    detailsLoading,
     error,
     loadProductDetails,
     createCategory: handleCreateCategory,
@@ -187,6 +222,7 @@ export const useProductsViewModel = () => {
     createAttribute: handleCreateAttribute,
     updateAttribute: handleUpdateAttribute,
     createPromotion: handleCreatePromotion,
+    updatePromotion: handleUpdatePromotion,
     setPromotionActive: handleSetPromotionActive,
   };
 };

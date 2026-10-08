@@ -12,13 +12,13 @@ import type { ReasonCode } from '../../configuration/models/configTypes';
 import { fetchReasonCodes } from '../../configuration/models/configApi';
 import type { Employee } from '../../branches/models/branchTypes';
 import { fetchEmployees } from '../../branches/models/branchesApi';
-import { fetchAllVariants } from '../../products/models/productsApi';
+import { fetchProducts } from '../../products/models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
-export const useInventoryViewModel = (isOwner: boolean) => {
+export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string | null) => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [combinedItems, setCombinedItems] = useState<InventoryItem[]>([]);
-  const [variants, setVariants] = useState<{ id: string; label: string }[]>([]);
+  const [products, setProducts] = useState<{ id: string; label: string }[]>([]);
   const [auditLogs, setAuditLogs] = useState<InventoryAuditLog[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
@@ -39,26 +39,23 @@ export const useInventoryViewModel = (isOwner: boolean) => {
   useEffect(() => {
     fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
     fetchEmployees().then(setEmployees).catch(() => setEmployees([]));
-    fetchAllVariants()
-      .then((vs) =>
-        setVariants(
-          vs.map((v) => ({
-            id: v.id,
-            label: [v.sku, v.size, v.color].filter(Boolean).join(' · '),
-          })),
-        ),
-      )
-      .catch(() => setVariants([]));
+    fetchProducts()
+      .then((ps) => setProducts(ps.map((p) => ({ id: p.id, label: p.name }))))
+      .catch(() => setProducts([]));
   }, []);
 
   const load = useCallback(
     async (branchId?: string) => {
+      setIsLoading(true);
       try {
         if (isOwner) {
           const combined = await fetchCombinedInventory();
           setCombinedItems(combined);
-          const data = branchId ? await fetchBranchInventory(branchId) : combined;
-          setItems(data);
+          setItems(combined);
+          if (branchId) {
+            const data = await fetchBranchInventory(branchId);
+            setItems(data);
+          }
         } else if (branchId) {
           const data = await fetchBranchInventory(branchId);
           setItems(data);
@@ -107,15 +104,18 @@ export const useInventoryViewModel = (isOwner: boolean) => {
 
   useEffect(() => {
     if (!isOwner && selectedBranchId === null && branches.length > 0) {
-      const first = branches.find((b) => b.isActive) ?? branches[0];
-      if (first) setSelectedBranchId(first.id);
+      const first = managerBranchId
+        ? branches.find((b) => b.id === managerBranchId)
+        : undefined;
+      const target = first ?? (branches.find((b) => b.isActive) ?? branches[0]);
+      if (target) setSelectedBranchId(target.id);
     }
-  }, [isOwner, selectedBranchId, branches]);
+  }, [isOwner, selectedBranchId, branches, managerBranchId]);
 
   return {
     items,
     combinedItems,
-    variants,
+    products,
     auditLogs,
     branches,
     selectedBranchId,

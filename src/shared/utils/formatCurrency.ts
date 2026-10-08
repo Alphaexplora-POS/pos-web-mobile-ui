@@ -1,8 +1,10 @@
+const formatPeso = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+});
+
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+  return formatPeso.format(amount);
 };
 
-export const formatAmount = (amount: number): string => amount.toFixed(2);
+export const formatAmount = (amount: number): string => formatCurrency(amount);

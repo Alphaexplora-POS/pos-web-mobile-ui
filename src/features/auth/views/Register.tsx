@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../hooks/useAuth';
@@ -45,7 +46,7 @@ const Register: React.FC = () => {
   const onSubmit = async (values: RegisterWithConfirm) => {
     setError(null);
     try {
-      const next = await registerAccount({
+      await registerAccount({
         businessName: values.businessName,
         businessType: values.businessType,
         firstName: values.firstName,
@@ -53,7 +54,8 @@ const Register: React.FC = () => {
         email: values.email,
         password: values.password,
       });
-      navigate(roleHome(next.role), { replace: true });
+      toast.success('Account created. Please wait until the user is approved.');
+      navigate('/login', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }

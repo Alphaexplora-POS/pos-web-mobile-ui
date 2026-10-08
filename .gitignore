@@ -144,3 +144,4 @@ vite.config.ts.timestamp-*
 
 # Local notes (not for work GitHub)
 notes/
+.cocoindex_code

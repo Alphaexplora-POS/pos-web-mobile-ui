@@ -15,6 +15,9 @@ export interface BranchComparison {
   branchName: string;
   salesToday: number;
   salesMonthly: number;
+  transactionCountToday?: number;
+  transactionCountMonthly?: number;
+  topProducts: TopProduct[];
 }
 
 export interface AnalyticsData {

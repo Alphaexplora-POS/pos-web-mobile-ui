@@ -1,6 +1,6 @@
-export type AuthRole = 'owner' | 'manager';
+export type AuthRole = 'superadmin' | 'owner' | 'manager';
 
-export type SessionRole = 'owner' | 'branch_manager';
+export type SessionRole = 'superadmin' | 'owner' | 'branch_manager';
 
 export interface Tenant {
   id: string;
@@ -13,7 +13,7 @@ export interface Tenant {
 
 export interface Profile {
   id: string;
-  tenantId: string;
+  tenantId: string | null;
   branchId: string | null;
   email: string;
   firstName: string;
@@ -26,7 +26,7 @@ export interface Profile {
 
 export interface AuthSession {
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
   tenantName: string;
   branchId: string | null;
   email: string;

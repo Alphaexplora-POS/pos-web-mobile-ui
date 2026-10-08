@@ -4,7 +4,9 @@ interface ErrorStateProps {
 
 const ErrorState: React.FC<ErrorStateProps> = ({ message }) => {
   return (
-    <div className="flex items-center justify-center py-16 text-error">{message}</div>
+    <div className="w-full border border-error bg-error/5 rounded-lg px-5 py-4 text-sm text-error">
+      {message}
+    </div>
   );
 };
 

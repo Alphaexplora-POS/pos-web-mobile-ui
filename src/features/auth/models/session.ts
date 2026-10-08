@@ -1,6 +1,10 @@
 import type { AuthSession, Profile, SessionRole } from './authTypes';
 
-const WEB_ROLES: Record<string, SessionRole> = { owner: 'owner', manager: 'branch_manager' };
+const WEB_ROLES: Record<string, SessionRole> = {
+  superadmin: 'superadmin',
+  owner: 'owner',
+  manager: 'branch_manager',
+};
 
 export const buildSession = (input: {
   profile: Profile;
