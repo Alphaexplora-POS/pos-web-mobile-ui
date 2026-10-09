@@ -96,9 +96,6 @@ const Branches: React.FC = () => {
         <div className="mb-6 bg-white rounded-lg border border-line p-4 flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-sm text-ink-secondary">Workspace:</span>
           <span className="text-sm font-semibold text-ink-primary">{session.tenantName || '—'}</span>
-          <span className="text-xs text-ink-muted">
-            Employees are scoped to this workspace only
-          </span>
         </div>
       )}
       {!isOwner && (
@@ -137,13 +134,7 @@ const Branches: React.FC = () => {
 
       {activeSection === 'branches' ? (
         <div>
-          {isOwner && vm.branches.length > tenantBranches.length && (
-            <p className="mb-4 text-xs text-warning">
-              {vm.branches.length - tenantBranches.length} branch(es) belong to a different workspace and are hidden.
-              Sign in with the account that owns them to see their employees.
-            </p>
-          )}
-<div className="bg-white rounded-lg border border-line p-6">
+          <div className="bg-white rounded-lg border border-line p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-ink-primary">Branches</h2>
               <div className="flex items-center gap-2">

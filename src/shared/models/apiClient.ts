@@ -36,6 +36,12 @@ export const invalidateCache = (prefix: string): void => {
   }
 };
 
+/** Drop every cached GET response. Must run on login/logout so one user's
+ * cached data can never surface inside another tenant's session. */
+export const clearApiCache = (): void => {
+  cache.clear();
+};
+
 export const unwrapData = <T>(data: unknown): T => {
   if (data && typeof data === 'object' && 'data' in data && typeof (data as { data: unknown }).data === 'object') {
     return (data as { data: T }).data;

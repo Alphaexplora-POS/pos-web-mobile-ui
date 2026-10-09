@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import type { AuthSession, LoginInput, RegisterInput } from '../models/authTypes';
 import { fetchMe, loginWithEmail, logout as logoutRequest, registerTenantOwner } from '../models/authApi';
 import { markSignedIn, clearSignedIn, notifySessionExpired } from '../sessionExpiry';
-import { prefetchAppData } from '../../../shared/models/prefetch';
+import { prefetchAppData, resetPrefetch } from '../../../shared/models/prefetch';
+import { clearApiCache } from '../../../shared/models/apiClient';
+import { queryClient } from '../../../shared/models/queryClient';
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -43,8 +45,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => clearInterval(id);
   }, [session]);
 
+  /** Wipe every cached response (apiClient + react-query + prefetch flag) so no
+   * stale/orphaned data from one account can leak into the next session. */
+  const clearQueryCaches = (): void => {
+    clearApiCache();
+    queryClient.clear();
+    resetPrefetch();
+  };
+
   const handleLogin = async (input: LoginInput): Promise<AuthSession> => {
     const next = await loginWithEmail(input);
+    clearQueryCaches();
     setSession(next);
     markSignedIn();
     return next;
@@ -55,6 +66,7 @@ const handleRegister = async (input: RegisterInput): Promise<{ email: string }> 
 
   const handleLogout = async (): Promise<void> => {
     clearSignedIn();
+    clearQueryCaches();
     setSession(null);
     void logoutRequest().catch(() => {
       /* best-effort revoke, never block sign-out on the backend */

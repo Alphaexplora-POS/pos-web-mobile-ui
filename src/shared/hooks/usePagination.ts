@@ -3,26 +3,11 @@ import { useEffect, useMemo, useState } from 'react';
 export const DEFAULT_PAGE_SIZE = 6;
 
 /**
- * Pack items into pages that are as full as possible within the given capacity:
- * fewer pages first, then the least amount of leftover space on the final page.
- * e.g. 10 items @ cap 6 -> 5+5 (never 6+4 with a half-empty page).
+ * Page size is always the full visible capacity, so a page only spills onto a
+ * new one once every slot is filled. Only the final page may be short.
+ * e.g. 10 items @ cap 6 -> 6 + 4.
  */
-const pickPageSize = (total: number, capacity: number): number => {
-  if (total <= 0) return Math.max(1, capacity);
-  if (total <= capacity) return capacity;
-  let best = capacity;
-  let bestScore = Infinity;
-  for (let size = Math.min(capacity, total); size >= 2; size -= 1) {
-    const totalPages = Math.ceil(total / size);
-    const emptyOnLast = size - (total - (totalPages - 1) * size);
-    const score = totalPages * 1_000_000 + emptyOnLast;
-    if (score < bestScore) {
-      bestScore = score;
-      best = size;
-    }
-  }
-  return best;
-};
+const pickPageSize = (_total: number, capacity: number): number => Math.max(1, capacity);
 
 export const usePagination = <T,>(items: T[], pageSize = DEFAULT_PAGE_SIZE) => {
   const [page, setPage] = useState(1);
