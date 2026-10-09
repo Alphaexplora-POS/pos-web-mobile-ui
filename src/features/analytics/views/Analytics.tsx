@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAnalyticsViewModel } from '../viewModels/useAnalyticsViewModel';
 import TopProductsChart from './TopProductsChart';
 import PageLayout from '../../../shared/components/PageLayout';
@@ -8,6 +8,9 @@ import { useRole } from '../../../shared/hooks/useRole';
 import { useAuth } from '../../auth/hooks/useAuth';
 import Select from '../../../shared/components/Select';
 import type { TopProduct } from '../models/analyticsTypes';
+import { usePagination } from '../../../shared/hooks/usePagination';
+import Pagination from '../../../shared/components/Pagination';
+import { useResponsiveCardPageSize } from '../../../shared/hooks/useResponsivePageSize';
 
 const Analytics: React.FC = () => {
   const { isOwner } = useRole();
@@ -17,6 +20,22 @@ const Analytics: React.FC = () => {
   const [branchSales, setBranchSales] = useState<{ today: number; monthly: number } | null>(null);
 
   const { data, isLoading, error } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
+
+  const branchPanelRef = useRef<HTMLDivElement | null>(null);
+  const [branchPanelHeight, setBranchPanelHeight] = useState<number>(0);
+
+  useEffect(() => {
+    const el = branchPanelRef.current;
+    if (!el) return;
+    const measure = () => setBranchPanelHeight(Math.round(el.clientHeight));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const branchPerfPageSize = useResponsiveCardPageSize(branchPanelHeight);
+  const branchPerfPagination = usePagination(data?.branchComparison ?? [], branchPerfPageSize);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -138,16 +157,18 @@ const Analytics: React.FC = () => {
           <TopProductsChart topProducts={selectedTopProducts} />
         </div>
 
-        <div className="bg-white rounded-lg border border-line p-6">
+        <div ref={branchPanelRef} className="flex flex-col bg-white rounded-lg border border-line p-6">
           <h3 className="text-base font-semibold text-ink-primary mb-1">Branch Performance</h3>
           <p className="text-xs text-ink-muted mb-4">Sales by location</p>
           {data.branchComparison && data.branchComparison.length === 0 ? (
             <p className="text-sm text-ink-muted py-8 text-center">No branch data available</p>
           ) : (
             <div className="space-y-3">
-              {data.branchComparison?.map((b) => (
-                <div key={b.branchId} className="p-3 rounded-lg border border-line">
-                  <span className="text-sm font-medium text-ink-primary">{b.branchName}</span>
+              {branchPerfPagination.pageItems.map((b) => (
+                <div key={b.branchId} className="p-4 rounded-lg border border-line min-h-24 flex flex-col justify-center">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-ink-primary">{b.branchName}</h3>
+                  </div>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <div>
                       <p className="text-xs text-ink-muted">Today</p>
@@ -165,6 +186,16 @@ const Analytics: React.FC = () => {
                 </div>
               ))}
             </div>
+          )}
+          {branchPerfPagination.totalCount > 0 && (
+            <Pagination
+              page={branchPerfPagination.page}
+              totalPages={branchPerfPagination.totalPages}
+              onPageChange={branchPerfPagination.goToPage}
+              totalCount={branchPerfPagination.totalCount}
+              pageStart={branchPerfPagination.pageStart}
+              pageEnd={branchPerfPagination.pageEnd}
+            />
           )}
         </div>
       </div>

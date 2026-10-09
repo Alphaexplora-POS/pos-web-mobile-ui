@@ -34,7 +34,6 @@ import {
   createPromotion,
   updatePromotion,
   setPromotionActive,
-  invalidateProductCaches,
 } from '../models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
@@ -104,28 +103,24 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const handleCreateCategory = async (name: string, parentId: string | null) => {
     await createCategory(name, parentId);
     notifySuccess('Category created');
-    invalidateProductCaches();
     void load();
   };
 
   const handleUpdateCategory = async (id: string, name: string, parentId: string | null) => {
     await updateCategory(id, name, parentId);
     notifySuccess('Category updated');
-    invalidateProductCaches();
     void load();
   };
 
   const handleSetCategoryActive = async (id: string, isActive: boolean) => {
     await setCategoryActive(id, isActive);
     notifySuccess(isActive ? 'Category activated' : 'Category deactivated');
-    invalidateProductCaches();
     void load();
   };
 
   const handleCreateProduct = async (input: CreateProductInput) => {
     const product = await createProduct(input);
     notifySuccess('Product created');
-    invalidateProductCaches();
     void load();
     return product;
   };
@@ -133,14 +128,12 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const handleUpdateProduct = async (id: string, input: Partial<CreateProductInput>) => {
     await updateProduct(id, input);
     notifySuccess('Product updated');
-    invalidateProductCaches();
     void load();
   };
 
   const handleSetProductActive = async (id: string, isActive: boolean) => {
     await setProductActive(id, isActive);
     notifySuccess(isActive ? 'Product activated' : 'Product deactivated');
-    invalidateProductCaches();
     void load();
   };
 
@@ -181,21 +174,18 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const handleCreatePromotion = async (input: CreatePromoInput) => {
     await createPromotion(input);
     notifySuccess('Promotion created');
-    invalidateProductCaches();
     void load();
   };
 
   const handleUpdatePromotion = async (id: string, input: CreatePromoInput) => {
     await updatePromotion(id, input);
     notifySuccess('Promotion updated');
-    invalidateProductCaches();
     void load();
   };
 
   const handleSetPromotionActive = async (id: string, isActive: boolean) => {
     await setPromotionActive(id, isActive);
     notifySuccess(isActive ? 'Promotion activated' : 'Promotion deactivated');
-    invalidateProductCaches();
     void load();
   };
 

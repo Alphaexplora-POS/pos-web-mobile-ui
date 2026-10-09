@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import type { InventoryAdjustAction, InventoryAdjustInput, InventoryItem } from '../models/inventoryTypes';
 import { useInventoryViewModel } from '../viewModels/useInventoryViewModel';
@@ -10,6 +9,7 @@ import Modal from '../../../shared/components/Modal';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useRole } from '../../../shared/hooks/useRole';
 import Select from '../../../shared/components/Select';
+import FieldError from '../../../shared/components/FieldError';
 import { sanitizeInteger } from '../../../shared/utils/numeric';
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useServerPagination } from '../../../shared/hooks/useServerPagination';
@@ -30,12 +30,11 @@ const AdjustStockForm: React.FC<{
   branches: { id: string; name: string }[];
   products: { id: string; label: string }[];
   reasonCodes: { id: string; name: string }[];
-  employees: { id: string; name: string; email?: string }[];
   isOwner: boolean;
-  sessionEmail?: string;
+  performedByName: string;
   onAdjust: (input: InventoryAdjustInput) => Promise<void>;
   onDone?: () => void;
-}> = ({ items, branches, products, reasonCodes, employees, isOwner, sessionEmail, onAdjust, onDone }) => {
+}> = ({ items, branches, products, reasonCodes, isOwner, performedByName, onAdjust, onDone }) => {
   const initialBranchId = isOwner ? '' : branches[0]?.id ?? '';
   const [branchId, setBranchId] = useState(initialBranchId);
 
@@ -51,19 +50,8 @@ const AdjustStockForm: React.FC<{
   const [reasonId, setReasonId] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-
-  const performedBy = useMemo(() => {
-    if (!employees.length) return '';
-    if (sessionEmail) {
-      const emailMatch = employees.find(
-        (e) => e.email && e.email.toLowerCase() === sessionEmail.toLowerCase(),
-      );
-      if (emailMatch) return emailMatch.id;
-    }
-    return employees[0].id;
-  }, [employees, sessionEmail]);
-  const performedByName = employees.find((e) => e.id === performedBy)?.name ?? '';
 
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
 
@@ -106,41 +94,36 @@ const AdjustStockForm: React.FC<{
   const selectedKey = productId ? productVariantId || productId : '';
   const selectedQuantity = selectedKey ? (branchQuantity.get(selectedKey) ?? 0) : null;
 
-  const fail = (msg: string) => {
-    setError(msg);
-    toast.error(msg);
+  const clearFieldError = (field: string) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!branchId) {
-      fail('Select a branch');
-      return;
-    }
-    if (!productId) {
-      fail('Select a product');
-      return;
-    }
-    if (!reasonId) {
-      fail('Select a reason');
-      return;
-    }
-    if (!performedBy) {
-      fail('No active employee available');
-      return;
-    }
+    const nextFieldErrors: Record<string, string> = {};
+    if (!branchId) nextFieldErrors.branchId = 'Select a branch';
+    if (!productId) nextFieldErrors.productId = 'Select a product';
+    if (!reasonId) nextFieldErrors.reasonId = 'Select a reason';
     if (action === 'stock_in' || action === 'stock_out') {
       const qty = Number(quantity);
       if (!qty || qty <= 0) {
-        fail('Quantity must be positive');
-        return;
-      }
-      if (action === 'stock_out' && qty > (selectedQuantity ?? 0)) {
-        fail(`Only ${selectedQuantity ?? 0} in stock at this branch`);
-        return;
+        nextFieldErrors.quantity = 'Quantity must be positive';
+      } else if (action === 'stock_out' && qty > (selectedQuantity ?? 0)) {
+        nextFieldErrors.quantity = `Only ${selectedQuantity ?? 0} in stock at this branch`;
       }
     }
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError(null);
+      return;
+    }
     setError(null);
+    setFieldErrors({});
     setSubmitting(true);
     try {
       await onAdjust({
@@ -151,7 +134,6 @@ const AdjustStockForm: React.FC<{
         quantity: Number(quantity),
         reasonId,
         notes: notes || undefined,
-        performedBy,
       });
       setProductId('');
       setProductVariantId('');
@@ -167,7 +149,7 @@ const AdjustStockForm: React.FC<{
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4" noValidate>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isOwner && (
           <div>
@@ -177,11 +159,14 @@ const AdjustStockForm: React.FC<{
               onChange={(v) => {
                 setBranchId(v);
                 setProductId('');
+                clearFieldError('branchId');
               }}
               options={branchOptions}
               placeholder="Select branch"
               className="mt-1 w-full"
+              invalid={Boolean(fieldErrors.branchId)}
             />
+            <FieldError message={fieldErrors.branchId} />
           </div>
         )}
         <div>
@@ -192,6 +177,7 @@ const AdjustStockForm: React.FC<{
               const opt = productOptions.find((o) => o.key === v);
               setProductVariantId(opt?.productVariantId ?? '');
               setProductId(opt?.productId ?? '');
+              clearFieldError('productId');
             }}
             options={productOptions.map((opt) => {
               const qty = branchQuantity.get(opt.productVariantId || opt.productId);
@@ -202,7 +188,9 @@ const AdjustStockForm: React.FC<{
             })}
             placeholder={branchId ? 'Select product / variant' : 'Select branch first'}
             className="mt-1 w-full"
+            invalid={Boolean(fieldErrors.productId)}
           />
+          <FieldError message={fieldErrors.productId} />
         </div>
         <div>
           <label className="block text-sm text-ink-secondary">Action</label>
@@ -224,20 +212,29 @@ const AdjustStockForm: React.FC<{
             min="0"
             step="1"
             value={quantity}
-            onChange={(e) => setQuantity(sanitizeInteger(e.target.value))}
+            onChange={(e) => {
+              setQuantity(sanitizeInteger(e.target.value));
+              clearFieldError('quantity');
+            }}
             required
-            className="mt-1 w-full rounded-md border border-line px-3 py-2"
+            className={`mt-1 w-full rounded-md border px-3 py-2 ${fieldErrors.quantity ? 'border-error' : 'border-line'}`}
           />
+          <FieldError message={fieldErrors.quantity} />
         </div>
         <div>
           <label className="block text-sm text-ink-secondary">Reason</label>
           <Select
             value={reasonId}
-            onChange={(v) => setReasonId(v)}
+            onChange={(v) => {
+              setReasonId(v);
+              clearFieldError('reasonId');
+            }}
             options={reasonCodes.map((r) => ({ value: r.id, label: r.name }))}
             placeholder="Select reason"
             className="mt-1 w-full"
+            invalid={Boolean(fieldErrors.reasonId)}
           />
+          <FieldError message={fieldErrors.reasonId} />
         </div>
         <div>
           <label className="block text-sm text-ink-secondary">Notes</label>
@@ -278,6 +275,7 @@ const [adjustModalOpen, setAdjustModalOpen] = useState(false);
       fetchSize: pageSize,
       deps: [vm.selectedBranchId ?? '', pageSize],
       queryKey: ['inventory-stock', vm.selectedBranchId ?? '', String(pageSize)],
+      refetchInterval: 90_000,
     },
   );
   const auditPage = useServerPagination(
@@ -298,7 +296,7 @@ const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   if (vm.error) return <ErrorState message={vm.error} />;
 
   const inventoryReasonCodes = vm.reasonCodes.filter((r) => r.type === 'inventory' && r.isActive);
-  const employees = vm.employees.filter((e) => e.isActive);
+  const performedByName = session ? `${session.firstName} ${session.lastName}`.trim() : '';
 
   return (
     <PageLayout title={isOwner ? 'Global Inventory' : 'Branch Inventory'}>
@@ -475,9 +473,8 @@ const [adjustModalOpen, setAdjustModalOpen] = useState(false);
             }
             products={vm.products}
             reasonCodes={inventoryReasonCodes}
-            employees={employees}
             isOwner={isOwner}
-            sessionEmail={session?.email}
+            performedByName={performedByName}
             onAdjust={async (input) => {
               await vm.adjustStock(input);
               stockPage.reset();

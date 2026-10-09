@@ -37,24 +37,28 @@ const CARD_CHROME_PX = 56; // pagination bar inside the card container
 const MIN_CARDS = 2;
 const MAX_CARDS = 9;
 
-const computeCards = (height: number) =>
-  Math.min(MAX_CARDS, Math.max(MIN_CARDS, Math.floor((height - CARD_CHROME_PX) / CARD_HEIGHT_PX)));
+const computeCards = (height: number, cardHeightPx: number) =>
+  Math.min(MAX_CARDS, Math.max(MIN_CARDS, Math.floor((height - CARD_CHROME_PX) / cardHeightPx)));
 
 /** Page size for card lists so pages fill every visible row before creating a new one. */
-export const useResponsiveCardPageSize = (containerHeight = 0): number => {
+export const useResponsiveCardPageSize = (
+  containerHeight = 0,
+  cardHeightPx = CARD_HEIGHT_PX,
+): number => {
   const [pageSize, setPageSize] = useState<number>(() =>
-    typeof window === 'undefined' ? 5 : computeCards(window.innerHeight - VIEWPORT_CHROME_PX),
+    typeof window === 'undefined' ? 5 : computeCards(window.innerHeight - VIEWPORT_CHROME_PX, cardHeightPx),
   );
 
   useLayoutEffect(() => {
     if (containerHeight > 0) {
-      setPageSize(computeCards(containerHeight));
+      setPageSize(computeCards(containerHeight, cardHeightPx));
       return;
     }
-    const onResize = () => setPageSize(computeCards(window.innerHeight - VIEWPORT_CHROME_PX));
+    const onResize = () =>
+      setPageSize(computeCards(window.innerHeight - VIEWPORT_CHROME_PX, cardHeightPx));
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [containerHeight]);
+  }, [containerHeight, cardHeightPx]);
 
   return pageSize;
 };

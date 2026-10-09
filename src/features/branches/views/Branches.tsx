@@ -27,6 +27,8 @@ type ConfirmState = {
   onConfirm: () => void | Promise<void>;
 } | null;
 
+const BRANCH_CARD_PAGE_HEIGHT = 86 + 12;
+
 const Branches: React.FC = () => {
   const vm = useBranchesViewModel();
   const { isOwner } = useRole();
@@ -69,7 +71,7 @@ const Branches: React.FC = () => {
   const filteredEmployees =
     roleFilter === 'all' ? visibleEmployees : visibleEmployees.filter((e) => e.role === roleFilter);
 
-  const branchPageSize = useResponsiveCardPageSize(tableHeight);
+  const branchPageSize = useResponsiveCardPageSize(tableHeight, BRANCH_CARD_PAGE_HEIGHT);
   const branchPagination = usePagination(visibleBranches, branchPageSize);
   const employeePagination = usePagination(filteredEmployees, useResponsivePageSize(tableHeight, rowHeight));
 
@@ -167,7 +169,7 @@ const Branches: React.FC = () => {
               {branchPagination.pageItems.map((b) => (
                 <div
                   key={b.id}
-                  className={`p-4 rounded-lg border transition-colors cursor-pointer min-h-24 flex flex-col justify-center ${
+                  className={`p-3.5 rounded-lg border transition-colors cursor-pointer min-h-20 flex flex-col justify-center ${
                     selectedBranchId === b.id
                       ? 'border-brand bg-brand-light'
                       : 'border-line hover:border-line-strong hover:bg-canvas'
@@ -178,24 +180,27 @@ const Branches: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-ink-primary">{b.name}</h3>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs px-2 py-1 rounded ${b.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm px-3 py-1 rounded ${b.isActive ? 'bg-success-light text-success' : 'bg-surface-hover text-ink-muted'}`}>
                         {b.isActive ? 'Active' : 'Inactive'}
                       </span>
                       {isOwner && (
                         <button
-                          className="text-xs px-3 py-1 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors"
+                          className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-line text-ink-primary hover:border-brand hover:bg-brand-light hover:text-brand transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             setBranchModal({ mode: 'edit', branch: b });
                           }}
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                           Edit
                         </button>
                       )}
                       {isOwner && (
                         <button
-                          className={`text-xs px-2.5 py-1 rounded-md text-white transition-colors ${
+                          className={`text-sm px-3 py-1.5 rounded-lg text-white transition-colors ${
                             b.isActive ? 'bg-error hover:opacity-90' : 'bg-success hover:opacity-90'
                           }`}
                           onClick={(e) => {
@@ -215,8 +220,9 @@ const Branches: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <p className="text-sm text-ink-secondary mt-1">{b.address}</p>
-                  <p className="text-sm text-ink-muted">{b.contact}</p>
+                  <p className="text-sm text-ink-secondary mt-1">
+                    {[b.address, b.contact].filter(Boolean).join(' · ') || '—'}
+                  </p>
                 </div>
               ))}
             </div>
@@ -305,7 +311,7 @@ const Branches: React.FC = () => {
                               Edit
                             </button>
                             <button
-                              className={`text-xs px-2.5 py-1 rounded-md text-white transition-colors ${
+                              className={`text-sm px-3 py-1.5 rounded-lg text-white transition-colors ${
                                 e.isActive
                                   ? 'bg-error hover:opacity-90'
                                   : 'bg-success hover:opacity-90'

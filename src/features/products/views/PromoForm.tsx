@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import FieldError from '../../../shared/components/FieldError';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 import { sanitizeDecimal, sanitizeInteger } from '../../../shared/utils/numeric';
 import { useInfiniteLoadMore } from '../../../shared/hooks/useInfiniteLoadMore';
 import { SERVER_PAGE_SIZE } from '../../../shared/hooks/useServerPagination';
@@ -27,7 +28,14 @@ const PromoForm: React.FC<PromoFormProps> = ({
   onStepChange,
 }) => {
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; value?: string; bundleProducts?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    value?: string;
+    bundleProducts?: string;
+    startDate?: string;
+    endDate?: string;
+  }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
   const [name, setName] = useState(initial?.name ?? '');
   const [promoType, setPromoType] = useState<PromoType>(initial?.promoType ?? 'percentage');
   const [percentOff, setPercentOff] = useState(
@@ -274,17 +282,23 @@ const PromoForm: React.FC<PromoFormProps> = ({
   return (
     <form
       className={step === 1 ? 'space-y-4' : 'flex-1 min-h-0 flex flex-col gap-4'}
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault();
-        if (startDate && startDate < todayStr) {
-          toast.error('Start date cannot be in the past');
+        if (startInPast) {
+          setErrors((prev) => ({ ...prev, startDate: 'Start date cannot be in the past' }));
           return;
         }
-        if (startDate && endDate && startDate > endDate) {
-          toast.error('Start date cannot be after end date');
+        if (startAfterEnd) {
+          setErrors((prev) => ({
+            ...prev,
+            startDate: 'Start date cannot be after end date',
+            endDate: 'Must be on or after the start date',
+          }));
           return;
         }
         setSubmitting(true);
+        setServerError(null);
         try {
           await onSubmit({
             name,
@@ -315,6 +329,15 @@ const PromoForm: React.FC<PromoFormProps> = ({
           setProductIds([]);
           setCategoryQuery('');
           setProductQuery('');
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Failed to save promotion';
+          const field = routeFieldError(message, ['name']);
+          if (field) {
+            setErrors((prev) => ({ ...prev, [field]: message }));
+            goToStep(1);
+          } else {
+            setServerError(message);
+          }
         } finally {
           setSubmitting(false);
         }
@@ -528,26 +551,28 @@ value={fixedAmountOff}
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 w-full rounded border border-line px-3 py-2"
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                if (errors.startDate) setErrors((prev) => ({ ...prev, startDate: undefined }));
+              }}
+              className={`mt-1 w-full rounded border px-3 py-2 ${errors.startDate ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={errors.startDate} />
           </div>
           <div>
             <label className="block text-sm text-ink-secondary">End Date (optional)</label>
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 w-full rounded border border-line px-3 py-2"
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                if (errors.endDate) setErrors((prev) => ({ ...prev, endDate: undefined }));
+              }}
+              className={`mt-1 w-full rounded border px-3 py-2 ${errors.endDate ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={errors.endDate} />
           </div>
         </div>
-        {startInPast && (
-          <p className="text-sm text-error">Start date cannot be in the past.</p>
-        )}
-        {startAfterEnd && (
-          <p className="text-sm text-error">Start date cannot be after end date.</p>
-        )}
 
         <button
           type="button"
@@ -762,6 +787,7 @@ value={fixedAmountOff}
               </div>
             </div>
           <div className="border-t border-line" />
+          {serverError && <p className="text-sm text-error">{serverError}</p>}
           <div className="flex items-center justify-between gap-3 pt-3">
             <div className="flex flex-wrap items-center gap-1.5 min-w-0">
               {summaryItems.map((item) => (

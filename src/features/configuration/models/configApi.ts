@@ -1,5 +1,6 @@
 import type { PaymentMethod, ReasonCode, ReasonCodeType } from './configTypes';
-import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { apiRequest } from '../../../shared/models/apiClient';
+import { invalidateResource } from '../../../shared/models/resourceInvalidation';
 import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
@@ -48,7 +49,7 @@ export const createPaymentMethod = async (name: string, type: string): Promise<P
     method: 'POST',
     body: JSON.stringify({ name, type }),
   });
-  invalidateCache(PAYMENT_METHODS_KEY);
+  invalidateResource('paymentMethods');
   return data;
 };
 
@@ -57,7 +58,7 @@ export const setPaymentMethodActive = async (id: string, isActive: boolean): Pro
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
-  invalidateCache(PAYMENT_METHODS_KEY);
+  invalidateResource('paymentMethods');
 };
 
 export const updatePaymentMethod = async (id: string, name: string, type: string): Promise<PaymentMethod> => {
@@ -65,7 +66,7 @@ export const updatePaymentMethod = async (id: string, name: string, type: string
     method: 'PATCH',
     body: JSON.stringify({ name, type }),
   });
-  invalidateCache(PAYMENT_METHODS_KEY);
+  invalidateResource('paymentMethods');
   return data;
 };
 
@@ -82,7 +83,7 @@ export const createReasonCode = async (name: string, type: ReasonCodeType): Prom
       body: JSON.stringify({ label: name, type }),
     },
   );
-  invalidateCache(REASON_CODES_KEY);
+  invalidateResource('reasonCodes');
   return toReasonCode(data);
 };
 
@@ -91,7 +92,7 @@ export const setReasonCodeActive = async (id: string, isActive: boolean): Promis
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
-  invalidateCache(REASON_CODES_KEY);
+  invalidateResource('reasonCodes');
 };
 
 export const updateReasonCode = async (id: string, name: string, type: ReasonCodeType): Promise<ReasonCode> => {
@@ -102,6 +103,6 @@ export const updateReasonCode = async (id: string, name: string, type: ReasonCod
       body: JSON.stringify({ label: name, type }),
     },
   );
-  invalidateCache(REASON_CODES_KEY);
+  invalidateResource('reasonCodes');
   return toReasonCode(data);
 };

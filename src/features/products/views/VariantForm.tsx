@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import type { CreateVariantInput, Product, ProductVariant } from '../models/productTypes';
-import { variantSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { variantSchema } from '../../../shared/validation/schemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import FieldError from '../../../shared/components/FieldError';
 import { sanitizeDecimal } from '../../../shared/utils/numeric';
 
 interface VariantFormProps {
@@ -21,6 +22,8 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
   const [sku, setSku] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [priceOverride, setPriceOverride] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,6 +42,15 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
     }
   }, [editingVariant]);
 
+  const clearError = (field: string) => {
+    if (!errors[field]) return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const check = variantSchema.safeParse({
@@ -49,9 +61,15 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
       costPrice: isOwner && costPrice !== '' ? Number(costPrice) : undefined,
     });
     if (!check.success) {
-      toast.error(firstZodMessage(check.error));
+      setErrors(
+        Object.fromEntries(
+          Object.entries(check.error.flatten().fieldErrors).map(([k, v]) => [k, v?.[0] ?? '']),
+        ),
+      );
       return;
     }
+    setErrors({});
+    setError(null);
     const input = {
       size: size || undefined,
       color: color || undefined,
@@ -66,31 +84,44 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
       } else {
         await onSubmit(productId, input);
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save variant';
+      const field = routeFieldError(message, ['sku']);
+      if (field) setErrors((prev) => ({ ...prev, [field]: message }));
+      else setError(message);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form className="space-y-4" onSubmit={submit}>
+    <form className="space-y-4" onSubmit={submit} noValidate>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-ink-secondary">Size</label>
           <input
             placeholder="e.g. Small"
             value={size}
-            onChange={(e) => setSize(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+            onChange={(e) => {
+              setSize(e.target.value);
+              clearError('size');
+            }}
+            className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.size ? 'border-error' : 'border-line'}`}
           />
+          <FieldError message={errors.size} />
         </div>
         <div>
           <label className="block text-sm text-ink-secondary">Color</label>
           <input
             placeholder="e.g. Red"
             value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+            onChange={(e) => {
+              setColor(e.target.value);
+              clearError('color');
+            }}
+            className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.color ? 'border-error' : 'border-line'}`}
           />
+          <FieldError message={errors.color} />
         </div>
       </div>
       <div>
@@ -98,10 +129,14 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
         <input
           placeholder="Required"
           value={sku}
-          onChange={(e) => setSku(e.target.value)}
+          onChange={(e) => {
+            setSku(e.target.value);
+            clearError('sku');
+          }}
           required
-          className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+          className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.sku ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={errors.sku} />
       </div>
       {isOwner && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -113,9 +148,13 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
               min="0"
               step="0.01"
               value={costPrice}
-              onChange={(e) => setCostPrice(sanitizeDecimal(e.target.value))}
-              className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+              onChange={(e) => {
+                setCostPrice(sanitizeDecimal(e.target.value));
+                clearError('costPrice');
+              }}
+              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.costPrice ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={errors.costPrice} />
           </div>
           <div>
             <label className="block text-sm text-ink-secondary">Price</label>
@@ -125,9 +164,13 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
               min="0"
               step="0.01"
               value={priceOverride}
-              onChange={(e) => setPriceOverride(sanitizeDecimal(e.target.value))}
-              className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+              onChange={(e) => {
+                setPriceOverride(sanitizeDecimal(e.target.value));
+                clearError('priceOverride');
+              }}
+              className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.priceOverride ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={errors.priceOverride} />
           </div>
         </div>
       )}
@@ -146,6 +189,7 @@ const VariantForm: React.FC<VariantFormProps> = ({ productId, isOwner, editingVa
           </button>
         )}
       </div>
+      <FieldError message={error} />
     </form>
   );
 };

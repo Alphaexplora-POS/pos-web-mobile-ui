@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import type { Product, ProductAttribute } from '../models/productTypes';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import FieldError from '../../../shared/components/FieldError';
 
 interface AttributeFormProps {
   products: Product[];
@@ -15,6 +15,8 @@ interface AttributeFormProps {
 const AttributeForm: React.FC<AttributeFormProps> = ({ productId, editingAttribute, onSubmit, onUpdate, onCancelEdit }) => {
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -27,12 +29,26 @@ const AttributeForm: React.FC<AttributeFormProps> = ({ productId, editingAttribu
     }
   }, [editingAttribute]);
 
+  const clearError = (field: string) => {
+    if (!errors[field]) return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!key.trim() || !value.trim()) {
-      toast.error('Enter both a key and a value');
+    const nextErrors: Record<string, string> = {};
+    if (!key.trim()) nextErrors.key = 'Key is required';
+    if (!value.trim()) nextErrors.value = 'Value is required';
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
       return;
     }
+    setErrors({});
+    setError(null);
     setSubmitting(true);
     try {
       if (editingAttribute && onUpdate) {
@@ -40,32 +56,42 @@ const AttributeForm: React.FC<AttributeFormProps> = ({ productId, editingAttribu
       } else {
         await onSubmit(productId, key.trim(), value.trim());
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save attribute');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form className="space-y-4" onSubmit={submit}>
+    <form className="space-y-4" onSubmit={submit} noValidate>
       <div>
         <label className="block text-sm text-ink-secondary">Key</label>
         <input
           placeholder="e.g. Material"
           value={key}
-          onChange={(e) => setKey(e.target.value)}
+          onChange={(e) => {
+            setKey(e.target.value);
+            clearError('key');
+          }}
           required
-          className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+          className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.key ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={errors.key} />
       </div>
       <div>
         <label className="block text-sm text-ink-secondary">Value</label>
         <input
           placeholder="e.g. Cotton"
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            clearError('value');
+          }}
           required
-          className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm"
+          className={`mt-1 w-full rounded-md border px-3 py-2 text-sm ${errors.value ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={errors.value} />
       </div>
       <div className="flex justify-end gap-2">
         <LoadingButton loading={submitting} loadingLabel={editingAttribute ? 'Saving…' : 'Adding…'}>
@@ -82,6 +108,7 @@ const AttributeForm: React.FC<AttributeFormProps> = ({ productId, editingAttribu
           </button>
         )}
       </div>
+      <FieldError message={error} />
     </form>
   );
 };

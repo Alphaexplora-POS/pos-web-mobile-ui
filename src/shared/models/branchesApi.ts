@@ -1,10 +1,11 @@
 import type { Branch } from './branchTypes';
-import { apiRequest, invalidateCache } from './apiClient';
+import { apiRequest } from './apiClient';
+import { invalidateResource } from './resourceInvalidation';
 
 export const CACHE_KEY_BRANCHES = 'GET /identity/branches';
 export const BRANCHES_CACHE_PREFIX = 'GET /identity/branches';
 
-export const invalidateBranchesCache = (): void => invalidateCache(BRANCHES_CACHE_PREFIX);
+export const invalidateBranchesCache = (): void => invalidateResource('branches');
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
 

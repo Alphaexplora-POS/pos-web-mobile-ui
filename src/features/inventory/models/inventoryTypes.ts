@@ -38,7 +38,7 @@ export interface InventoryAdjustInput {
   unitCost?: number;
   reasonId: string;
   notes?: string;
-  performedBy: string;
+  performedBy?: string;
 }
 
 export interface InventoryFilters {

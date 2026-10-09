@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import FieldError from '../../../shared/components/FieldError';
 import type { Branch, EmployeeRole } from '../models/branchTypes';
-import { employeeSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { employeeSchema } from '../../../shared/validation/schemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 import { sanitizeInteger } from '../../../shared/utils/numeric';
 
 interface EmployeeFormProps {
@@ -33,24 +34,33 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
   const [password, setPassword] = useState('');
   const [pin, setPin] = useState(initial?.pin ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const isEditing = Boolean(initial);
 
   if (!isOwner) return null;
 
+  const clearError = (field: string) => {
+    if (!fieldErrors[field]) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEditing && role === 'branch_manager' && (!email || !password)) {
-      const message = 'Email and password are required for a Branch Manager';
-      setError(message);
-      toast.error(message);
-      return;
+    const nextFieldErrors: Record<string, string> = {};
+    if (!isEditing && role === 'branch_manager') {
+      if (!email) nextFieldErrors.email = 'Email is required for a Branch Manager';
+      if (!password) nextFieldErrors.password = 'Password is required for a Branch Manager';
+      else if (password.length < 6) nextFieldErrors.password = 'Password too short, must be at least 6 characters';
     }
-    if (!isEditing && role === 'branch_manager' && password.length < 6) {
-      const message = 'Password too short, must be at least 6 characters';
-      setError(message);
-      toast.error(message);
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError(null);
       return;
     }
     const check = employeeSchema.safeParse({
@@ -60,18 +70,19 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
       pin,
     });
     if (!check.success) {
-      const message = firstZodMessage(check.error);
-      setError(message);
-      toast.error(message);
+      setFieldErrors(
+        Object.fromEntries(
+          Object.entries(check.error.flatten().fieldErrors).map(([k, v]) => [k, v?.[0] ?? '']),
+        ),
+      );
       return;
     }
     if (isEditing && initial?.role === 'branch_manager' && role !== 'branch_manager') {
-      const message = 'A branch manager cannot be changed to another role.';
-      setError(message);
-      toast.error(message);
+      setError('A branch manager cannot be changed to another role.');
       return;
     }
     setError(null);
+    setFieldErrors({});
     setSubmitting(true);
     try {
       await onSubmit({
@@ -89,7 +100,14 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         setPin('');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add employee');
+      const message = err instanceof Error ? err.message : 'Failed to add employee';
+      const field = routeFieldError(message, ['email', 'pin', 'name']);
+      if (field) {
+        setFieldErrors((prev) => ({ ...prev, [field]: message }));
+        setError(null);
+      } else {
+        setError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -99,13 +117,10 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
     <form
       className="space-y-4"
       onSubmit={submit}
+      noValidate
     >
       {error && <p className="text-sm text-error">{error}</p>}
-      {isEditing ? (
-        <p className="text-sm text-ink-muted">
-          Editing employee, name and PIN can change. Role and branch are fixed.
-        </p>
-      ) : (
+      {!isEditing && (
         <div className="flex gap-4">
           {(['branch_manager', 'cashier', 'staff'] as EmployeeRole[]).map((r) => (
             <label key={r} className="flex items-center gap-2 text-sm text-ink-secondary">
@@ -123,24 +138,29 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         <label className="block text-sm text-ink-secondary">Name</label>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            clearError('name');
+          }}
           required
-          className="mt-1 w-full rounded border border-line px-3 py-2"
+          className={`mt-1 w-full rounded border px-3 py-2 ${fieldErrors.name ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={fieldErrors.name} />
       </div>
       <div>
         <label className="block text-sm text-ink-secondary">Assign Branch</label>
         <Select
           value={branchId}
-          onChange={(v) => setBranchId(v)}
+          onChange={(v) => {
+            setBranchId(v);
+            clearError('branchId');
+          }}
           options={branches.map((b) => ({ value: b.id, label: b.name }))}
           placeholder={branches.length === 0 ? 'No branches' : 'Select branch'}
           className="mt-1 w-full"
-          disabled={isEditing}
+          invalid={Boolean(fieldErrors.branchId)}
         />
-        {isEditing && (
-          <p className="text-xs text-ink-muted mt-1">Branch is permanent and cannot be changed.</p>
-        )}
+        <FieldError message={fieldErrors.branchId} />
       </div>
       {!isEditing && role === 'branch_manager' && (
         <>
@@ -150,10 +170,14 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                clearError('email');
+              }}
               required
-              className="mt-1 w-full rounded border border-line px-3 py-2"
+              className={`mt-1 w-full rounded border px-3 py-2 ${fieldErrors.email ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={fieldErrors.email} />
           </div>
           <div>
             <label className="block text-sm text-ink-secondary">Password</label>
@@ -161,9 +185,12 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearError('password');
+                }}
                 required
-                className="mt-1 w-full rounded border border-line px-3 py-2 pr-10"
+                className={`mt-1 w-full rounded border px-3 py-2 pr-10 ${fieldErrors.password ? 'border-error' : 'border-line'}`}
               />
               <button
                 type="button"
@@ -186,6 +213,7 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
             {password.length > 0 && password.length < 6 && (
               <p className="text-xs text-error mt-1">Password too short, must be at least 6 characters.</p>
             )}
+            <FieldError message={fieldErrors.password} />
           </div>
         </>
       )}
@@ -193,12 +221,16 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ branches, onSubmit, isOwner
         <label className="block text-sm text-ink-secondary">Set PIN</label>
         <input
           value={pin}
-          onChange={(e) => setPin(sanitizeInteger(e.target.value).slice(0, 4))}
+          onChange={(e) => {
+            setPin(sanitizeInteger(e.target.value).slice(0, 4));
+            clearError('pin');
+          }}
           maxLength={4}
           inputMode="numeric"
           required
-          className="mt-1 w-full rounded border border-line px-3 py-2"
+          className={`mt-1 w-full rounded border px-3 py-2 ${fieldErrors.pin ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={fieldErrors.pin} />
         <p className="text-xs text-ink-muted mt-1">Exactly 4 digits, unique per branch.</p>
       </div>
       <LoadingButton loading={submitting} loadingLabel={isEditing ? 'Saving…' : 'Adding…'}>

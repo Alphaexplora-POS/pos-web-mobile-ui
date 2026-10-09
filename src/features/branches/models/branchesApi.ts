@@ -3,12 +3,13 @@ export { fetchBranches } from '../../../shared/models/branchesApi';
 import type { CreateBranchInput, CreateEmployeeInput, Employee, EmployeeRole } from './branchTypes';
 import type { Branch } from '../../../shared/models/branchTypes';
 import { toBranch, type RawBranch, invalidateBranchesCache } from '../../../shared/models/branchesApi';
-import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { apiRequest } from '../../../shared/models/apiClient';
+import { invalidateResource } from '../../../shared/models/resourceInvalidation';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
 
 export const invalidateEmployeesCache = (): void => {
-  invalidateCache('GET /identity/employees');
+  invalidateResource('employees');
 };
 
 interface RawEmployee {

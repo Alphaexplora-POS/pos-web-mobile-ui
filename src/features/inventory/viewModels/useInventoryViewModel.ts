@@ -10,8 +10,6 @@ import { fetchBranches } from '../../../shared/models/branchesApi';
 import type { Branch } from '../../../shared/models/branchTypes';
 import type { ReasonCode } from '../../configuration/models/configTypes';
 import { fetchReasonCodes } from '../../configuration/models/configApi';
-import type { Employee } from '../../branches/models/branchTypes';
-import { fetchEmployees } from '../../branches/models/branchesApi';
 import { fetchProducts } from '../../products/models/productsApi';
 import { notifySuccess } from '../../../shared/utils/notify';
 
@@ -23,7 +21,6 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [reasonCodes, setReasonCodes] = useState<ReasonCode[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +35,6 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
 
   useEffect(() => {
     fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
-    fetchEmployees().then(setEmployees).catch(() => setEmployees([]));
     fetchProducts()
       .then((ps) => setProducts(ps.map((p) => ({ id: p.id, label: p.name }))))
       .catch(() => setProducts([]));
@@ -121,7 +117,6 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
     selectedBranchId,
     setSelectedBranchId,
     reasonCodes,
-    employees,
     isLoading,
     error,
     refresh: () => load(selectedBranchId ?? undefined),

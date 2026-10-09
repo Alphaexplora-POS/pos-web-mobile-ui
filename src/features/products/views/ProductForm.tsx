@@ -4,7 +4,9 @@ import Select from '../../../shared/components/Select';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import Spinner from '../../../shared/components/Spinner';
 import type { Category, CreateProductInput, Product } from '../models/productTypes';
-import { productSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { productSchema } from '../../../shared/validation/schemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
+import FieldError from '../../../shared/components/FieldError';
 import { uploadProductImage } from '../models/productsApi';
 import { sanitizeDecimal } from '../../../shared/utils/numeric';
 
@@ -25,7 +27,18 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const clearError = (field: string) => {
+    if (!errors[field]) return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (editingProduct) {
@@ -59,7 +72,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       toast.success('Image uploaded');
     } catch {
       setImageUrl(previousUrl);
-      toast.error('Image upload failed');
+      setError('Image upload failed');
     } finally {
       setUploading(false);
       URL.revokeObjectURL(previewUrl);
@@ -72,6 +85,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
   };
 
   const handleSubmit = async () => {
+    if (basePrice.trim() === '') {
+      setErrors({ basePrice: 'Please enter a valid price' });
+      return false;
+    }
     const check = productSchema.safeParse({
       categoryId,
       name,
@@ -79,9 +96,15 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       basePrice: Number(basePrice),
     });
     if (!check.success) {
-      toast.error(firstZodMessage(check.error));
+      setErrors(
+        Object.fromEntries(
+          Object.entries(check.error.flatten().fieldErrors).map(([k, v]) => [k, v?.[0] ?? '']),
+        ),
+      );
       return false;
     }
+    setErrors({});
+    setError(null);
     const data: CreateProductInput = {
       name,
       description,
@@ -96,6 +119,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
       } else {
         await onSubmit(data);
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save product';
+      const field = routeFieldError(message, ['name', 'categoryId', 'basePrice']);
+      if (field) setErrors((prev) => ({ ...prev, [field]: message }));
+      else setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -105,6 +133,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
   return (
     <form
       className="space-y-4"
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         handleSubmit();
@@ -191,10 +220,14 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
               <label className="block text-sm text-ink-secondary">Name</label>
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearError('name');
+                }}
                 required
-                className="mt-1 w-full rounded border border-line px-3 py-2"
+                className={`mt-1 w-full rounded border px-3 py-2 ${errors.name ? 'border-error' : 'border-line'}`}
               />
+              <FieldError message={errors.name} />
             </div>
             <div>
               <label className="block text-sm text-ink-secondary">Base Price</label>
@@ -203,31 +236,44 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
                 min="0"
                 step="0.01"
                 value={basePrice}
-                onChange={(e) => setBasePrice(sanitizeDecimal(e.target.value))}
+                onChange={(e) => {
+                  setBasePrice(sanitizeDecimal(e.target.value));
+                  clearError('basePrice');
+                }}
                 required
-                className="mt-1 w-full rounded border border-line px-3 py-2"
+                className={`mt-1 w-full rounded border px-3 py-2 ${errors.basePrice ? 'border-error' : 'border-line'}`}
               />
+              <FieldError message={errors.basePrice} />
             </div>
           </div>
           <div>
             <label className="block text-sm text-ink-secondary">Category</label>
             <Select
               value={categoryId}
-              onChange={(v) => setCategoryId(v)}
+              onChange={(v) => {
+                setCategoryId(v);
+                clearError('categoryId');
+              }}
               options={categories.map((c) => ({ value: c.id, label: c.name }))}
               placeholder="Select category"
               className="mt-1 w-full"
+              invalid={Boolean(errors.categoryId)}
             />
+            <FieldError message={errors.categoryId} />
           </div>
           <div>
             <label className="block text-sm text-ink-secondary">Description</label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                clearError('description');
+              }}
               required
               rows={3}
-              className="mt-1 w-full rounded border border-line px-3 py-2"
+              className={`mt-1 w-full rounded border px-3 py-2 ${errors.description ? 'border-error' : 'border-line'}`}
             />
+            <FieldError message={errors.description} />
           </div>
         </div>
       </div>
@@ -235,6 +281,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ categories, onSubmit, onUpdat
         <LoadingButton loading={submitting} loadingLabel={editingProduct ? 'Saving…' : 'Creating…'}>
           {editingProduct ? 'Save Changes' : 'Create Product'}
         </LoadingButton>
+        <FieldError message={error} />
       </div>
     </form>
   );

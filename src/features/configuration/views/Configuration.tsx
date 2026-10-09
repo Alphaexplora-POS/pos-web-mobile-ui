@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { useConfigViewModel } from '../viewModels/useConfigViewModel';
 import PageLayout from '../../../shared/components/PageLayout';
 import { ConfigurationSkeleton } from '../../../shared/components/Skeletons';
@@ -8,6 +7,7 @@ import Select from '../../../shared/components/Select';
 import Modal from '../../../shared/components/Modal';
 import LoadingButton from '../../../shared/components/LoadingButton';
 import ConfirmModal from '../../../shared/components/ConfirmModal';
+import FieldError from '../../../shared/components/FieldError';
 import TableEmptyState from '../../../shared/components/TableEmptyState';
 import { useServerPagination } from '../../../shared/hooks/useServerPagination';
 import Pagination from '../../../shared/components/Pagination';
@@ -15,10 +15,28 @@ import { useUrlSection } from '../../../shared/hooks/useUrlSection';
 import { useResponsivePageSize } from '../../../shared/hooks/useResponsivePageSize';
 import ViewportTable from '../../../shared/components/ViewportTable';
 import { PAYMENT_METHOD_TYPES, type PaymentMethodType } from '../models/configTypes';
-import { paymentMethodSchema, reasonCodeSchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { paymentMethodSchema, reasonCodeSchema } from '../../../shared/validation/schemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 import { fetchPaymentMethodsPage, fetchReasonCodesPage } from '../models/configApi';
 
 type ReasonType = 'refund' | 'inventory';
+
+const buildFieldErrors = (error: { flatten: () => { fieldErrors: Record<string, string[] | undefined> } }): Record<string, string> => {
+  const fieldErrors = error.flatten().fieldErrors;
+  const next: Record<string, string> = {};
+  for (const [k, v] of Object.entries(fieldErrors)) {
+    const key = k === 'label' ? 'name' : k;
+    if (v && v[0]) next[key] = v[0];
+  }
+  return next;
+};
+
+const clearError = (errors: Record<string, string>, setErrors: (e: Record<string, string>) => void, field: string) => {
+  if (!errors[field]) return;
+  const next = { ...errors };
+  delete next[field];
+  setErrors(next);
+};
 
 const ReasonOptions: { value: ReasonType; label: string }[] = [
   { value: 'refund', label: 'Refund' },
@@ -105,6 +123,15 @@ const Configuration: React.FC = () => {
   const [reasonSubmitting, setReasonSubmitting] = useState(false);
   const [editReasonSubmitting, setEditReasonSubmitting] = useState(false);
 
+  const [payErrors, setPayErrors] = useState<Record<string, string>>({});
+  const [editPayErrors, setEditPayErrors] = useState<Record<string, string>>({});
+  const [reasonErrors, setReasonErrors] = useState<Record<string, string>>({});
+  const [editReasonErrors, setEditReasonErrors] = useState<Record<string, string>>({});
+  const [payError, setPayError] = useState<string | null>(null);
+  const [editPayError, setEditPayError] = useState<string | null>(null);
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  const [editReasonError, setEditReasonError] = useState<string | null>(null);
+
   if (loading) return <ConfigurationSkeleton />;
   const loadError = vm.error ?? paymentPage.error ?? reasonPage.error;
   if (loadError) return <ErrorState message={loadError} />;
@@ -115,26 +142,37 @@ const Configuration: React.FC = () => {
   const openAddPayment = () => {
     setPayName('');
     setPayType('Other');
+    setPayErrors({});
+    setPayError(null);
     setPaymentModalOpen(true);
   };
 
   const openAddReason = () => {
     setReasonName('');
     setReasonType('refund');
+    setReasonErrors({});
+    setReasonError(null);
     setReasonModalOpen(true);
   };
 
   const submitPayment = async () => {
     const check = paymentMethodSchema.safeParse({ name: payName, type: payType });
     if (!check.success) {
-      toast.error(firstZodMessage(check.error));
+      setPayErrors(buildFieldErrors(check.error));
       return;
     }
+    setPayErrors({});
+    setPayError(null);
     setPaySubmitting(true);
     try {
       await vm.createPaymentMethod(payName, payType);
       paymentPage.reset();
       setPaymentModalOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add payment method';
+      const field = routeFieldError(message, ['name', 'type']);
+      if (field) setPayErrors((prev) => ({ ...prev, [field]: message }));
+      else setPayError(message);
     } finally {
       setPaySubmitting(false);
     }
@@ -143,14 +181,21 @@ const Configuration: React.FC = () => {
   const submitReason = async () => {
     const check = reasonCodeSchema.safeParse({ label: reasonName, type: reasonType });
     if (!check.success) {
-      toast.error(firstZodMessage(check.error));
+      setReasonErrors(buildFieldErrors(check.error));
       return;
     }
+    setReasonErrors({});
+    setReasonError(null);
     setReasonSubmitting(true);
     try {
       await vm.createReasonCode(reasonName, reasonType);
       reasonPage.reset();
       setReasonModalOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to add reason code';
+      const field = routeFieldError(message, ['name', 'type']);
+      if (field) setReasonErrors((prev) => ({ ...prev, [field]: message }));
+      else setReasonError(message);
     } finally {
       setReasonSubmitting(false);
     }
@@ -222,6 +267,8 @@ const Configuration: React.FC = () => {
                               setEditingPayId(m.id);
                               setEditPayName(m.name);
                               setEditPayType(m.type as PaymentMethodType);
+                              setEditPayErrors({});
+                              setEditPayError(null);
                             }}
                           >
                             Edit
@@ -303,6 +350,8 @@ const Configuration: React.FC = () => {
                               setEditingReasonId(r.id);
                               setEditReasonName(r.name);
                               setEditReasonType(r.type);
+                              setEditReasonErrors({});
+                              setEditReasonError(null);
                             }}
                           >
                             Edit
@@ -346,6 +395,7 @@ const Configuration: React.FC = () => {
         <Modal title="Add payment method" onClose={() => setPaymentModalOpen(false)}>
           <form
             className="space-y-4"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               submitPayment();
@@ -355,22 +405,34 @@ const Configuration: React.FC = () => {
               <label className="block text-sm text-ink-secondary">Name</label>
               <input
                 value={payName}
-                onChange={(e) => setPayName(e.target.value)}
+                onChange={(e) => {
+                  setPayName(e.target.value);
+                  clearError(payErrors, setPayErrors, 'name');
+                }}
                 placeholder="e.g. GCash, Visa, Cash"
                 required
                 autoFocus
-                className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className={`mt-1 w-full rounded-md px-3 py-2 text-sm border ${
+                  payErrors.name ? 'border-error' : 'border-line focus:border-brand focus:outline-none'
+                }`}
               />
+              <FieldError message={payErrors.name} />
             </div>
             <div>
               <label className="block text-sm text-ink-secondary">Type</label>
               <Select
                 value={payType}
-                onChange={(v) => setPayType(v)}
+                onChange={(v) => {
+                  setPayType(v);
+                  clearError(payErrors, setPayErrors, 'type');
+                }}
                 options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
                 className="mt-1 w-full"
+                invalid={Boolean(payErrors.type)}
               />
+              <FieldError message={payErrors.type} />
             </div>
+            <FieldError message={payError} />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -391,18 +453,26 @@ const Configuration: React.FC = () => {
         <Modal title="Edit payment method" onClose={() => setEditingPayId(null)}>
           <form
             className="space-y-4"
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               const check = paymentMethodSchema.safeParse({ name: editPayName, type: editPayType });
               if (!check.success) {
-                toast.error(firstZodMessage(check.error));
+                setEditPayErrors(buildFieldErrors(check.error));
                 return;
               }
+              setEditPayErrors({});
+              setEditPayError(null);
               setEditPaySubmitting(true);
               try {
                 await vm.updatePaymentMethod(editingPayment.id, editPayName, editPayType);
                 paymentPage.reset();
                 setEditingPayId(null);
+              } catch (err) {
+                const message = err instanceof Error ? err.message : 'Failed to save payment method';
+                const field = routeFieldError(message, ['name', 'type']);
+                if (field) setEditPayErrors((prev) => ({ ...prev, [field]: message }));
+                else setEditPayError(message);
               } finally {
                 setEditPaySubmitting(false);
               }
@@ -412,21 +482,33 @@ const Configuration: React.FC = () => {
               <label className="block text-sm text-ink-secondary">Name</label>
               <input
                 value={editPayName}
-                onChange={(e) => setEditPayName(e.target.value)}
+                onChange={(e) => {
+                  setEditPayName(e.target.value);
+                  clearError(editPayErrors, setEditPayErrors, 'name');
+                }}
                 required
                 autoFocus
-                className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className={`mt-1 w-full rounded-md px-3 py-2 text-sm border ${
+                  editPayErrors.name ? 'border-error' : 'border-line focus:border-brand focus:outline-none'
+                }`}
               />
+              <FieldError message={editPayErrors.name} />
             </div>
             <div>
               <label className="block text-sm text-ink-secondary">Type</label>
               <Select
                 value={editPayType}
-                onChange={(v) => setEditPayType(v)}
+                onChange={(v) => {
+                  setEditPayType(v);
+                  clearError(editPayErrors, setEditPayErrors, 'type');
+                }}
                 options={PAYMENT_METHOD_TYPES.map((t) => ({ value: t, label: t }))}
                 className="mt-1 w-full"
+                invalid={Boolean(editPayErrors.type)}
               />
+              <FieldError message={editPayErrors.type} />
             </div>
+            <FieldError message={editPayError} />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -447,6 +529,7 @@ const Configuration: React.FC = () => {
         <Modal title="Add reason code" onClose={() => setReasonModalOpen(false)}>
           <form
             className="space-y-4"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               submitReason();
@@ -456,22 +539,34 @@ const Configuration: React.FC = () => {
               <label className="block text-sm text-ink-secondary">Name</label>
               <input
                 value={reasonName}
-                onChange={(e) => setReasonName(e.target.value)}
+                onChange={(e) => {
+                  setReasonName(e.target.value);
+                  clearError(reasonErrors, setReasonErrors, 'name');
+                }}
                 placeholder="e.g. Damaged item, Restock"
                 required
                 autoFocus
-                className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className={`mt-1 w-full rounded-md px-3 py-2 text-sm border ${
+                  reasonErrors.name ? 'border-error' : 'border-line focus:border-brand focus:outline-none'
+                }`}
               />
+              <FieldError message={reasonErrors.name} />
             </div>
             <div>
               <label className="block text-sm text-ink-secondary">Type</label>
               <Select
                 value={reasonType}
-                onChange={(v) => setReasonType(v)}
+                onChange={(v) => {
+                  setReasonType(v);
+                  clearError(reasonErrors, setReasonErrors, 'type');
+                }}
                 options={ReasonOptions}
                 className="mt-1 w-full"
+                invalid={Boolean(reasonErrors.type)}
               />
+              <FieldError message={reasonErrors.type} />
             </div>
+            <FieldError message={reasonError} />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
@@ -492,18 +587,26 @@ const Configuration: React.FC = () => {
         <Modal title="Edit reason code" onClose={() => setEditingReasonId(null)}>
           <form
             className="space-y-4"
+            noValidate
             onSubmit={async (e) => {
               e.preventDefault();
               const check = reasonCodeSchema.safeParse({ label: editReasonName, type: editReasonType });
               if (!check.success) {
-                toast.error(firstZodMessage(check.error));
+                setEditReasonErrors(buildFieldErrors(check.error));
                 return;
               }
+              setEditReasonErrors({});
+              setEditReasonError(null);
               setEditReasonSubmitting(true);
               try {
                 await vm.updateReasonCode(editingReason.id, editReasonName, editReasonType);
                 reasonPage.reset();
                 setEditingReasonId(null);
+              } catch (err) {
+                const message = err instanceof Error ? err.message : 'Failed to save reason code';
+                const field = routeFieldError(message, ['name', 'type']);
+                if (field) setEditReasonErrors((prev) => ({ ...prev, [field]: message }));
+                else setEditReasonError(message);
               } finally {
                 setEditReasonSubmitting(false);
               }
@@ -513,21 +616,33 @@ const Configuration: React.FC = () => {
               <label className="block text-sm text-ink-secondary">Name</label>
               <input
                 value={editReasonName}
-                onChange={(e) => setEditReasonName(e.target.value)}
+                onChange={(e) => {
+                  setEditReasonName(e.target.value);
+                  clearError(editReasonErrors, setEditReasonErrors, 'name');
+                }}
                 required
                 autoFocus
-                className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                className={`mt-1 w-full rounded-md px-3 py-2 text-sm border ${
+                  editReasonErrors.name ? 'border-error' : 'border-line focus:border-brand focus:outline-none'
+                }`}
               />
+              <FieldError message={editReasonErrors.name} />
             </div>
             <div>
               <label className="block text-sm text-ink-secondary">Type</label>
               <Select
                 value={editReasonType}
-                onChange={(v) => setEditReasonType(v)}
+                onChange={(v) => {
+                  setEditReasonType(v);
+                  clearError(editReasonErrors, setEditReasonErrors, 'type');
+                }}
                 options={ReasonOptions}
                 className="mt-1 w-full"
+                invalid={Boolean(editReasonErrors.type)}
               />
+              <FieldError message={editReasonErrors.type} />
             </div>
+            <FieldError message={editReasonError} />
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"

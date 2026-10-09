@@ -5,7 +5,5 @@ export const notifySuccess = (message: string): void => {
 };
 
 export const notifyError = (err: unknown, fallback?: string): string => {
-  const message = err instanceof Error && err.message ? err.message : (fallback ?? 'Something went wrong');
-  toast.error(message);
-  return message;
+  return err instanceof Error && err.message ? err.message : (fallback ?? 'Something went wrong');
 };

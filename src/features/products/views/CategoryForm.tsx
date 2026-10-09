@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 import Select from '../../../shared/components/Select';
 import LoadingButton from '../../../shared/components/LoadingButton';
+import FieldError from '../../../shared/components/FieldError';
 import type { Category } from '../models/productTypes';
-import { categorySchema, firstZodMessage } from '../../../shared/validation/schemas';
+import { categorySchema } from '../../../shared/validation/schemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 
 interface CategoryFormProps {
   categories: Category[];
@@ -23,6 +24,8 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState('');
   const [categoryType, setCategoryType] = useState<'parent' | 'child'>('parent');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -38,18 +41,33 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     }
   }, [editingCategory]);
 
+  const clearError = (field: string) => {
+    if (!errors[field]) return;
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const check = categorySchema.safeParse({ name });
     if (!check.success) {
-      toast.error(firstZodMessage(check.error));
+      setErrors(
+        Object.fromEntries(
+          Object.entries(check.error.flatten().fieldErrors).map(([k, v]) => [k, v?.[0] ?? '']),
+        ),
+      );
       return;
     }
     if (categoryType === 'child' && !parentId) {
-      toast.error('Please select a parent category');
+      setErrors({ parentId: 'Please select a parent category' });
       return;
     }
     const resolvedParentId = categoryType === 'parent' ? null : parentId;
+    setErrors({});
+    setError(null);
     setSubmitting(true);
     try {
       if (editingCategory) {
@@ -60,6 +78,11 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
       setName('');
       setParentId('');
       setCategoryType('parent');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save category';
+      const field = routeFieldError(message, ['name']);
+      if (field) setErrors((prev) => ({ ...prev, [field]: message }));
+      else setError(message);
     } finally {
       setSubmitting(false);
     }
@@ -73,15 +96,20 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
     <form
       className="space-y-4"
       onSubmit={submit}
+      noValidate
     >
       <div>
         <label className="block text-sm text-ink-secondary">Category Name</label>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            clearError('name');
+          }}
           required
-          className="mt-1 w-full rounded border border-line px-3 py-2"
+          className={`mt-1 w-full rounded border px-3 py-2 ${errors.name ? 'border-error' : 'border-line'}`}
         />
+        <FieldError message={errors.name} />
       </div>
       <div>
         <label className="block text-sm text-ink-secondary">Category Type</label>
@@ -109,11 +137,16 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
           <label className="block text-sm text-ink-secondary">Parent Category</label>
           <Select
             value={parentId}
-            onChange={(v) => setParentId(v)}
+            onChange={(v) => {
+              setParentId(v);
+              clearError('parentId');
+            }}
             options={parentOptions}
             placeholder="Select parent"
             className="mt-1 w-full"
+            invalid={Boolean(errors.parentId)}
           />
+          <FieldError message={errors.parentId} />
         </div>
       )}
       <div className="flex gap-2">
@@ -130,6 +163,7 @@ const CategoryForm: React.FC<CategoryFormProps> = ({
           </button>
         )}
       </div>
+      <FieldError message={error} />
     </form>
   );
 };

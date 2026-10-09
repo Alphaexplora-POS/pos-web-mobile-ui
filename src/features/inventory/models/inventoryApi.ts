@@ -1,11 +1,12 @@
 import type { InventoryAdjustInput, InventoryAuditLog, InventoryFilters, InventoryItem } from './inventoryTypes';
-import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { apiRequest } from '../../../shared/models/apiClient';
+import { invalidateResource } from '../../../shared/models/resourceInvalidation';
 import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
 
 export const invalidateInventoryCache = (): void => {
-  invalidateCache('GET /inventory');
+  invalidateResource('inventory');
 };
 
 interface RawStockRow {
@@ -82,11 +83,10 @@ export const adjustInventory = async (input: InventoryAdjustInput): Promise<Inve
         unitCost: input.unitCost,
         reasonId: input.reasonId,
         notes: input.notes,
-        performedBy: input.performedBy,
       }),
     },
   );
-  invalidateCache('GET /inventory');
+  invalidateResource('inventory');
   return {
     id: data.auditLogId,
     productId: '',

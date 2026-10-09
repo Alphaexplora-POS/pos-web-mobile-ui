@@ -7,6 +7,7 @@ import { z } from 'zod';
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../hooks/useAuth';
 import { registerSchema } from '../models/authSchemas';
+import { routeFieldError } from '../../../shared/validation/routeFieldError';
 import { roleHome } from '../../../shared/utils/roleHome';
 import PasswordInput from '../../../shared/components/PasswordInput';
 import Spinner from '../../../shared/components/Spinner';
@@ -27,6 +28,7 @@ const Register: React.FC = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
+    setError: setFieldError,
   } = useForm<RegisterWithConfirm>({
     resolver: zodResolver(registerWithConfirm),
     defaultValues: {
@@ -57,7 +59,14 @@ const Register: React.FC = () => {
       toast.success('Account created. Please wait until the user is approved.');
       navigate('/login', { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registration failed');
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      const field = routeFieldError(message, ['email', 'businessName']);
+      if (field) {
+        setFieldError(field as keyof RegisterWithConfirm, { type: 'server', message });
+        setError(null);
+      } else {
+        setError(message);
+      }
     }
   };
 

@@ -1,13 +1,13 @@
 import type { CreateRefundInput, CreateSaleInput, PosSession, Refund, RefundStatus, SessionSummary, Transaction, TransactionFilters } from './transactionTypes';
-import { apiRequest, invalidateCache } from '../../../shared/models/apiClient';
+import { apiRequest } from '../../../shared/models/apiClient';
+import { invalidateResource } from '../../../shared/models/resourceInvalidation';
 import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
 
+/** A sale/refund moves stock and feeds analytics, so clear all dependent views. */
 export const invalidateTransactionsCache = (): void => {
-  invalidateCache('GET /transaction/sales');
-  invalidateCache('GET /refund/refunds');
-  invalidateCache('GET /identity/sessions');
+  invalidateResource('transactions');
 };
 
 interface RawTransactionItem {
@@ -318,13 +318,13 @@ export const openSession = async (branchId: string, employeeId: string): Promise
     method: 'POST',
     body: JSON.stringify({ branchId, employeeId }),
   });
-  invalidateCache('GET /identity/sessions');
+  invalidateResource('sessions');
   return toSession(data);
 };
 
 export const closeSession = async (id: string): Promise<PosSession> => {
   const data = await apiRequest<RawSession>(`/identity/sessions/${id}/close`, { method: 'PATCH' });
-  invalidateCache('GET /identity/sessions');
+  invalidateResource('sessions');
   return toSession(data);
 };
 

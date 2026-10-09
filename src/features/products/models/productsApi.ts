@@ -8,25 +8,12 @@ import type {
   ProductVariant,
   Promotion,
 } from './productTypes';
-import { apiRequest, invalidateCache, getCache } from '../../../shared/models/apiClient';
+import { apiRequest, getCache } from '../../../shared/models/apiClient';
+import { invalidateResource } from '../../../shared/models/resourceInvalidation';
 import { SERVER_PAGE_SIZE, toServerPage, type ServerPage } from '../../../shared/hooks/useServerPagination';
 
 const CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 5 * 60_000 };
 const DETAIL_CACHE_OPTIONS = { cache: true as const, cacheTtlMs: 60_000 };
-
-export const invalidateProductCaches = (): void => {
-  invalidateCache('GET /catalog/products');
-  invalidateCache('GET /catalog/categories');
-  invalidateCache('GET /promotion/promotions');
-};
-
-export const invalidateVariantCache = (productId: string): void => {
-  invalidateCache(`GET /catalog/products/${productId}/variants`);
-};
-
-export const invalidateAttributeCache = (productId: string): void => {
-  invalidateCache(`GET /catalog/products/${productId}/attributes`);
-};
 
 interface RawProduct {
   id: string;
@@ -141,7 +128,7 @@ export const createCategory = async (name: string, parentId: string | null): Pro
       body: JSON.stringify({ name, parentId }),
     },
   );
-  invalidateProductCaches();
+  invalidateResource('categories');
   return toCategory(data);
 };
 
@@ -153,7 +140,7 @@ export const updateCategory = async (id: string, name: string, parentId: string 
       body: JSON.stringify({ name, parentId }),
     },
   );
-  invalidateProductCaches();
+  invalidateResource('categories');
   return toCategory(data);
 };
 
@@ -161,7 +148,7 @@ export const setCategoryActive = async (id: string, isActive: boolean): Promise<
   await apiRequest<unknown>(`/catalog/categories/${id}/${isActive ? 'activate' : 'deactivate'}`, {
     method: 'POST',
   });
-  invalidateProductCaches();
+  invalidateResource('categories');
 };
 
 export const getCachedProducts = (): Product[] => {
@@ -199,7 +186,7 @@ export const createProduct = async (input: CreateProductInput): Promise<Product>
       imageUrl: input.imageUrl,
     }),
   });
-  invalidateProductCaches();
+  invalidateResource('products');
   return toProduct(data);
 };
 
@@ -208,7 +195,7 @@ export const updateProduct = async (id: string, input: Partial<CreateProductInpu
     method: 'PATCH',
     body: JSON.stringify(input),
   });
-  invalidateProductCaches();
+  invalidateResource('products');
   return toProduct(data);
 };
 
@@ -217,7 +204,7 @@ export const setProductActive = async (id: string, isActive: boolean): Promise<v
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
-  invalidateProductCaches();
+  invalidateResource('products');
 };
 
 export const uploadProductImage = async (file: File): Promise<string> => {
@@ -250,8 +237,7 @@ export const createVariant = async (productId: string, input: CreateVariantInput
       costPrice: input.costPrice,
     }),
   });
-  invalidateProductCaches();
-  invalidateVariantCache(productId);
+  invalidateResource('variants');
   return toVariant(data);
 };
 
@@ -260,8 +246,7 @@ export const updateVariant = async (productId: string, variantId: string, input:
     method: 'PATCH',
     body: JSON.stringify(input),
   });
-  invalidateProductCaches();
-  invalidateVariantCache(productId);
+  invalidateResource('variants');
   return toVariant(data);
 };
 
@@ -270,8 +255,7 @@ export const setVariantActive = async (productId: string, variantId: string, isA
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
-  invalidateProductCaches();
-  invalidateVariantCache(productId);
+  invalidateResource('variants');
 };
 
 export const fetchAttributes = async (productId: string): Promise<ProductAttribute[]> => {
@@ -287,7 +271,7 @@ export const createAttribute = async (productId: string, attributeKey: string, a
     method: 'POST',
     body: JSON.stringify({ attributeKey, attributeValue }),
   });
-  invalidateAttributeCache(productId);
+  invalidateResource('attributes');
   return toAttribute(data);
 };
 
@@ -296,7 +280,7 @@ export const updateAttribute = async (productId: string, id: string, attributeKe
     method: 'PATCH',
     body: JSON.stringify({ attributeKey, attributeValue }),
   });
-  invalidateAttributeCache(productId);
+  invalidateResource('attributes');
   return toAttribute(data);
 };
 
@@ -336,7 +320,7 @@ export const createPromotion = async (input: CreatePromoInput): Promise<Promotio
       applicableItems: input.applicableItems,
     }),
   });
-  invalidateProductCaches();
+  invalidateResource('promotions');
   return {
     id: data.id,
     name: input.name,
@@ -369,7 +353,7 @@ export const updatePromotion = async (id: string, input: CreatePromoInput): Prom
       applicableItems: input.applicableItems,
     }),
   });
-  invalidateProductCaches();
+  invalidateResource('promotions');
 };
 
 export const setPromotionActive = async (id: string, isActive: boolean): Promise<void> => {
@@ -377,5 +361,5 @@ export const setPromotionActive = async (id: string, isActive: boolean): Promise
     method: 'PATCH',
     body: JSON.stringify({ isActive }),
   });
-  invalidateProductCaches();
+  invalidateResource('promotions');
 };

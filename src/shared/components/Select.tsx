@@ -15,6 +15,7 @@ interface SelectProps<T extends string | number> {
   className?: string;
   name?: string;
   title?: string;
+  invalid?: boolean;
 }
 
 const ChevronIcon: React.FC<{ open: boolean }> = ({ open }) => (
@@ -51,6 +52,7 @@ function Select<T extends string | number>({
   className = '',
   name,
   title,
+  invalid,
 }: SelectProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(-1);
@@ -117,7 +119,9 @@ function Select<T extends string | number>({
         className={`flex w-full items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left text-sm transition-colors ${
           open
             ? 'border-brand ring-2 ring-brand/20'
-            : 'border-line hover:border-line-strong'
+            : invalid
+              ? 'border-error hover:border-error'
+              : 'border-line hover:border-line-strong'
         } ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
       >
         <span className={`truncate ${selected ? 'text-ink-primary' : 'text-ink-muted'}`}>
