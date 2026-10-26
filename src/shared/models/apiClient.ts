@@ -1,6 +1,5 @@
 import { notifySessionExpired } from '../../features/auth/sessionExpiry';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+import { API_BASE_URL } from './apiConfig';
 
 interface ApiErrorResponse {
   message?: string;
@@ -91,7 +90,7 @@ const parseAsJson = async (res: Response): Promise<unknown> => {
 };
 
 const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     ...init,
     headers:

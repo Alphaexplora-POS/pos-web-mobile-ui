@@ -55,8 +55,31 @@ npm install
 npm run dev     # -> http://localhost:5173
 ```
 
-The Vite dev server proxies `/api` → `http://localhost:4000` (the backend gateway). Override with
-`VITE_API_BASE_URL` in a `.env` file if needed.
+Local `.env` settings:
+
+```dotenv
+VITE_API_BASE_URL=/api
+API_PROXY_TARGET=http://localhost:4000
+```
+
+Vite forwards `/api/*` to the backend without stripping `/api`.
+`API_PROXY_TARGET` takes an origin only, without `/api`.
+
+### Vercel
+
+Use Node.js 22. `vercel.mjs` configures the build, API forwarding, and SPA fallback.
+Set these in the frontend project's Preview/Production environment:
+
+| Variable | Value |
+|---|---|
+| `VITE_API_BASE_URL` | `/api` or unset |
+| `BACKEND_ORIGIN` | Live Express HTTPS origin, without `/api` |
+
+Deploy Express separately. Keep database and Supabase credentials in the backend
+project. `API_PROXY_TARGET` is local only. Redeploy after changing cloud settings.
+
+Vercel Functions cap requests at 4.5 MB; use a conventional Node backend to retain
+25 MB image uploads. See the [deployment guide](<../00 info dump/POS_WEB_VERCEL_DEPLOYMENT.md>).
 
 ## Run the backend (required for login)
 

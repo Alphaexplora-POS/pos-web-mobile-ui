@@ -1,7 +1,6 @@
 import type { AuthSession, LoginInput, Profile, RegisterInput } from './authTypes';
 import { buildSession } from './session';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+import { API_BASE_URL } from '../../../shared/models/apiConfig';
 
 export class AuthError extends Error {
   status: number;
@@ -21,7 +20,7 @@ const unwrap = (data: unknown): unknown => {
 };
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
     credentials: 'include',
     ...init,
     headers: {
