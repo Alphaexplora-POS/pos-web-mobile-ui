@@ -34,8 +34,9 @@ export const config = {
   installCommand: 'npm ci --include=dev',
   buildCommand: 'npm run build',
   outputDirectory: 'dist',
-  rewrites: [
-    { source: '/api/:path*', destination: `${backend.origin}/api/:path*` },
-    { source: '/(.*)', destination: '/index.html' },
+  routes: [
+    { src: '^(/api(?:/.*)?)$', dest: `${backend.origin}$1` },
+    { handle: 'filesystem' },
+    { src: '/(.*)', dest: '/index.html' },
   ],
 };
