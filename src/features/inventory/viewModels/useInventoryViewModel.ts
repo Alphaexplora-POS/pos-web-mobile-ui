@@ -46,6 +46,7 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
 
   const load = useCallback(
     async (branchId?: string) => {
+      setError(null);
       setIsLoading(true);
       try {
         if (isOwner) {
@@ -71,6 +72,7 @@ export const useInventoryViewModel = (isOwner: boolean, managerBranchId?: string
   );
 
   const loadAudit = useCallback(async (filters?: InventoryFilters) => {
+    setError(null);
     try {
       const data = await fetchInventoryAuditLogs(filters);
       setAuditLogs(data);

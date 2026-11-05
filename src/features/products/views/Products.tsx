@@ -132,7 +132,18 @@ const Products: React.FC = () => {
   const viewingProductDetail = variantViewProductId !== null || attributeViewProductId !== null;
 
   if (loading) return <ProductsSkeleton isOwner={isOwner} />;
-  if (vm.error) return <ErrorState message={vm.error} />;
+  const pageError = activeSection === 'products' ? productPage.error
+    : activeSection === 'categories' ? categoriesPage.error : promotionsPage.error;
+  const detailError = variantQuery.error ?? attributeQuery.error;
+  const loadError = vm.error ?? pageError ?? (detailError instanceof Error ? detailError.message : null);
+  if (loadError) return <ErrorState message={loadError} onRetry={() => {
+    void vm.refresh();
+    productPage.refetch();
+    categoriesPage.refetch();
+    promotionsPage.refetch();
+    if (variantViewProductId) void variantQuery.refetch();
+    if (attributeViewProductId) void attributeQuery.refetch();
+  }} />;
 
   const tabBtn = (section: Section, label: string) => (
     <button

@@ -1,7 +1,6 @@
 import { toast } from 'sonner';
 import { notifySessionExpired } from '../../features/auth/sessionExpiry';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+import { API_BASE_URL as API_BASE } from './apiConfig';
 
 interface ApiErrorResponse {
   message?: string;
@@ -13,6 +12,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+let cacheGeneration = 0;
 
 const CACHE_TTL_MS = 60_000;
 
@@ -34,6 +34,11 @@ export const invalidateCache = (prefix: string): void => {
   for (const key of cache.keys()) {
     if (key.startsWith(prefix)) cache.delete(key);
   }
+};
+
+export const clearApiCache = (): void => {
+  cacheGeneration += 1;
+  cache.clear();
 };
 
 export const unwrapData = <T>(data: unknown): T => {
@@ -63,7 +68,7 @@ const parseAsJson = async (res: Response): Promise<unknown> => {
   }
 };
 
-const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
+const doFetch = async <T>(path: string, init: RequestInit, generation: number): Promise<T> => {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     ...init,
@@ -81,40 +86,43 @@ const doFetch = async <T>(path: string, init: RequestInit): Promise<T> => {
     const message =
       typeof payload?.message === 'string' && payload.message
         ? payload.message
-        : typeof data === 'string' && data
-          ? data
-          : 'Request failed';
+        : 'The API request failed (HTTP ' + res.status + '). Please try again.';
     if (res.status === 401) {
-      notifySessionExpired();
+      if (generation === cacheGeneration) notifySessionExpired();
       throw new Error(message);
     }
     const method = init?.method ?? 'GET';
     if (res.status === RETRYABLE_503 && method === 'GET') {
       throw new RetryableError(message);
     }
-    if (method !== 'GET') {
+    if (method !== 'GET' && generation === cacheGeneration) {
       toast.error(message);
     }
     throw new Error(message);
+  }
+  if (res.status !== 204 && res.status !== 205 && (!data || typeof data !== 'object')) {
+    throw new Error('The API returned an unexpected response. Please try again.');
   }
   return unwrapData<T>(data ?? {});
 };
 
 export const apiRequest = async <T>(path: string, init?: ApiRequestOptions): Promise<T> => {
+  const generation = cacheGeneration;
   const { cache: useCache = false, cacheTtlMs, ...rest } = init ?? {};
   const cacheKey = useCache && (rest.method ?? 'GET') === 'GET' ? `GET ${path}` : null;
   const cached = cacheKey ? getCache<T>(cacheKey) : undefined;
   if (cached !== undefined) return cached;
 
   try {
-    const value = await doFetch<T>(path, rest);
-    if (cacheKey !== null) setCache(cacheKey, value, cacheTtlMs);
+    const value = await doFetch<T>(path, rest, generation);
+    if (cacheKey !== null && generation === cacheGeneration) setCache(cacheKey, value, cacheTtlMs);
     return value;
   } catch (err) {
-    if (!(err instanceof RetryableError)) throw err;
+    if (!(err instanceof RetryableError) || generation !== cacheGeneration) throw err;
     await new Promise((resolve) => setTimeout(resolve, RETRY_COOLDOWN_MS));
-    const value = await doFetch<T>(path, rest);
-    if (cacheKey !== null) setCache(cacheKey, value, cacheTtlMs);
+    if (generation !== cacheGeneration) throw new Error('The session changed. Please try again.');
+    const value = await doFetch<T>(path, rest, generation);
+    if (cacheKey !== null && generation === cacheGeneration) setCache(cacheKey, value, cacheTtlMs);
     return value;
   }
 };

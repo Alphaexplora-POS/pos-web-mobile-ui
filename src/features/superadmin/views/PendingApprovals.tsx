@@ -146,7 +146,7 @@ const PendingApprovals: React.FC = () => {
     <PageLayout title="Owner Approvals">
       {error && (
         <div className="mb-4">
-          <ErrorState message={error} />
+          <ErrorState message={error} onRetry={page.refetch} />
         </div>
       )}
       <div className="bg-white rounded-lg border border-line p-6">

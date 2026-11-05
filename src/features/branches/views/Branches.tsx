@@ -88,7 +88,7 @@ const Branches: React.FC = () => {
   };
 
   if (loading) return <BranchesSkeleton isOwner={isOwner} />;
-  if (vm.error) return <ErrorState message={vm.error} />;
+  if (vm.error) return <ErrorState message={vm.error} onRetry={() => { void vm.refresh(); }} />;
 
   return (
     <PageLayout title={isOwner ? 'Branch and Employees' : 'Employees'}>
