@@ -19,6 +19,7 @@ export const useConfigViewModel = () => {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     setIsLoading(true);
     try {
       const [payments, reasons] = await Promise.all([
@@ -79,6 +80,7 @@ export const useConfigViewModel = () => {
     reasonCodes,
     isLoading,
     error,
+    refresh: load,
     createPaymentMethod: handleCreatePaymentMethod,
     togglePaymentMethod: handleTogglePaymentMethod,
     updatePaymentMethod: handleUpdatePaymentMethod,

@@ -102,7 +102,7 @@ export const adjustInventory = async (input: InventoryAdjustInput): Promise<Inve
 };
 
 export const fetchCombinedInventory = async (): Promise<InventoryItem[]> => {
-  const data = await apiRequest<{ inventory: RawStockRow[] }>('/inventory/?scope=global&limit=100', CACHE_OPTIONS);
+  const data = await apiRequest<{ inventory: RawStockRow[] }>('/inventory?scope=global&limit=100', CACHE_OPTIONS);
   return (data.inventory ?? []).map(toInventoryItem);
 };
 
@@ -117,7 +117,7 @@ export const fetchInventoryPage = async (
   } else {
     params.set('scope', 'global');
   }
-  const data = await apiRequest<{ inventory: RawStockRow[] }>(`/inventory/?${params.toString()}`);
+  const data = await apiRequest<{ inventory: RawStockRow[] }>(`/inventory?${params.toString()}`);
   const inventory = (data.inventory ?? []).map(toInventoryItem);
   return toServerPage<InventoryItem>({ ...data, inventory }, 'inventory');
 };
@@ -143,7 +143,7 @@ export const fetchInventoryAuditLogsPage = async (
 
 export const fetchBranchInventory = async (branchId: string): Promise<InventoryItem[]> => {
   const data = await apiRequest<{ inventory: RawStockRow[] }>(
-    `/inventory/?branchId=${encodeURIComponent(branchId)}&limit=100`,
+    `/inventory?branchId=${encodeURIComponent(branchId)}&limit=100`,
     CACHE_OPTIONS,
   );
   return (data.inventory ?? []).map(toInventoryItem);

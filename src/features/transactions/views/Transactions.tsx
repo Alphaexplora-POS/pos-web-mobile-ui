@@ -30,6 +30,74 @@ const statusChip: Record<RefundStatus, string> = {
   completed: 'bg-success-light text-success',
 };
 
+const CustomDateRangeForm: React.FC<{
+  startDate: string;
+  endDate: string;
+  active: boolean;
+  onApply: (start: Date | null, end: Date | null) => string | null;
+}> = ({ startDate, endDate, active, onApply }) => {
+  const [start, setStart] = useState<Date | null>(() => startDate ? new Date(`${startDate}T00:00:00`) : null);
+  const [end, setEnd] = useState<Date | null>(() => endDate ? new Date(`${endDate}T00:00:00`) : null);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      className="flex w-full flex-wrap items-center gap-2 rounded-lg bg-canvas p-1 lg:w-auto"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setError(onApply(start, end));
+      }}
+    >
+      <span className={`rounded-md px-3 py-1.5 text-sm font-medium ${active ? 'bg-brand text-white' : 'text-ink-secondary'}`}>
+        Custom range
+      </span>
+      <label htmlFor="transaction-start-date" className="sr-only">Start date</label>
+      <DatePicker
+        id="transaction-start-date"
+        selected={start}
+        onChange={(date: Date | null) => setStart(date)}
+        selectsStart
+        startDate={start}
+        endDate={end}
+        maxDate={end ?? undefined}
+        dateFormat="MMM d, yyyy"
+        placeholderText="Start date"
+        showYearDropdown
+        showMonthDropdown
+        dropdownMode="select"
+        portalId="transaction-date-picker"
+        popperClassName="!z-[60]"
+        required
+        wrapperClassName="w-36 max-w-full"
+        className="w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink-secondary hover:border-line-strong focus:outline-none focus:border-brand"
+      />
+      <span aria-hidden="true" className="text-ink-muted">–</span>
+      <label htmlFor="transaction-end-date" className="sr-only">End date</label>
+      <DatePicker
+        id="transaction-end-date"
+        selected={end}
+        onChange={(date: Date | null) => setEnd(date)}
+        selectsEnd
+        startDate={start}
+        endDate={end}
+        minDate={start ?? undefined}
+        dateFormat="MMM d, yyyy"
+        placeholderText="End date"
+        showYearDropdown
+        showMonthDropdown
+        dropdownMode="select"
+        portalId="transaction-date-picker"
+        popperClassName="!z-[60]"
+        required
+        wrapperClassName="w-36 max-w-full"
+        className="w-full rounded-md border border-line bg-white px-3 py-1.5 text-sm font-medium text-ink-secondary hover:border-line-strong focus:outline-none focus:border-brand"
+      />
+      <button type="submit" disabled={!start || !end} className="rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-50">Apply</button>
+      {error && <p role="alert" className="basis-full px-3 py-1 text-sm text-error">{error}</p>}
+    </form>
+  );
+};
+
 const NewRefundForm: React.FC<{
   transactionId: string;
   maxAmount: number;
@@ -185,16 +253,6 @@ const Transactions: React.FC = () => {
     (v) => (v === 'refunds' ? 'refunds' : 'history'),
   );
   const { isOwner } = useRole();
-  const [customDate, setCustomDate] = useState<Date | null>(null);
-
-  const selectCustom = (date: Date) => {
-    setCustomDate(date);
-    const dd = String(date.getDate()).padStart(2, '0');
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const yyyy = date.getFullYear();
-    vm.setStartDate(`${yyyy}-${mm}-${dd}`);
-    vm.setEndDate(`${yyyy}-${mm}-${dd}`);
-  };
 
   const [tableHeight, setTableHeight] = useState<number>(0);
   const [rowHeight, setRowHeight] = useState<number>(0);
@@ -227,14 +285,19 @@ const Transactions: React.FC = () => {
   const loading = (txPage.loading || refundPage.loading) && txPage.totalCount === 0 && refundPage.totalCount === 0;
 
   if (loading) return <TransactionsSkeleton />;
-  if (vm.error) return <ErrorState message={vm.error} />;
+  const loadError = vm.error ?? (activeTab === 'history' ? txPage.error : refundPage.error);
+  if (loadError) return <ErrorState message={loadError} onRetry={() => {
+    void vm.refresh();
+    txPage.refetch();
+    refundPage.refetch();
+  }} />;
 
   const refundReasonCodes = vm.reasonCodes.filter((r) => r.type === 'refund' && r.isActive);
 
   return (
     <PageLayout title="Transaction History">
       <div className="mb-6 bg-white rounded-lg border border-line p-4">
-        <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="inline-flex items-center gap-1 rounded-lg bg-canvas p-1">
             {(['today', 'week', 'month'] as const).map((r) => (
               <button
@@ -250,32 +313,11 @@ const Transactions: React.FC = () => {
               </button>
             ))}
           </div>
-          <DatePicker
-            selected={customDate}
-            onChange={(date: Date | null) => {
-              if (date) {
-                vm.setRange('custom');
-                selectCustom(date);
-              }
-            }}
-            showYearDropdown
-            showMonthDropdown
-            dropdownMode="select"
-            customInput={
-              <button
-                type="button"
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5 ${
-                  vm.range === 'custom'
-                    ? 'bg-brand text-white'
-                    : 'bg-white border border-line text-ink-secondary hover:text-ink-primary'
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Customize Date
-              </button>
-            }
+          <CustomDateRangeForm
+            startDate={vm.startDate}
+            endDate={vm.endDate}
+            active={vm.range === 'custom'}
+            onApply={vm.applyCustomDateRange}
           />
         </div>
       </div>
