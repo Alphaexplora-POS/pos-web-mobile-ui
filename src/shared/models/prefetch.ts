@@ -3,6 +3,10 @@ import { fetchCategories, fetchProducts, fetchPromotions } from '../../features/
 
 let prefetched = false;
 
+export const resetAppPrefetch = (): void => {
+  prefetched = false;
+};
+
 export const prefetchAppData = (): void => {
   if (prefetched) return;
   prefetched = true;

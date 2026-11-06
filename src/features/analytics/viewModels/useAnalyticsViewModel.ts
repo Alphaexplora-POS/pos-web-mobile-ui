@@ -14,6 +14,7 @@ export const useAnalyticsViewModel = (isOwner: boolean, branchId: string | null 
   return {
     data: query.data ?? null,
     isLoading: query.isLoading,
+    refresh: () => query.refetch(),
     error: query.isError ? (query.error instanceof Error ? query.error.message : 'Failed to load analytics') : null,
   };
 };

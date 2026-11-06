@@ -14,9 +14,10 @@ import {
 import { RoleProvider } from './shared/hooks/useRole';
 import { AuthProvider } from './features/auth/hooks/useAuth';
 import { useAuth } from './features/auth/hooks/useAuth';
-import { hasBeenSignedIn } from './features/auth/sessionExpiry';
 import SessionExpiredModal from './features/auth/components/SessionExpiredModal';
+import SessionGate from './features/auth/components/SessionGate';
 import type { Role } from './shared/models/userTypes';
+import { roleHome } from './shared/utils/roleHome';
 
 const Login = lazy(() => import('./features/auth/views/Login'));
 const Register = lazy(() => import('./features/auth/views/Register'));
@@ -32,8 +33,9 @@ import NotFound from './shared/components/NotFound';
 const ALL_ROLES: Role[] = ['owner', 'branch_manager'];
 
 const HomeRedirect: React.FC = () => {
-  const { session } = useAuth();
-  return <Navigate to={session?.role === 'superadmin' ? '/super-admin/pending' : '/analytics'} replace />;
+  const { session, isLoading } = useAuth();
+  if (isLoading) return null;
+  return <Navigate to={session ? roleHome(session.role) : '/login'} replace />;
 };
 
 const WithSkeleton: React.FC<{ fallback: ReactNode; children: ReactNode }> = ({ fallback, children }) => (
@@ -44,11 +46,6 @@ const ProtectedLayout: React.FC<{ roles: Role[]; children: React.ReactNode }> = 
   const { session, isLoading } = useAuth();
   if (isLoading) return null;
   if (!session) {
-    // If the user was previously signed in but has no session (expired/restart),
-    // keep the app mounted so the content stays visible behind the session-expired modal.
-    if (hasBeenSignedIn()) {
-      return <SidebarLayout>{children}</SidebarLayout>;
-    }
     return <Navigate to="/login" replace />;
   }
   if (!roles.includes(session.role)) {
@@ -64,6 +61,7 @@ const ProtectedLayout: React.FC<{ roles: Role[]; children: React.ReactNode }> = 
 const App: React.FC = () => {
   return (
     <AuthProvider>
+      <SessionGate>
       <RoleProvider>
         <Toaster
           position="top-right"
@@ -161,16 +159,10 @@ const App: React.FC = () => {
             }
           />
           <Route path="/" element={<HomeRedirect />} />
-          <Route
-            path="*"
-            element={
-              <ProtectedLayout roles={ALL_ROLES}>
-                <NotFound />
-              </ProtectedLayout>
-            }
-          />
+          <Route path="*" element={<HomeRedirect />} />
         </Routes>
       </RoleProvider>
+      </SessionGate>
     </AuthProvider>
   );
 };

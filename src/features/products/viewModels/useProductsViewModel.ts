@@ -52,6 +52,7 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     setIsLoading(true);
     try {
       const [catData, prodData, promoData] = await Promise.all([
@@ -209,6 +210,7 @@ export const useProductsViewModel = (managerBranchId?: string | null) => {
     isLoading,
     detailsLoading,
     error,
+    refresh: load,
     loadProductDetails,
     createCategory: handleCreateCategory,
     updateCategory: handleUpdateCategory,

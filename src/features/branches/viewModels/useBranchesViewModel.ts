@@ -21,6 +21,7 @@ export const useBranchesViewModel = () => {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setError(null);
     setIsLoading(true);
     try {
       const [branchData, empData] = await Promise.all([fetchBranches(), fetchEmployees()]);
@@ -90,6 +91,7 @@ export const useBranchesViewModel = () => {
     employees,
     isLoading,
     error,
+    refresh: load,
     createBranch: handleCreateBranch,
     updateBranch: handleUpdateBranch,
     deactivateBranch: handleDeactivateBranch,

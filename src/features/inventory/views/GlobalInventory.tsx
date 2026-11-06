@@ -295,7 +295,12 @@ const [adjustModalOpen, setAdjustModalOpen] = useState(false);
 
   if (loading)
     return <InventorySkeleton title={isOwner ? 'Global Inventory' : 'Branch Inventory'} />;
-  if (vm.error) return <ErrorState message={vm.error} />;
+  const loadError = vm.error ?? (activeSection === 'stock' ? stockPage.error : auditPage.error);
+  if (loadError) return <ErrorState message={loadError} onRetry={() => {
+    void vm.refresh();
+    stockPage.refetch();
+    auditPage.refetch();
+  }} />;
 
   const inventoryReasonCodes = vm.reasonCodes.filter((r) => r.type === 'inventory' && r.isActive);
   const employees = vm.employees.filter((e) => e.isActive);

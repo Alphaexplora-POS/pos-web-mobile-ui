@@ -16,7 +16,7 @@ const Analytics: React.FC = () => {
   const [selectedTopProducts, setSelectedTopProducts] = useState<TopProduct[]>([]);
   const [branchSales, setBranchSales] = useState<{ today: number; monthly: number } | null>(null);
 
-  const { data, isLoading, error } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
+  const { data, isLoading, error, refresh } = useAnalyticsViewModel(isOwner, session?.branchId ?? null);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -35,7 +35,7 @@ const Analytics: React.FC = () => {
     ...(data?.branchComparison ?? []).map((b) => ({ value: b.branchId, label: b.branchName })),
   ];
 
-  if (error) return <ErrorState message={error} />;
+  if (error) return <ErrorState message={error} onRetry={() => { void refresh(); }} />;
   if (isLoading || !data) return <AnalyticsSkeleton title={isOwner ? 'Centralized Analytics' : 'Branch Analytics'} owner={isOwner} />;
 
   if (!isOwner) {
