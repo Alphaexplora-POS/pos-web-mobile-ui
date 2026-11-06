@@ -107,7 +107,11 @@ const Configuration: React.FC = () => {
 
   if (loading) return <ConfigurationSkeleton />;
   const loadError = vm.error ?? paymentPage.error ?? reasonPage.error;
-  if (loadError) return <ErrorState message={loadError} />;
+  if (loadError) return <ErrorState message={loadError} onRetry={() => {
+    void vm.refresh();
+    paymentPage.refetch();
+    reasonPage.refetch();
+  }} />;
 
   const editingPayment = paymentPage.items.find((m) => m.id === editingPayId);
   const editingReason = reasonPage.items.find((r) => r.id === editingReasonId);

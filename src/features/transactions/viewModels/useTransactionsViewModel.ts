@@ -29,6 +29,7 @@ export const useTransactionsViewModel = () => {
   const filters: TransactionFilters = { range, startDate, endDate };
 
   const load = useCallback(async () => {
+    setError(null);
     setIsLoading(true);
     try {
       const [txData, branchData, refundData] = await Promise.all([
@@ -54,6 +55,21 @@ export const useTransactionsViewModel = () => {
     fetchReasonCodes().then(setReasonCodes).catch(() => setReasonCodes([]));
     fetchPaymentMethods().then(setPaymentMethods).catch(() => setPaymentMethods([]));
   }, []);
+
+  const applyCustomDateRange = (start: Date | null, end: Date | null): string | null => {
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return 'Select a valid start date and end date.';
+    }
+    const toDateString = (date: Date): string =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const from = toDateString(start);
+    const to = toDateString(end);
+    if (from > to) return 'End date must be on or after start date.';
+    setStartDate(from);
+    setEndDate(to);
+    setRange('custom');
+    return null;
+  };
 
   const run = async (action: () => Promise<unknown>, successMessage: string) => {
     try {
@@ -118,9 +134,8 @@ export const useTransactionsViewModel = () => {
     range,
     setRange,
     startDate,
-    setStartDate,
     endDate,
-    setEndDate,
+    applyCustomDateRange,
     transactions,
     refunds,
     reasonCodes,

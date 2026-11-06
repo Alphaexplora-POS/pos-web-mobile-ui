@@ -58,7 +58,7 @@ const SessionExpiredModal: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  if (!open) return null;
+  if (!open || !session) return null;
 
   return (
     <div

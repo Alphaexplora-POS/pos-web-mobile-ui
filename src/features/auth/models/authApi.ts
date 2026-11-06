@@ -1,7 +1,6 @@
 import type { AuthSession, LoginInput, Profile, RegisterInput } from './authTypes';
 import { buildSession } from './session';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+import { API_BASE_URL as API_BASE } from '../../../shared/models/apiConfig';
 
 export class AuthError extends Error {
   status: number;
@@ -29,13 +28,25 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
       ...init?.headers,
     },
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    data = undefined;
+  }
   if (!res.ok) {
-    const payload = data as { message?: string };
-    if (res.status === 401) {
-      throw new AuthError(payload.message ?? 'Not authenticated', res.status);
+    const payload = data as { message?: unknown } | undefined;
+    const message = typeof payload?.message === 'string' && payload.message
+      ? payload.message
+      : `The API request failed (HTTP ${res.status}). Please try again.`;
+    if (res.status === 401 || res.status === 403) {
+      throw new AuthError(message, res.status);
     }
-    throw new Error(payload.message ?? 'Request failed');
+    throw new Error(message);
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('The API returned an unexpected response. Please try again.');
   }
   return unwrap(data) as T;
 };
@@ -87,8 +98,10 @@ export const loginWithEmail = async (input: LoginInput): Promise<AuthSession> =>
 };
 
 export const fetchMe = async (): Promise<AuthSession | null | undefined> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    const payload = await request<MePayload>('/identity/auth/me');
+    const payload = await request<MePayload>('/identity/auth/me', { signal: controller.signal });
     return buildSession({
       profile: payload.profile,
       tenantName: payload.tenantName,
@@ -99,6 +112,8 @@ export const fetchMe = async (): Promise<AuthSession | null | undefined> => {
       return null;
     }
     return undefined;
+  } finally {
+    clearTimeout(timeout);
   }
 };
 
