@@ -6,7 +6,7 @@ import ProductForm from './ProductForm';
 import PromoForm from './PromoForm';
 import VariantForm from './VariantForm';
 import AttributeForm from './AttributeForm';
-import type { Category, ProductAttribute, ProductVariant, Promotion } from '../models/productTypes';
+import type { Category, Product, ProductAttribute, ProductVariant, Promotion } from '../models/productTypes';
 import {
   fetchAttributes,
   fetchCategoriesPage,
@@ -33,6 +33,7 @@ import ViewportTable from '../../../shared/components/ViewportTable';
 
 type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 type Section = 'products' | 'categories' | 'promotions';
+type ProductDetailView = { kind: 'variants' | 'attributes'; product: Product };
 
 const Products: React.FC = () => {
   const { session } = useAuth();
@@ -57,8 +58,7 @@ const Products: React.FC = () => {
   );
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [attributeModalOpen, setAttributeModalOpen] = useState(false);
-  const [variantViewProductId, setVariantViewProductId] = useState<string | null>(null);
-  const [attributeViewProductId, setAttributeViewProductId] = useState<string | null>(null);
+  const [productDetailView, setProductDetailView] = useState<ProductDetailView | null>(null);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [editingAttribute, setEditingAttribute] = useState<ProductAttribute | null>(null);
   const [confirmState, setConfirmState] = useState<{
@@ -71,6 +71,9 @@ const Products: React.FC = () => {
   const [tableHeight, setTableHeight] = useState<number>(0);
   const [rowHeight, setRowHeight] = useState<number>(0);
   const pageSize = useResponsivePageSize(tableHeight, rowHeight);
+  const [detailTableHeight, setDetailTableHeight] = useState(0);
+  const [detailRowHeight, setDetailRowHeight] = useState(0);
+  const detailPageSize = useResponsivePageSize(detailTableHeight, detailRowHeight);
   const productPage = useServerPagination(
     (page) => fetchProductsPage(page, session?.branchId ?? null, pageSize),
     pageSize,
@@ -98,6 +101,11 @@ const Products: React.FC = () => {
     },
   );
 
+  const variantViewProduct = productDetailView?.kind === 'variants' ? productDetailView.product : null;
+  const attributeViewProduct = productDetailView?.kind === 'attributes' ? productDetailView.product : null;
+  const variantViewProductId = variantViewProduct?.id ?? null;
+  const attributeViewProductId = attributeViewProduct?.id ?? null;
+
   const variantQuery = useQuery<ProductVariant[]>({
     queryKey: ['product-variants', variantViewProductId ?? ''],
     queryFn: () => fetchVariants(variantViewProductId as string),
@@ -116,20 +124,11 @@ const Products: React.FC = () => {
   const loading = productPage.loading && productPage.totalCount === 0;
   const variantItems = variantQuery.data ?? [];
   const attributeItems = attributeQuery.data ?? [];
-  const variantPagination = usePagination(variantItems, pageSize);
-  const attributePagination = usePagination(attributeItems, pageSize);
+  const variantPagination = usePagination(variantItems, detailPageSize);
+  const attributePagination = usePagination(attributeItems, detailPageSize);
 
   const summarizeProduct = productPage.items.find((p) => p.id === summarizeProductId);
   const editingProduct = productPage.items.find((p) => p.id === editingProductId) ?? null;
-
-  const variantViewProduct = variantViewProductId
-    ? productPage.items.find((p) => p.id === variantViewProductId) ?? null
-    : null;
-  const attributeViewProduct = attributeViewProductId
-    ? productPage.items.find((p) => p.id === attributeViewProductId) ?? null
-    : null;
-
-  const viewingProductDetail = variantViewProductId !== null || attributeViewProductId !== null;
 
   if (loading) return <ProductsSkeleton isOwner={isOwner} />;
   const pageError = activeSection === 'products' ? productPage.error
@@ -172,7 +171,7 @@ const Products: React.FC = () => {
             <div>
               <button
                 className="mb-3 inline-flex items-center gap-1.5 rounded-md border-2 border-brand bg-brand-light px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
-                onClick={() => setVariantViewProductId(null)}
+                onClick={() => setProductDetailView(null)}
               >
                 ← Back to Products
               </button>
@@ -193,7 +192,7 @@ const Products: React.FC = () => {
               </button>
             )}
           </div>
-          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+          <ViewportTable onFitHeightChange={setDetailTableHeight} onRowHeightChange={setDetailRowHeight}>
             <div className="flex-1 overflow-x-auto overflow-y-hidden">
             {variantQuery.isLoading ? (
               <SkeletonTable
@@ -251,8 +250,8 @@ const Products: React.FC = () => {
                               message: `${v.isActive ? 'Deactivate' : 'Activate'} variant "${v.size ?? v.color ?? v.sku}"?`,
                               confirmLabel: v.isActive ? 'Deactivate' : 'Activate',
                               onConfirm: async () => {
-                                await vm.setVariantActive(variantViewProductId!, v.id, !v.isActive);
-                                queryClient.invalidateQueries({ queryKey: ['product-variants', variantViewProductId] });
+                                await vm.setVariantActive(variantViewProduct.id, v.id, !v.isActive);
+                                queryClient.invalidateQueries({ queryKey: ['product-variants', variantViewProduct.id] });
                                 setConfirmState(null);
                               },
                             })
@@ -288,7 +287,7 @@ const Products: React.FC = () => {
             <div>
               <button
                 className="mb-3 inline-flex items-center gap-1.5 rounded-md border-2 border-brand bg-brand-light px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand hover:text-white"
-                onClick={() => setAttributeViewProductId(null)}
+                onClick={() => setProductDetailView(null)}
               >
                 ← Back to Products
               </button>
@@ -312,7 +311,7 @@ const Products: React.FC = () => {
               {productPage.error}, try refreshing.
             </div>
           )}
-          <ViewportTable onFitHeightChange={setTableHeight} onRowHeightChange={setRowHeight}>
+          <ViewportTable onFitHeightChange={setDetailTableHeight} onRowHeightChange={setDetailRowHeight}>
             <div className="flex-1 overflow-x-auto overflow-y-hidden">
             {attributeQuery.isLoading ? (
               <SkeletonTable
@@ -368,7 +367,7 @@ const Products: React.FC = () => {
         </div>
       )}
 
-      {activeSection === 'products' && !viewingProductDetail && (
+      {activeSection === 'products' && !productDetailView && (
         <div className="bg-white rounded-lg border border-line p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-ink-primary">Products</h2>
@@ -427,7 +426,7 @@ const Products: React.FC = () => {
                         className="text-xs px-3 py-1.5 rounded-md bg-brand text-white hover:bg-brand-dark transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setVariantViewProductId(p.id);
+                          setProductDetailView({ kind: 'variants', product: p });
                           vm.loadProductDetails(p.id);
                         }}
                       >
@@ -439,7 +438,7 @@ const Products: React.FC = () => {
                         className="text-xs px-3 py-1.5 rounded-md border border-line text-ink-secondary hover:bg-canvas transition-colors"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAttributeViewProductId(p.id);
+                          setProductDetailView({ kind: 'attributes', product: p });
                           vm.loadProductDetails(p.id);
                         }}
                       >
